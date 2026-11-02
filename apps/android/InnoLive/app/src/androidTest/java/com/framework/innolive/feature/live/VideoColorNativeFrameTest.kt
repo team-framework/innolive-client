@@ -17,8 +17,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class VideoColorNativeFrameTest {
     @Test fun brightPreviewAppliesLinearExposureBeforeTheSenderColorAdjustment() {
-        // An encoded RGB midtone of 128 becomes 165 at +0.8 EV in linear sRGB,
-        // represented by limited-range Y=158. Multiplying display bytes gives 223 instead.
+        // 인코딩된 RGB 중간 톤 128은 선형 sRGB에서 +0.8 EV일 때 165가 되며,
+        // 제한 범위 Y=158로 표현됩니다. 표시 바이트에 곱하면 223이 나옵니다.
         val source = PreviewYuvSnapshot(8, 8,
             ByteArray(64) { 126.toByte() }, ByteArray(16) { 128.toByte() }, ByteArray(16) { 128.toByte() })
         val settings = VideoLookPreset.BRIGHT.applyTo(BroadcastVideoQualitySettings())
@@ -74,7 +74,7 @@ class VideoColorNativeFrameTest {
                         val snapshot = PreviewYuvSnapshot(8, 8,
                             ByteArray(64) { y.toByte() }, ByteArray(16) { u.toByte() }, ByteArray(16) { v.toByte() })
                         val settings = preset.applyTo(BroadcastVideoQualitySettings())
-                        // Equal EV means the source already has the selected hardware exposure.
+                        // EV가 같으면 원본에 이미 선택한 하드웨어 노출이 적용돼 있습니다.
                         val card = renderer.render(snapshot, settings, preset.exposureEV).previews.getValue(preset)
                         val source = JavaI420Buffer.allocate(8, 8)
                         repeat(64) { source.dataY.put(it, y.toByte()) }

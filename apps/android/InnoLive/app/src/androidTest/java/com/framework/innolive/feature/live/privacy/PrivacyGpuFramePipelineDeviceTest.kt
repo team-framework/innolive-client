@@ -138,7 +138,7 @@ class PrivacyGpuFramePipelineDeviceTest {
     }
 
     @Test fun paddedPlanesAndOddDimensionsPreserveVisiblePixels() {
-        source().release() // Initialize WebRTC before wrapping independently padded planes.
+        source().release() // 독립적으로 패딩된 plane을 감싸기 전에 WebRTC를 초기화합니다.
         val width = 97; val height = 65
         val yStride = 112; val chromaStride = 64
         val y = ByteBuffer.allocateDirect(yStride * height)
@@ -179,7 +179,7 @@ class PrivacyGpuFramePipelineDeviceTest {
                     try {
                         val left = pixels.dataY.get(160*pixels.strideY+145).toInt() and 255
                         val right = pixels.dataY.get(160*pixels.strideY+175).toInt() and 255
-                        // Sigma 48 at full resolution must turn the hard edge into a smooth gradient.
+                        // 전체 해상도의 sigma 48은 경계를 부드러운 그라데이션으로 바꿔야 합니다.
                         assertTrue("Gaussian missing: left=$left right=$right",left in 25..190 && right in 50..225 && left<right)
                     } finally { pixels.release() }
                 } finally { texture.release() }

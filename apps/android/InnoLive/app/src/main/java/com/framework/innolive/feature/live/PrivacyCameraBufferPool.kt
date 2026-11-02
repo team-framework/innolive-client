@@ -3,7 +3,7 @@ package com.framework.innolive.feature.live
 import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
 
-/** Up to [maxIdle] idle buffers; a leased crop/view keeps its storage out of the pool until its final release. */
+/** 유휴 버퍼는 최대 [maxIdle]개까지 둡니다. 대여한 crop·view는 마지막 해제 전까지 저장 공간을 풀에 돌려주지 않습니다. */
 internal class PrivacyCameraBufferPool(
     /** 돌려받은 버퍼를 몇 개까지 다시 쓸지입니다. 녹화처럼 다른 스레드가 프레임을 잠시 붙잡으면 늘립니다. */
     private val maxIdle: Int = 1,

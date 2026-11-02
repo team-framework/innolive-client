@@ -9,11 +9,11 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 /**
- * Stores only replay-safe YouTube UI preferences.
+ * 다시 적용해도 안전한 YouTube UI 환경설정만 저장합니다.
  *
- * OAuth credentials and server session ownership tokens intentionally belong in their dedicated
- * secure stores and must never be added here. A saved connection is a display cache: a successful
- * `GET /streaming-accounts` response remains the authoritative connection state.
+ * OAuth 자격 증명과 서버 세션 소유 토큰은 의도적으로 전용 보안 저장소에 두며, 여기에 추가하면
+ * 안 됩니다. 저장된 연결 정보는 표시용 캐시이며, 연결 상태의 기준은 성공한
+ * `GET /streaming-accounts` 응답입니다.
  */
 class YouTubePreferencesStore(
     context: Context,
@@ -110,7 +110,7 @@ class YouTubePreferencesStore(
         editor.apply()
     }
 
-    /** Clears the non-sensitive cache when a user explicitly signs out or deletes their account. */
+    /** 사용자가 직접 로그아웃하거나 계정을 삭제하면 민감하지 않은 캐시를 지웁니다. */
     fun clearAccountData() {
         check(preferences.edit().clear().commit()) { "Unable to clear YouTube preferences." }
     }
@@ -149,7 +149,7 @@ internal fun defaultYouTubeBroadcastTitle(
     today.format(DateTimeFormatter.BASIC_ISO_DATE),
 )
 
-/** A locale-neutral test fallback. Production code always supplies a Context. */
+/** 로케일과 무관한 테스트용 대체값입니다. 운영 코드는 항상 Context를 전달합니다. */
 internal fun defaultYouTubeBroadcastTitle(today: LocalDate = LocalDate.now()): String =
     "${today.format(DateTimeFormatter.BASIC_ISO_DATE)} InnoLive"
 

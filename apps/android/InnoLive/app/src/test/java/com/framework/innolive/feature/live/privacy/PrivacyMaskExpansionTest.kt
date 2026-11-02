@@ -39,10 +39,10 @@ class PrivacyMaskExpansionTest {
                 val nx = x + dx; val ny = y + dy
                 nx in 0 until size && ny in 0 until size && face[ny * size + nx].toInt() != 0
             } }
-            // Every face cell stays protected and nothing beyond the one-cell edge is added.
+            // 모든 얼굴 셀은 보호된 상태로 남고, 한 셀 경계 밖으로는 아무것도 추가되지 않습니다.
             assertEquals("cell $x,$y", nearFace, protected[y * size + x].toInt() != 0)
         }
-        // The bounding-box corner of the oval stays unprotected, so the area is not a box.
+        // 타원의 경계 상자 모서리는 보호되지 않으므로, 영역은 사각형이 아닙니다.
         assertEquals(0, protected[(80 - 16) * size + (80 - 12)].toInt())
     }
 

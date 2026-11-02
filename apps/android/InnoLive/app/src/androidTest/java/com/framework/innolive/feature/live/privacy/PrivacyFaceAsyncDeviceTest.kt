@@ -93,7 +93,7 @@ class PrivacyFaceAsyncDeviceTest {
         return coordinator.exceptions(image, objects, layout, millis * 1_000_000)
     }
 
-    /** Runs 100ms frames until the next recognition is submitted; returns that frame's time. */
+    /** 다음 인식이 제출될 때까지 100ms 간격 프레임을 실행하고, 그 프레임의 시간을 반환합니다. */
     private fun untilSubmitted(coordinator: PrivacyFaceCoordinator, worker: Worker, image: Bitmap, from: Long,
                                expected: Set<Int>): Long {
         var time = from
@@ -105,11 +105,11 @@ class PrivacyFaceAsyncDeviceTest {
         return time - 100
     }
 
-    /** One matching result approves the track on the next frame. Returns that frame. */
+    /** 일치하는 결과 하나로 다음 프레임에서 트랙을 승인합니다. 그 프레임을 반환합니다. */
     private fun confirm(coordinator: PrivacyFaceCoordinator, worker: Worker, image: Bitmap): Long {
         val first = untilSubmitted(coordinator, worker, image, 1000, emptySet())
         worker.complete(embedding)
-        // The result is used on the next frame without blocking capture.
+        // 결과는 캡처를 막지 않고 다음 프레임에서 사용합니다.
         assertEquals(setOf(0), frame(coordinator, image, first + 100))
         return first + 100
     }

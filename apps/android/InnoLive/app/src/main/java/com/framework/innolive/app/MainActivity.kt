@@ -881,7 +881,7 @@ fun AppNavigation(
     }
 
     val showStudio = LiveRoute in backStack && session != null && !isAccountDeletionPending
-    // Keep navigation callbacks current while the studio remains composed below settings.
+    // 설정 화면 아래에 스튜디오가 구성된 채로 남아 있는 동안 내비게이션 콜백을 최신 상태로 유지합니다.
     val visibleYouTubeAccount = youtubeAccount.takeIf {
         session != null && previousProfileEmail == session?.profileEmail
     }

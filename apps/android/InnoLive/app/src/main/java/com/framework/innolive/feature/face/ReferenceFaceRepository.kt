@@ -17,7 +17,7 @@ internal data class ReferenceFaceAppendResult(
     val localImageStoreFailed: Boolean,
 )
 
-/** Coordinates the account-scoped face API with its matching local image cache. */
+/** 계정 단위 얼굴 API와 이에 대응하는 로컬 이미지 캐시를 함께 관리합니다. */
 internal class ReferenceFaceRepository(
     context: Context,
     private val apiFactory: () -> ReferenceFaceApi = {

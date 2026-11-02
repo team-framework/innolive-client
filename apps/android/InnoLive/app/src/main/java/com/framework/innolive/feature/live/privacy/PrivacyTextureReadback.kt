@@ -7,7 +7,7 @@ import org.webrtc.ThreadUtils
 import org.webrtc.YuvConverter
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** CPU encoders must not queue texture conversion behind the next AI inference. */
+/** CPU 인코더의 텍스처 변환이 다음 AI 추론 뒤에 대기하면 안 됩니다. */
 internal class PrivacyTextureReadback(sharedContext: EglBase.Context) : AutoCloseable {
     private val thread = HandlerThread("privacy-texture-readback").apply { start() }
     val handler = Handler(thread.looper)
@@ -30,7 +30,7 @@ internal class PrivacyTextureReadback(sharedContext: EglBase.Context) : AutoClos
         }
     }
 
-    // Called only after all output texture references have been released.
+    // 모든 출력 텍스처 참조가 해제된 뒤에만 호출합니다.
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
         ThreadUtils.invokeAtFrontUninterruptibly(handler) {

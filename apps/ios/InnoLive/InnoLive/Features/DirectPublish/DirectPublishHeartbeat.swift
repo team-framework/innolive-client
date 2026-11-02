@@ -153,7 +153,7 @@ struct DirectHeartbeatBuilder {
         return formatter.string(from: date)
     }
 
-    private static func rounded(_ value: Double) -> Double { (value * 10).rounded() / 10 }
+    private nonisolated static func rounded(_ value: Double) -> Double { (value * 10).rounded() / 10 }
 }
 
 enum DirectHeartbeatDevice {

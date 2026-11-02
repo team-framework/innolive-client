@@ -84,7 +84,7 @@ class ChzzkOAuthDialogTest {
         evaluate("location.href = '$redirect?code=fixture&state=expected'; true")
         compose.waitUntil(10_000) { codes.size == 1 }
         compose.runOnIdle { assertEquals(listOf("fixture"), codes); assertTrue(failures.isEmpty()) }
-        // onPageStarted and shouldOverrideUrlLoading may both observe the callback.
+        // onPageStarted와 shouldOverrideUrlLoading이 모두 콜백을 관찰할 수 있습니다.
         evaluate("location.href = '$redirect?code=duplicate&state=wrong'; true")
         compose.waitForIdle()
         compose.runOnIdle { assertEquals(listOf("fixture"), codes); assertTrue(failures.isEmpty()) }
@@ -120,7 +120,7 @@ class ChzzkOAuthDialogTest {
     }
 
     @Test fun configuredOAuthPageRendersOnTheDevice() {
-        // Explicit opt-in: normal regression tests never contact the configured server.
+        // 명시적으로 선택해야 실행됩니다. 일반 회귀 테스트는 설정된 서버에 접속하지 않습니다.
         assumeTrue(InstrumentationRegistry.getArguments().getString("chzzkLiveOAuthSmoke") == "true")
         val state = newChzzkOAuthState()
         val config = ChzzkApi(BuildConfig.INNOLIVE_SERVER_URL).use { api -> runBlocking { api.config(state) } }

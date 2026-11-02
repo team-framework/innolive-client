@@ -1,6 +1,6 @@
 package com.framework.innolive.feature.live
 
-/** User choices are independent of the current camera's supported capture range. */
+/** 사용자 선택값은 현재 카메라가 지원하는 캡처 범위와 무관합니다. */
 data class BroadcastVideoQualitySettings(
     val stabilizationEnabled: Boolean = true,
     val exposureEV: Float = 0f,

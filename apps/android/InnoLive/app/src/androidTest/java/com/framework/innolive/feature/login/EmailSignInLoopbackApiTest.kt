@@ -19,7 +19,7 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-/** Sends real loopback HTTP requests through the app's OkHttp API without a remote account. */
+/** 원격 계정 없이 앱의 OkHttp API로 실제 루프백 HTTP 요청을 보냅니다. */
 class EmailSignInLoopbackApiTest {
     @Test fun debugAppPermitsOnlyLoopbackCleartext() {
         val policy = NetworkSecurityPolicy.getInstance()
@@ -128,7 +128,7 @@ class EmailSignInLoopbackApiTest {
                     server.accept().use { socket -> respond(socket, status, responseBody) }
                 }
                 val endpoint = "http://127.0.0.1:${server.localPort}/auth/sign-in"
-                // Request capture is fulfilled by the server thread before the API returns.
+                // API가 반환되기 전에 서버 스레드가 요청 캡처를 채웁니다.
                 action(endpoint)
                 return captured.get(5, TimeUnit.SECONDS)
             }
