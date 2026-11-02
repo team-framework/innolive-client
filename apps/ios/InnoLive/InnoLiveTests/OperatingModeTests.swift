@@ -97,11 +97,12 @@ final class OperatingModeTests: XCTestCase {
     }
 
     @MainActor
-    func testBroadcastTargetsStayAvailableWhileMonitorIsOff() throws {
+    func testStoredAlwaysLocalChoiceNoLongerPinsLocalMode() throws {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "OperatingModeTests.\(UUID())"))
         defaults.set(true, forKey: OperatingModeMonitor.alwaysLocalKey)
         let monitor = OperatingModeMonitor(defaults: defaults)
-        XCTAssertEqual(monitor.state.mode, .local(.userChoice))
+        XCTAssertNotEqual(monitor.state.mode, .local(.userChoice))
+        XCTAssertFalse(defaults.bool(forKey: OperatingModeMonitor.alwaysLocalKey))
         XCTAssertNil(monitor.broadcastUnavailableReason)
     }
 }
