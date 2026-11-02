@@ -40,10 +40,17 @@ formatting; API timestamps retain their original parsing rules.
   diagnostic log text, URLs, or user-generated content.
 - Preserve format-argument types and counts in translations. Do not build a
   sentence by concatenating separately translated fragments.
+- Compiler-extracted keys that hold only technical notation (`720p`, `FHD`,
+  `%lld fps`, `%@ · %@`) go in `Localizable` with `"shouldTranslate": false`
+  and the same value in `ko`, `en`, and `ja`. The validator skips their
+  translation checks, and call sites that share the key stay unchanged.
 
 Terminology: 로그인 → Sign In / ログイン; 방송 → broadcast / 配信;
 공개 → Public / 公開; 일부 공개 → Unlisted / 限定公開;
-비공개 → Private / 非公開. Provider names remain branded names.
+비공개 → Private / 非公開; 블러 → Blur / ぼかし;
+비식별화 → Anonymization / 匿名化; 실험실 → Labs / ラボ;
+등록된 얼굴 → Registered Faces / 登録した顔. Provider names remain branded
+names.
 
 ## Automated verification
 

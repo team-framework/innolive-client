@@ -169,7 +169,7 @@ struct HomeView: View {
                 }
             }
 
-            BroadcastControllsView(
+            BroadcastControlsView(
                 isBroadcasting: $isBroadcasting,
                 previewTransition: $previewTransition,
                 authentication: authentication,
