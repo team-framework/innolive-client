@@ -44,11 +44,11 @@ abstract class VerifyJniKeepsTask : DefaultTask() {
 }
 
 internal object JniKeepContract {
-    /** Contract lines use the R8 `seeds.txt` notation; comments and blank lines are ignored. */
+    /** 계약 줄은 R8 `seeds.txt` 표기를 따르며, 주석과 빈 줄은 무시합니다. */
     fun parse(lines: List<String>): List<String> = lines.map(String::trim)
         .filter { it.isNotEmpty() && !it.startsWith("#") }
 
-    /** A member entry also requires its class, so a renamed owner cannot satisfy the contract. */
+    /** 멤버 항목은 소속 클래스도 함께 요구하므로, 이름이 바뀐 소유 클래스로는 계약을 충족할 수 없습니다. */
     fun missing(contract: List<String>, seeds: Set<String>): List<String> =
         contract.flatMap { listOf(it.substringBefore(": "), it) }.distinct().filter { it !in seeds }
 }
