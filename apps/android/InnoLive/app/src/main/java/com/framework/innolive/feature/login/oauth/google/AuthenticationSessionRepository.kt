@@ -13,11 +13,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.CancellationException
 
 /**
- * Storage boundary for the encrypted authentication session.
+ * 암호화된 인증 세션의 저장소 경계입니다.
  *
- * The repository is the only owner of the in-memory session and the refresh
- * operation. Callers can provide a scope in tests; production callers get a
- * repository-owned scope that is cancelled by [close].
+ * 메모리 세션과 갱신 작업은 repository만 소유합니다. 테스트에서는 호출자가 scope를
+ * 넘길 수 있고, 운영 코드에서는 [close]로 취소되는 repository 소유 scope를 씁니다.
  */
 interface AuthenticationSessionStore {
     fun load(): GoogleSessionStore.Session?
@@ -27,7 +26,7 @@ interface AuthenticationSessionStore {
     fun clear()
 }
 
-/** Server boundary used by [AuthenticationSessionRepository]. */
+/** [AuthenticationSessionRepository]가 쓰는 서버 경계입니다. */
 interface AuthenticationApi {
     suspend fun refresh(currentSession: GoogleSessionStore.Session): GoogleSessionStore.Session
 }
@@ -47,13 +46,13 @@ class AuthenticationSessionRepository(
     private var sessionGeneration = 0L
     private var isClosed = false
 
-    /** The latest persisted session, updated by every repository mutation. */
+    /** 가장 최근에 저장된 세션이며, repository의 모든 변경에서 갱신됩니다. */
     val session: StateFlow<GoogleSessionStore.Session?> = _session.asStateFlow()
 
     val currentSession: GoogleSessionStore.Session?
         get() = synchronized(lock) { session.value }
 
-    /** Reloads the persisted session and invalidates an in-flight refresh. */
+    /** 저장된 세션을 다시 읽고 진행 중인 갱신을 무효화합니다. */
     fun reload(): GoogleSessionStore.Session? {
         val refreshToCancel: Deferred<GoogleSessionStore.Session>?
         val reloadedSession: GoogleSessionStore.Session?
@@ -68,7 +67,7 @@ class AuthenticationSessionRepository(
         return reloadedSession
     }
 
-    /** Saves a newly authenticated session and makes it the current session. */
+    /** 새로 인증된 세션을 저장하고 현재 세션으로 지정합니다. */
     fun save(session: GoogleSessionStore.Session) {
         val refreshToCancel: Deferred<GoogleSessionStore.Session>?
         synchronized(lock) {
@@ -83,8 +82,8 @@ class AuthenticationSessionRepository(
     }
 
     /**
-     * Refreshes the current session. Calls made while a refresh is running
-     * await the same Deferred and therefore share one network request.
+     * 현재 세션을 갱신합니다. 갱신 중에 들어온 호출은 같은 Deferred를 기다리므로
+     * 네트워크 요청 하나를 공유합니다.
      */
     suspend fun refresh(): GoogleSessionStore.Session {
         val refreshTask = synchronized(lock) {
@@ -114,7 +113,7 @@ class AuthenticationSessionRepository(
 
     suspend fun refreshAccessToken(): String = refresh().accessToken
 
-    /** Clears both the in-memory and encrypted persisted session. */
+    /** 메모리 세션과 암호화해 저장한 세션을 모두 지웁니다. */
     fun clear() {
         var refreshToCancel: Deferred<GoogleSessionStore.Session>? = null
         try {
@@ -130,7 +129,7 @@ class AuthenticationSessionRepository(
         }
     }
 
-    /** Cancels an in-flight refresh and releases the repository-owned scope. */
+    /** 진행 중인 갱신을 취소하고 repository 소유 scope를 해제합니다. */
     fun close() {
         val refreshToCancel: Deferred<GoogleSessionStore.Session>?
         synchronized(lock) {
@@ -160,11 +159,10 @@ class AuthenticationSessionRepository(
             ) {
                 throw CancellationException("Authentication session changed while refreshing.")
             }
-            // GoogleSessionStore persists the ciphertext and IV in one commit.
+            // GoogleSessionStore는 암호문과 IV를 한 번의 commit으로 저장합니다.
             store.save(refreshedSession)
-            // StateFlow is updated in the same critical section as persistence,
-            // so observers see the result even when the caller was cancelled
-            // after the store commit.
+            // StateFlow는 저장과 같은 임계 구역에서 갱신되므로, 저장소 commit 뒤에 호출자가
+            // 취소돼도 관찰자는 결과를 받습니다.
             _session.value = refreshedSession
             sessionGeneration += 1
         }
