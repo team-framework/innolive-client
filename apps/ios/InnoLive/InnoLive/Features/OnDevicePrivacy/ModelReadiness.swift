@@ -81,39 +81,3 @@ final class ModelReadinessStore: ObservableObject {
         state = .ready
     }
 }
-
-/// Readiness line on the local recording screen, including the warm-up time and cache hint for device checks.
-struct ModelReadinessReadout: View {
-    @ObservedObject var store: ModelReadinessStore
-
-    var body: some View {
-        Group {
-            switch store.state {
-            case .missing:
-                Text(String(localized: "온디바이스 AI 모델이 없는 빌드입니다."))
-            case .compiling(let progress):
-                VStack(spacing: 2) {
-                    Label(String(format: String(localized: "AI 모델 준비 중 %lld%%"), Int64((progress * 100).rounded())),
-                          systemImage: "hourglass")
-                    if !store.wasWarmedForThisBuild {
-                        Text(String(localized: "이 빌드의 첫 준비라 1분 정도 걸릴 수 있어요."))
-                    }
-                }
-            case .ready:
-                Text(readyDetail)
-            case .failed(let message):
-                Text(String(format: String(localized: "AI 모델을 준비하지 못했습니다. %@"), message))
-                    .foregroundStyle(.red)
-            }
-        }
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-        .multilineTextAlignment(.center)
-        .accessibilityIdentifier("model-readiness")
-    }
-
-    private var readyDetail: String {
-        let seconds = store.lastWarmSeconds.map { String(format: "%.1f", $0) } ?? "-"
-        return String(format: String(localized: "AI 모델 준비됨 · %@초"), seconds)
-    }
-}

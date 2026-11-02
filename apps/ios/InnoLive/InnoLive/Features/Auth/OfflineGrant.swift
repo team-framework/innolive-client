@@ -81,10 +81,6 @@ nonisolated struct OfflineGrant: Codable, Equatable, Sendable {
     static var unconfirmedMessage: String {
         String(localized: "이 계정의 로컬 녹화 권한을 확인하지 못했습니다. 인터넷에 연결해 한 번 로그인 상태를 확인해 주세요.")
     }
-
-    static var staleNotice: String {
-        String(localized: "오프라인 사용 기간이 지났어요. 녹화는 계속할 수 있고, 인터넷에 연결되면 자동으로 다시 확인해요.")
-    }
 }
 
 protocol OfflineGrantStoring {
