@@ -2,9 +2,11 @@ import Foundation
 
 extension YouTubeIntegration {
     /// 플랫폼 계정·방송 설정 없이 세션과 영상 연결만 열어 서버 또는 온디바이스 비식별화 결과를 보여 준다.
+    /// 로컬 모드는 세션 없이 이 기기의 로컬 촬영으로 연다.
     var isPrivacyOnlySession: Bool {
-        isPrivacyOnlyPreparation && session != nil && preparationStatus == nil && !statePolicy.isBroadcastActive
-            && statePolicy.broadcastPhase != .prepared
+        localCaptureID != nil
+            || (isPrivacyOnlyPreparation && session != nil && preparationStatus == nil && !statePolicy.isBroadcastActive
+                && statePolicy.broadcastPhase != .prepared)
     }
 
     var canContinuePreparedBroadcast: Bool {
@@ -206,6 +208,11 @@ extension YouTubeIntegration {
             return await task.value
         }
         guard !isYouTubeConnectionOperationInProgress, !isSwitchingToOnDevice else { return false }
+        if startsPrivacyOnlyLocally {
+            return await startPrivacyOnlyLocally(preferredCameraID: preferredCameraID, preferredAudioID: preferredAudioID,
+                                                 preferredVideoQuality: preferredVideoQuality,
+                                                 handoffCamera: handoffCamera, restoreLocalPreview: restoreLocalPreview)
+        }
         cancelBroadcastCountdown()
         let lifecycleGeneration = hasStartedYouTubeBroadcast ? nil : lifecycle.beginPreparation()
         let chosen = providers ?? [provider]
@@ -237,6 +244,10 @@ extension YouTubeIntegration {
     }
 
     func cancelBroadcastPreparation(accessToken: String?) async {
+        if localCaptureID != nil {
+            await closeLocalCapture(keepsResult: true)
+            return
+        }
         invalidateBroadcastLifecycle()
         let hasWork = preparationStatus != nil
             || broadcastPreparationTask != nil

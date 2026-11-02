@@ -10,6 +10,35 @@ extension YouTubeIntegration {
 
     var isLocalTakeRecording: Bool { localCaptureID != nil && lifecycle.phase == .live }
 
+    /// Admin local mode has no server to create a session on, so 비식별화 시작 records on this device instead.
+    var startsPrivacyOnlyLocally: Bool { operatingMode.broadcastUnavailableReason != nil }
+
+    func startPrivacyOnlyLocally(
+        preferredCameraID: String?,
+        preferredAudioID: String?,
+        preferredVideoQuality: CameraQualityPreset,
+        handoffCamera: () async -> Void,
+        restoreLocalPreview: () async -> Void
+    ) async -> Bool {
+        clearError()
+        guard storedAdministrator(accessToken: api.currentAccessToken(fallback: "")) else {
+            errorMessage = OfflineGrant.unconfirmedMessage
+            return false
+        }
+        await handoffCamera()
+        do {
+            try await openLocalCapture(preferredCameraID: preferredCameraID, preferredAudioID: preferredAudioID,
+                                       preferredVideoQuality: preferredVideoQuality)
+            try startLocalTake()
+            if isLocalTakeRecording { return true }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        await closeLocalCapture()
+        await restoreLocalPreview()
+        return false
+    }
+
     func openLocalCapture(
         preferredCameraID: String?,
         preferredAudioID: String?,
@@ -69,12 +98,13 @@ extension YouTubeIntegration {
         recordingCoordinator.endLocally()
     }
 
-    func closeLocalCapture() async {
+    /// `keepsResult` leaves the finished take on the home end screen instead of clearing it.
+    func closeLocalCapture(keepsResult: Bool = false) async {
         guard localCaptureID != nil else { return }
         stopLocalTake()
         localCaptureID = nil
         operatingMode.send(.capture(active: false))
         await videoUplink.stopAndWait()
-        lifecycle.reset()
+        if !keepsResult { lifecycle.reset() }
     }
 }

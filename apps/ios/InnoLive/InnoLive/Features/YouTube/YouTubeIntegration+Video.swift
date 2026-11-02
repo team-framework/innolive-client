@@ -133,6 +133,10 @@ extension YouTubeIntegration {
     }
 
     func recoverFromVideoUplinkFailure(accessToken: String?) async {
+        if localCaptureID != nil {
+            await closeLocalCapture(keepsResult: true)
+            return
+        }
         guard !isRecoveringVideoFailure, !isEndingSession else { return }
         cancelBroadcastCountdown()
         countdownTask?.cancel()

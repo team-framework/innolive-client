@@ -275,6 +275,7 @@ extension YouTubeIntegration {
     }
 
     func handleAppMovedToBackground(accessToken: String?) async {
+        stopLocalTake()
         cancelBroadcastCountdown()
         shouldResumeAfterBackgroundPause = false
         let shouldPauseForBackground = hasObservedActiveScene && canPauseYouTubeBroadcast
