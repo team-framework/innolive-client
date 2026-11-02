@@ -101,8 +101,8 @@ final class BroadcastFeedbackTests: XCTestCase {
         XCTAssertEqual(status.buttonTitle, expected.2)
     }
 
-    private func controls(previewTransition: BroadcastPreviewTransition = .none) -> BroadcastControllsView {
-        BroadcastControllsView(
+    private func controls(previewTransition: BroadcastPreviewTransition = .none) -> BroadcastControlsView {
+        BroadcastControlsView(
             isBroadcasting: .constant(false),
             previewTransition: .constant(previewTransition),
             authentication: AuthSession(),

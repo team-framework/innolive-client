@@ -298,6 +298,5 @@ git diff -- apps/ios docs/ios-code-quality-refactor.md
 - `AuthenticationAPI`, `ReferenceFaceAPI`, `YouTubeAPI`, WebSocket은 `URLSession.shared`를 사용한다. HTTP transport와 endpoint adapter 분리는 남아 있다.
 - signaling decode 실패와 알 수 없는 message type은 관찰 가능한 진단으로 전달되지 않는다.
 - Auth와 YouTube 상태·저장 test는 추가했지만 face task, WebRTC teardown, reconnect, camera rollback test는 없다.
-- `BroadcastControllsView` 파일명과 타입명의 `Controlls` 오탈자가 남아 있다.
 - simulator build와 unit test는 카메라, Bluetooth audio, TURN, NAT, cellular handoff를 입증하지 않는다.
 - 실제 기기에서 Google·Apple·이메일 인증, YouTube 준비·go-live·pause·resume·stop, 얼굴 등록·삭제를 확인해야 한다.
