@@ -1,6 +1,6 @@
 package com.framework.innolive.feature.live
 
-/** Numeric WebRTC video diagnostics; no media, session IDs or credentials. */
+/** WebRTC 영상 수치 진단 정보이며, 미디어·세션 ID·자격 증명은 담지 않습니다. */
 internal data class PrivacyVideoStats(
     val sampledAtNs: Long,
     val encoded: Long?,

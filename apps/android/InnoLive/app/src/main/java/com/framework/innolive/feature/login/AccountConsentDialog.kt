@@ -57,7 +57,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 
-/** Lets UI tests supply a local document without depending on the public website. */
+/** UI 테스트가 공개 웹사이트에 의존하지 않고 로컬 문서를 넣을 수 있게 합니다. */
 internal val LocalAccountConsentPolicyUrl = compositionLocalOf<String?> { null }
 
 @Composable

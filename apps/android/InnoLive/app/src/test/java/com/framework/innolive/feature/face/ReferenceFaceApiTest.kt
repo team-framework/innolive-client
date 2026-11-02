@@ -303,7 +303,7 @@ class ReferenceFaceApiTest {
                         Thread.sleep(5)
                     }
                 } catch (_: InterruptedException) {
-                    // Cancellation may interrupt the interceptor thread before the next poll.
+                    // 다음 폴링 전에 취소가 인터셉터 스레드를 중단시킬 수 있습니다.
                 } finally {
                     if (chain.call().isCanceled()) cancellationObserved.countDown()
                 }
@@ -318,7 +318,7 @@ class ReferenceFaceApiTest {
                     try {
                         api.register(image, "access-token") { error("refresh must not run") }
                     } catch (_: CancellationException) {
-                        // Expected when the suspend call is cancelled by the test.
+                        // 테스트가 suspend 호출을 취소하면 발생하는 예상된 예외입니다.
                     }
                 }
                 assertTrue(requestStarted.await(2, TimeUnit.SECONDS))

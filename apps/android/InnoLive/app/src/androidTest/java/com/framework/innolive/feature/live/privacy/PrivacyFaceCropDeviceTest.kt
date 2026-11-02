@@ -24,7 +24,7 @@ class PrivacyFaceCropDeviceTest {
     private fun assertIndependentCrop(box: PrivacySegmentation.Box, offset: Int, side: Int) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val pixels = IntArray(64 * 64) { Color.rgb(it % 64, it / 64, 120) }
-        // This is the immutable RGB bitmap produced by the unrotated frame path.
+        // 회전하지 않은 프레임 경로가 만드는 변경 불가 RGB 비트맵입니다.
         val source = Bitmap.createBitmap(pixels, 64, 64, Bitmap.Config.ARGB_8888)
         assertFalse(source.isMutable)
         try {

@@ -67,7 +67,7 @@ class BroadcastVideoControlsTest {
         compose.runOnIdle { controlsVisible.value = true }
         compose.onNodeWithText(compose.activity.getString(R.string.video_controls_title)).assertExists()
         compose.waitForIdle()
-        // Semantics can be ready before the separate sheet window has been composited.
+        // 별도 시트 창이 합성되기 전에 semantics가 먼저 준비될 수 있습니다.
         compose.waitUntil(5_000) {
             val displayed = checkNotNull(automation.takeScreenshot())
             try {
