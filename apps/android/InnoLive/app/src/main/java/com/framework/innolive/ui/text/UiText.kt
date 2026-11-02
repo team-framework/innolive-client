@@ -9,8 +9,8 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.ui.platform.LocalContext
 
 /**
- * Locale-independent presentation content. Resolve it only when rendering so a
- * configuration change never leaves an earlier locale in a retained state.
+ * 로케일과 무관한 화면 표시 내용입니다. 렌더링 시점에만 해석해야
+ * 구성 변경 뒤 보존된 상태에 이전 로케일 문자열이 남지 않습니다.
  */
 sealed interface UiText {
     data class Resource(
@@ -24,14 +24,13 @@ sealed interface UiText {
         val args: List<Any> = listOf(quantity),
     ) : UiText
 
-    /** User and server supplied values that must remain verbatim. */
+    /** 그대로 보여 줘야 하는 사용자·서버 제공 값입니다. */
     data class Dynamic(val value: String) : UiText
 }
 
 /**
- * Keeps presentation state locale-independent across activity recreation. The
- * values currently used as resource arguments are Android-saveable primitives
- * (for example a channel title); arbitrary objects must not be passed here.
+ * 액티비티가 다시 생성돼도 표시 상태를 로케일과 무관하게 유지합니다. 현재 리소스 인자로 쓰는
+ * 값은 Android에서 저장 가능한 기본형(예: 채널 제목)이며, 임의 객체를 넘기면 안 됩니다.
  */
 val UiTextSaver: Saver<UiText, Any> = listSaver(
     save = { text ->
@@ -58,7 +57,7 @@ val UiTextSaver: Saver<UiText, Any> = listSaver(
     },
 )
 
-/** Saves an optional retained message, such as the status preceding OAuth. */
+/** OAuth 직전 상태처럼 선택적으로 보존하는 메시지를 저장합니다. */
 val NullableUiTextSaver: Saver<UiText?, Any> = listSaver(
     save = { text ->
         when (text) {

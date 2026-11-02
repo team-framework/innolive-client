@@ -33,7 +33,7 @@ sealed interface BroadcastEvent {
 
     data class ApiFailure(val guidance: ServerErrorGuidance) : BroadcastEvent
 
-    /** A server-provided message that is intentionally displayed verbatim. */
+    /** 의도적으로 그대로 표시하는 서버 제공 메시지입니다. */
     data class ServerMessage(val value: String) : BroadcastEvent
 
     /** 앱이 정한 안내 문구입니다. 서버 오류 코드가 없거나 플랫폼별 문구를 쓸 때 씁니다. */

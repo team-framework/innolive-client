@@ -6,8 +6,10 @@ import android.opengl.EGL14
 import org.webrtc.EglBase
 import org.webrtc.GlUtil
 
-/** One immutable GPU snapshot. Its shared context outlives the producing graph.
- * Pixel mapping/Bitmap copying can run on the face worker without blocking the video queue. */
+/**
+ * 변경 불가 GPU 스냅샷 하나입니다. 공유 컨텍스트는 이를 만든 그래프보다 오래 유지됩니다.
+ * 픽셀 매핑·Bitmap 복사는 영상 큐를 막지 않고 얼굴 worker에서 실행할 수 있습니다.
+ */
 internal class PrivacyFaceReadback private constructor(
     private val pool: PrivacyFaceReadbackPool, private val egl: EglBase, private val buffer: Int, private val fence: Long,
     private val width: Int, private val height: Int,
@@ -67,7 +69,7 @@ internal class PrivacyFaceReadback private constructor(
     }
 
     companion object {
-        /** Called with the producer's current context and crop framebuffer bound. */
+        /** 생산자의 현재 컨텍스트와 crop 프레임 버퍼가 바인딩된 상태에서 호출합니다. */
         fun issue(pool: PrivacyFaceReadbackPool, width: Int, height: Int): PrivacyFaceReadback {
             require(width > 0 && height > 0 && width.toLong() * height * 4 <= Int.MAX_VALUE)
             val child = pool.acquire()
@@ -94,7 +96,7 @@ internal class PrivacyFaceReadback private constructor(
     }
 }
 
-/** One context and one outstanding snapshot per graph; a pending snapshot owns the last lease. */
+/** 그래프마다 컨텍스트 하나와 처리 중 스냅샷 하나를 둡니다. 대기 중인 스냅샷이 마지막 lease를 소유합니다. */
 internal class PrivacyFaceReadbackPool(sharedContext: EglBase.Context) : AutoCloseable {
     private val egl = EglBase.create(sharedContext, EglBase.configBuilder().setOpenGlesVersion(3)
         .setSupportsPixelBuffer(true).createConfigAttributes())

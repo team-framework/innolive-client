@@ -116,12 +116,11 @@ internal data class PendingAccountDeletion(
 )
 
 /**
- * Owns the complete deletion transaction outside Compose. Once deletion starts, cancellation of
- * the caller cannot interrupt the transition from the server result to local cleanup. The remote
- * pending phase is persisted before the request so a lost response can be reconciled by retrying
- * the idempotent server deletion; an explicit server failure clears it and keeps the login.
- * Local-data and authentication cleanup each have their own phase, so a restart resumes only the
- * unfinished step.
+ * Compose 밖에서 삭제 트랜잭션 전체를 소유합니다. 삭제가 시작되면 호출자가 취소돼도 서버
+ * 결과에서 로컬 정리로 넘어가는 과정은 중단되지 않습니다. 요청 전에 원격 대기 단계를 저장하므로
+ * 응답이 유실되면 멱등한 서버 삭제를 재시도해 상태를 맞출 수 있고, 서버가 명시적으로 실패하면
+ * 이 단계를 지우고 로그인을 유지합니다. 로컬 데이터 정리와 인증 정리는 단계가 따로 있어,
+ * 재시작하면 끝나지 않은 단계만 이어서 진행합니다.
  */
 internal class AccountDeletionCoordinator(
     private val scope: CoroutineScope,
@@ -231,11 +230,10 @@ internal class AccountDeletionCoordinator(
                             }
                             clearAuthentication()
                             pendingDeletion = null
-                            // Authentication is the last sensitive local state. Keep the recovery
-                            // marker until its synchronous removal has succeeded so a process
-                            // death before this point resumes cleanup on the next launch.
-                            // A marker-only removal failure after authentication is gone is safe:
-                            // it contains only a scope hash and cannot restore the deleted session.
+                            // 인증 정보는 마지막으로 남는 민감한 로컬 상태입니다. 동기 삭제가 성공할 때까지 복구 표시를
+                            // 유지해, 이 시점 전에 프로세스가 종료되면 다음 실행에서 정리를 이어 갑니다.
+                            // 인증 정보가 지워진 뒤 표시만 지우지 못하는 경우는 안전합니다. 표시에는 scope 해시만 있어
+                            // 삭제된 세션을 복원할 수 없습니다.
                             runCatching { clearPendingDeletion() }
                             AccountDeletionState()
                         } catch (_: Exception) {
@@ -319,9 +317,8 @@ internal class AccountDeletionCoordinator(
 }
 
 /**
- * Preserves the local session until the server confirms deletion. The one
- * permitted retry uses a newly refreshed access token after an unauthorized
- * response; every other failure remains retryable from the settings screen.
+ * 서버가 삭제를 확인할 때까지 로컬 세션을 유지합니다. 인증 실패 응답 뒤에는 새로 갱신한
+ * 액세스 토큰으로 한 번만 재시도하며, 그 밖의 실패는 설정 화면에서 다시 시도할 수 있습니다.
  */
 internal class AccountDeletionUseCase(
     private val gateway: AccountDeletionGateway,

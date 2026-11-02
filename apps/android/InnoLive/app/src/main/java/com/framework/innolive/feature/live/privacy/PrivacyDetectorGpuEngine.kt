@@ -9,7 +9,7 @@ import java.io.File
 import java.security.MessageDigest
 import kotlin.math.abs
 
-/** The GPU is used only after this exact asset passes output and latency checks on the device. */
+/** 정확히 이 asset이 기기에서 출력·지연 검사를 통과한 뒤에만 GPU를 사용합니다. */
 internal class PrivacyDetectorGpuEngine private constructor(private val model: CompiledModel) : AutoCloseable {
     private var inputs = emptyList<TensorBuffer>()
     private var outputs = emptyList<TensorBuffer>()
@@ -48,7 +48,7 @@ internal class PrivacyDetectorGpuEngine private constructor(private val model: C
         private const val TAG = "PrivacyDetector"
         private const val SHA256 = "c8c0c6b4e93a974e748cbd41a0120423180499b563812dc65dcdbc1a54b54895"
 
-        /** CPU reference returns its outputs and inference time; tensor allocation is excluded from timing. */
+        /** CPU 기준 경로는 출력과 추론 시간을 반환하며, 텐서 할당 시간은 측정에서 제외합니다. */
         fun validated(context: Context,
                       reference: (FloatArray) -> Pair<Pair<FloatArray, FloatArray>, Long>): PrivacyDetectorGpuEngine? {
             var candidate: PrivacyDetectorGpuEngine? = null

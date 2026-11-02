@@ -11,7 +11,7 @@ import org.webrtc.VideoFrame
 import org.webrtc.JavaI420Buffer
 import org.webrtc.EglBase
 
-/** Serial AI worker: a GPU image graph and protected texture output, with a protected CPU fallback. */
+/** 직렬 AI worker입니다. GPU 이미지 그래프와 보호된 텍스처 출력을 쓰고, 보호된 CPU 대체 경로를 둡니다. */
 internal class PrivacyFrameProcessor(context: Context, private val sharedContext: EglBase.Context? = null,
                                      private val allowGpuImages: Boolean = true, directGpuInput:Boolean=true,
                                      private val nativePostprocessing: Boolean = true,
@@ -41,7 +41,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
     private val restoredPixels = BitmapScratch()
     private var geometry: Triple<Int, Int, Int>? = null
 
-    /** Compile and validate the protected path before accepting real camera images. */
+    /** 실제 카메라 이미지를 받기 전에 보호 경로를 컴파일하고 검증합니다. */
     fun prepare() {
         val neutral=JavaI420Buffer.allocate(640,360)
         try {
@@ -50,7 +50,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
             neutral.retain()
             val frame=VideoFrame(neutral,0,System.nanoTime())
             try {process(frame).release()} finally {frame.release()}
-            // Exercise the protected branch even when the neutral image has no detections.
+            // 중립 이미지에 검출 결과가 없어도 보호 분기를 실행해 봅니다.
             imageGpu?.let { graph ->
                 val full=ByteArray(160*160) {-1}
                 graph.runFrame {
@@ -95,7 +95,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                     val started=System.nanoTime()
                     val layout=graph.prepare(camera,readModel=!graph.nativeInputEnabled)
                     lastCameraCopiedPlanes=graph.lastCameraCopiedPlanes
-                    // Upload has captured the pixels; never borrow the camera during inference.
+                    // 업로드가 픽셀을 이미 담았으므로, 추론 중에는 카메라 이미지를 빌려 쓰지 않습니다.
                     camera.close()
                     return processGpuPrepared(graph,layout,camera.width,camera.height,camera.rotation,
                         camera.timestampNs,started,System.nanoTime())
@@ -230,7 +230,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
 
     fun deactivateFaces() { faces.close() }
 
-    /** The CPU path validated detector engines on its own thread; the GPU graph validates them again on its thread. */
+    /** CPU 경로는 자체 스레드에서 검출기 엔진을 검증했으므로, GPU 그래프는 자기 스레드에서 다시 검증합니다. */
     private fun retryGpuWhenDue() {
         if (!imageGpuUnavailable || !gpuRetry.shouldAttempt(System.nanoTime())) return
         imageGpuUnavailable = false
@@ -253,7 +253,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
     }
 }
 
-/** No consumer retains these bitmaps: every outgoing VideoFrame owns separate I420 planes. */
+/** 어떤 소비자도 이 비트맵을 보관하지 않습니다. 내보내는 모든 VideoFrame은 별도의 I420 plane을 소유합니다. */
 private class BitmapScratch : AutoCloseable {
     private var bitmap: Bitmap? = null
     fun get(width: Int, height: Int): Bitmap {
@@ -270,7 +270,7 @@ internal data class PrivacyFrameTimings(
     val inputMs: Double, val model: PrivacyModelTimings, val outputMs: Double, val totalMs: Double,
 )
 
-/** Keeps a failed GPU graph on the protected CPU path until a bounded retry is due. */
+/** 실패한 GPU 그래프는 제한된 재시도 시점까지 보호된 CPU 경로에 둡니다. */
 internal class PrivacyGpuRetryPolicy(private val enabled:Boolean) {
     private var failures=0
     private var retryAtNs=Long.MAX_VALUE
@@ -283,7 +283,7 @@ internal class PrivacyGpuRetryPolicy(private val enabled:Boolean) {
     }
     fun succeeded() {failures=0;retryAtNs=Long.MAX_VALUE}
     fun disable() {permanentlyUnavailable=true;retryAtNs=Long.MAX_VALUE}
-    /** Unsupported input and JNI linkage failures do not heal; other failures retry with backoff. */
+    /** 지원하지 않는 입력과 JNI 링크 실패는 회복되지 않습니다. 그 밖의 실패는 백오프로 재시도합니다. */
     fun record(error:Throwable,nowNs:Long) {
         if(error is UnsupportedOperationException || error is IllegalArgumentException || error is LinkageError) disable()
         else failed(nowNs)
@@ -291,8 +291,8 @@ internal class PrivacyGpuRetryPolicy(private val enabled:Boolean) {
 }
 
 /**
- * Runs one frame on the GPU graph. A frame whose content cannot be protected fails alone and keeps the graph;
- * any other processing failure calls [fallBack] to tear the graph down and returns null for the CPU path.
+ * GPU 그래프에서 프레임 하나를 실행합니다. 내용을 보호할 수 없는 프레임은 그 프레임만 실패하고 그래프는 유지합니다.
+ * 그 밖의 처리 실패는 [fallBack]으로 그래프를 해제하고 CPU 경로를 위해 null을 반환합니다.
  */
 internal inline fun <T : Any> PrivacyGpuRetryPolicy.attempt(nowNs: () -> Long, frame: () -> T,
                                                             fallBack: (Throwable) -> Unit): T? {

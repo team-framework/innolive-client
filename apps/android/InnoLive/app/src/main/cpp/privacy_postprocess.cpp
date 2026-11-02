@@ -11,9 +11,9 @@
 
 namespace {
 constexpr int kPixels = 160 * 160, kCandidates = 8400, kMaximum = 100;
-// BoT-SORT track_low_thresh and track_high_thresh: weaker candidates may only continue a track.
+// BoT-SORT track_low_thresh와 track_high_thresh입니다. 더 약한 후보는 트랙을 이어 가는 경우에만 쓸 수 있습니다.
 constexpr float kContinuation = .05f, kActivation = .25f;
-// Class-aware NMS IoU; see PrivacySegmentation.NMS_IOU for why Android keeps 0.45.
+// 클래스별 NMS IoU입니다. Android가 0.45를 유지하는 이유는 PrivacySegmentation.NMS_IOU를 참고합니다.
 constexpr float kNmsIou = .45f;
 struct Box { float left, top, right, bottom; };
 float iou(const Box& a, const Box& b) {
@@ -45,7 +45,7 @@ const float* buffer(JNIEnv* env,jobject value,int count) {
         throw std::invalid_argument("Invalid postprocessing buffer");
     return data;
 }
-// A frame whose content cannot be protected (e.g. a crowd). Java retries the GPU graph instead of disabling it.
+// 내용을 보호할 수 없는 프레임입니다(예: 군중). Java는 GPU 그래프를 끄지 않고 다시 시도합니다.
 struct frame_error : std::runtime_error { using std::runtime_error::runtime_error; };
 void fail(JNIEnv* env,const std::exception& error) {
     const bool frame=dynamic_cast<const frame_error*>(&error)!=nullptr;
@@ -133,7 +133,7 @@ void stabilize(Instance& output,const Instance& older,float decay) {
     const float left=d.left*.25f,top=d.top*.25f,right=d.right*.25f,bottom=d.bottom*.25f;
     const float sourceLeft=o.left*.25f,sourceTop=o.top*.25f;
     const float sourceWidth=(o.right-o.left)*.25f,sourceHeight=(o.bottom-o.top)*.25f;
-    // Same independent multiply/add order as the Kotlin/iOS reference.
+    // Kotlin·iOS 기준 구현과 같은 독립 곱셈·덧셈 순서입니다.
     for(int y=lower(d.top);y<upper(d.bottom);++y) {
         const float oldY=sourceTop+(y+.5f-top)/(bottom-top)*sourceHeight-.5f;
         for(int x=lower(d.left);x<upper(d.right);++x) {
@@ -170,7 +170,7 @@ void masks(State& s,const std::array<bool,kMaximum>& exempt,double timestamp) {
         if(s.kept[i].label==0 && exempt[i]) continue;
         auto& current=s.current[n++];
         const Detection& detection=s.kept[i];
-        // A held track repeats its own last mask at the predicted box, like the server's one-frame mask hold.
+        // 서버의 1프레임 마스크 유지처럼, 유지된 트랙은 자신의 마지막 마스크를 예측 상자 위치에 반복합니다.
         const Instance* held=nullptr;
         if(detection.held) for(int j=0;j<s.previousCount;++j) {
             if(s.previous[j].track==detection.track && s.previous[j].label==detection.label) {held=&s.previous[j];break;}
@@ -210,11 +210,11 @@ extern "C" JNIEXPORT jfloatArray JNICALL JNI(decode)(JNIEnv* env,jobject,jlong h
         auto result=env->NewFloatArray(output.size());if(result) env->SetFloatArrayRegion(result,0,output.size(),output.data());return result;
     }catch(const std::exception& e){fail(env,e);return nullptr;}
 }
-// Replaces the decoded objects with the tracked ones to protect; exemption indices then refer to this list.
+// 디코딩된 객체를 보호할 추적 객체로 바꿉니다. 이후 예외 인덱스는 이 목록을 기준으로 합니다.
 extern "C" JNIEXPORT void JNICALL JNI(select)(JNIEnv* env,jobject,jlong handle,jfloatArray values,jintArray tracks,jbooleanArray held) {
     try {
         auto& s=state(handle);
-        // A frame that skipped detection reuses the prototypes of the last decode.
+        // 검출을 건너뛴 프레임은 마지막 decode의 프로토타입을 재사용합니다.
         if(!s.ready && !s.prototypes) throw std::invalid_argument("Select requires decoded detections");
         const int count=env->GetArrayLength(tracks);
         if(count>kMaximum || env->GetArrayLength(values)!=count*38 || env->GetArrayLength(held)!=count)

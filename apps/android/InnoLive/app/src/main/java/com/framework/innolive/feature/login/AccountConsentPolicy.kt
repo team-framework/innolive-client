@@ -8,7 +8,7 @@ import okhttp3.Request
 import java.net.URI
 import java.util.concurrent.TimeUnit
 
-/** Tests replace the document download, while still rendering real HTML in WebView. */
+/** 테스트에서는 문서 다운로드를 대체하되, WebView에는 실제 HTML을 렌더링합니다. */
 internal val LocalAccountConsentPolicyLoader = compositionLocalOf<suspend (String) -> String> {
     ::downloadAccountConsentPolicy
 }
@@ -35,7 +35,7 @@ internal fun isAccountConsentPolicyUrl(url: String): Boolean = runCatching {
         uri.path.trimEnd('/') in setOf("/ko/privacy", "/en/privacy", "/ja/privacy")
 }.getOrDefault(false)
 
-/** Hide fixed navigation and the decorative wordmark, preserving policy and footer details. */
+/** 고정 내비게이션과 장식용 워드마크를 숨기고, 정책과 푸터 세부 내용은 유지합니다. */
 internal fun accountConsentPolicyHtml(html: String): String {
     val style = """
         <style id="innolive-account-consent">

@@ -14,9 +14,9 @@ class PrivacyBotSortTest {
         PrivacySegmentation.Detection(b(left, top, right, bottom), score, classId, FloatArray(32))
 
     /**
-     * ultralytics 8.4.104 `BOTSORT` with innolive-ai `config/botsort.yaml` (GMC none, ReID off) on the same frames:
-     * a low-score continuation (frame 4), a missed and refound track (6-7), a track confirmed on its second frame
-     * (8-9), a one-frame candidate that is removed (11-12), and a weak candidate that never starts a track.
+     * 같은 프레임에 대한 ultralytics 8.4.104 `BOTSORT`와 innolive-ai `config/botsort.yaml`(GMC none, ReID off) 결과입니다.
+     * 낮은 점수 연속(프레임 4), 놓쳤다가 다시 찾은 트랙(6-7), 두 번째 프레임에서 확정되는 트랙(8-9),
+     * 제거되는 1프레임 후보(11-12), 트랙을 시작하지 못하는 약한 후보를 포함합니다.
      */
     private val reference = listOf(
         Frame(listOf(det(100f, 100f, 150f, 150f, 0.9f, 0), det(300f, 120f, 360f, 190f, 0.8f, 0), det(400f, 400f, 480f, 430f, 0.7f, 1), det(57f, 500f, 97f, 540f, 0.1f, 0)),

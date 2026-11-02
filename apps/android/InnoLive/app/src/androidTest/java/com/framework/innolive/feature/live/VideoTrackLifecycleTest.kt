@@ -37,7 +37,7 @@ class VideoTrackLifecycleTest {
             }
             assertTrue(disposed.await(5, TimeUnit.SECONDS))
             failure.get()?.let { throw AssertionError("Track cleanup failed", it) }
-            // Compose may run either of these effects after the connection worker has shut down.
+            // 연결 worker가 종료된 뒤에도 Compose가 이 effect 중 하나를 실행할 수 있습니다.
             VideoTrackLifecycle.removeSink(track, sink)
             assertFalse(VideoTrackLifecycle.addSink(track, sink))
         } finally {

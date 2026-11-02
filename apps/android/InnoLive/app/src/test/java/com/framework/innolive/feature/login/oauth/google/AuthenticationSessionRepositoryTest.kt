@@ -76,7 +76,7 @@ class AuthenticationSessionRepositoryTest {
                 repository.refresh()
                 fail("Expected refresh to fail")
             } catch (_: IOException) {
-                // The original session must remain available after a failed request.
+                // 요청이 실패해도 기존 세션은 계속 사용할 수 있어야 합니다.
             }
             assertEquals(oldSession, repository.session.value)
             assertEquals(oldSession, store.persistedSession)
@@ -151,7 +151,7 @@ class AuthenticationSessionRepositoryTest {
                 refresh.await()
                 fail("Expected the stale refresh to be cancelled")
             } catch (_: CancellationException) {
-                // A cancellation-ignoring API result must not replace the newly saved session.
+                // 취소를 무시하고 돌아온 API 결과가 새로 저장된 세션을 대체하면 안 됩니다.
             }
             assertEquals(savedSession, repository.session.value)
             assertEquals(savedSession, store.persistedSession)
@@ -191,7 +191,7 @@ class AuthenticationSessionRepositoryTest {
                 refresh.await()
                 fail("Expected the stale refresh to be cancelled")
             } catch (_: CancellationException) {
-                // A cancellation-ignoring API result must not restore a cleared session.
+                // 취소를 무시하고 돌아온 API 결과가 지워진 세션을 되살리면 안 됩니다.
             }
             assertNull(repository.session.value)
             assertNull(store.persistedSession)

@@ -21,9 +21,9 @@ internal interface SessionRecoveryStore {
 }
 
 /**
- * Keeps recovery credentials isolated to the server and authenticated account that created them.
- * The user identifier is derived only in memory from the access token; the token itself is never
- * persisted as part of the recovery record.
+ * 복구 자격 증명을 이를 만든 서버와 인증 계정에만 묶어 둡니다.
+ * 사용자 식별자는 액세스 토큰에서 메모리 안에서만 도출하며, 토큰 자체는 복구 기록에
+ * 저장하지 않습니다.
  */
 internal data class SessionRecoveryScope(
     val server: String,
@@ -51,7 +51,7 @@ internal fun sessionRecoveryScope(server: String, accessToken: String): SessionR
     )
 }
 
-/** Retains only the credentials needed to remove a session after process death. */
+/** 프로세스 종료 후 세션을 제거하는 데 필요한 자격 증명만 보관합니다. */
 internal class EncryptedSessionRecoveryStore(
     context: Context,
     preferencesName: String = "innolive_session_recovery",
