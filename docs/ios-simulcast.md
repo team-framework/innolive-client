@@ -142,7 +142,7 @@ xcodebuild build -project apps/ios/InnoLive/InnoLive.xcodeproj -scheme InnoLive 
 
 - `YouTubeIntegration.swift`: 복수 준비·실패·계속, provider 제어·자동 복귀 대상 기록
 - `BroadcastPlatformSelectionView.swift`, `BroadcastSettingsView.swift`: 복수 선택·대상별 편집·부분 실패 선택
-- `HomeView.swift`, `BroadcastControllsView.swift`, `BroadcastControlViews.swift`: 준비 연결·대상 제어·라이브 실패 표시
+- `HomeView.swift`, `BroadcastControlsView.swift`, `BroadcastControlViews.swift`: 준비 연결·대상 제어·라이브 실패 표시
 - `Resources/Simulcast.xcstrings`: 새 UI·안내의 한국어·영어·일본어 번역
 - `BroadcastPreparationFlowTests.swift`, `BroadcastSessionPollingTests.swift`, `YouTubeBackgroundPauseTests.swift`: 요청·상태·폴링·화면 회귀
 - `docs/ios-simulcast.md`, `docs/ios-broadcast-settings.md`, `docs/ios-connection-feedback.md`: 동작·검증·제한 기록

@@ -168,7 +168,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
                                     .foregroundStyle(.white)
                                     .padding(.top, 24)
                             }
-                        BroadcastControllsView(
+                        BroadcastControlsView(
                             isBroadcasting: .constant(false),
                             previewTransition: .constant(.none),
                             authentication: fixture.authentication,
@@ -219,7 +219,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
                             .padding(.horizontal, 24)
                             .padding(.bottom, size.width > size.height ? 24 : 160)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                        BroadcastControllsView(
+                        BroadcastControlsView(
                             isBroadcasting: .constant(false), previewTransition: .constant(.none),
                             authentication: fixture.authentication, youtube: fixture.youtube,
                             onPrepareBroadcast: { _ in XCTFail("Layout checks must not start broadcasts") },
