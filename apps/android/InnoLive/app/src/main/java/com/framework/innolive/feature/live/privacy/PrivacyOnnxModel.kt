@@ -18,20 +18,20 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 
-/** Owns the pinned YOLO ONNX session. The caller serializes access and never sends raw on error. */
+/** 고정된 YOLO ONNX 세션을 소유합니다. 호출자가 접근을 직렬화하며, 오류 시 원본을 절대 보내지 않습니다. */
 internal class PrivacyOnnxModel(private val context: Context,
                                 private val directGpuInput:Boolean=true,
                                private val sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() },
                                private val nativePostprocessing: Boolean = true,
                                private val batchTwoOptimizations: Boolean = true,
-                               /** Detect every N frames; BoT-SORT predicts the objects of the frames between. */
+                               /** N 프레임마다 검출하고, 그 사이 프레임의 객체는 BoT-SORT가 예측합니다. */
                                private val detectionInterval: Int = DETECTION_INTERVAL) : AutoCloseable {
     private val environment = OrtEnvironment.getEnvironment()
     private var session: OrtSession? = null
     private val blur = PrivacyBitmapBlur()
     private val stabilizer = PrivacyMaskStabilizer()
     private val tracking = PrivacyObjectTracking()
-    /** BoT-SORT IDs of the latest frame that a registered-face approval may keep following. */
+    /** 등록 얼굴 승인이 계속 따라갈 수 있는 최신 프레임의 BoT-SORT ID입니다. */
     val liveTrackIds: Set<Int> get() = tracking.liveTrackIds
     private var skippedDetections = 0
     private var lastPrototypes: PrivacyValidatedPrototypes? = null
@@ -110,7 +110,7 @@ internal class PrivacyOnnxModel(private val context: Context,
         }
     }
 
-    /** The image graph supplies only the fixed model input; no full-frame CPU bitmap is needed. */
+    /** 이미지 그래프가 고정 모델 입력만 제공하므로 전체 프레임 CPU 비트맵이 필요 없습니다. */
     fun <T> processPrepared(
         preparedInput: Bitmap,
         layout: PrivacySegmentation.Letterbox,
@@ -159,7 +159,7 @@ internal class PrivacyOnnxModel(private val context: Context,
             } else checkedOutput(checkNotNull(gpuGraph).predictNativeInput())
         } catch (error: Throwable) {
             if (!error.isPrivacyProcessingFailure()) throw error
-            // The native input worked; only this frame's content cannot be protected.
+            // 네이티브 입력은 정상 동작했고, 이 프레임의 내용만 보호할 수 없습니다.
             if (error is PrivacyFrameContentException) throw error
             nativeInputActive = false
             checkNotNull(gpuGraph).disableNativeInput()
@@ -173,7 +173,7 @@ internal class PrivacyOnnxModel(private val context: Context,
                 if (!nativeOutputs) {
                     val values = checkNotNull(legacyOutputs)
                     postprocessor.predictions.asFloatBuffer().put(values.first)
-                    // The legacy path has already validated this immutable array.
+                    // 이전 경로가 이 변경 불가 배열을 이미 검증했습니다.
                     values.second.copyInto(postprocessor.prototypes)
                 }
                 if (nativeOutputs) checkNotNull(nativeDetections) else postprocessor.decode()
@@ -293,7 +293,7 @@ internal class PrivacyOnnxModel(private val context: Context,
         session?.close(); session = null
     }
 
-    /** The next frame validates the detector engines again on the thread that runs it. */
+    /** 다음 프레임이 실행 스레드에서 검출기 엔진을 다시 검증합니다. */
     internal fun releaseAccelerators() {
         nnapi?.close(); nnapi = null
         gpu?.close(); gpu = null
@@ -302,7 +302,7 @@ internal class PrivacyOnnxModel(private val context: Context,
     }
 
     companion object {
-        /** Every other frame skips YOLO while every object is a confirmed, detected track. */
+        /** 모든 객체가 확정되고 검출된 트랙이면 한 프레임 걸러 YOLO를 건너뜁니다. */
         const val DETECTION_INTERVAL = 2
         private const val MODEL_ASSET = "privacy-detector.onnx"
         private const val MODEL_SHA256 = "8d111ad2dcb5e5fa9d709f3d11606dcd62ea6f1d4833633864b1e4cf47f13be7"
@@ -311,13 +311,13 @@ internal class PrivacyOnnxModel(private val context: Context,
     }
 }
 
-/** Numeric diagnostics only: no image, identity, embedding or endpoint is retained. */
+/** 수치 진단 정보만 담으며, 이미지·신원·임베딩·엔드포인트는 보관하지 않습니다. */
 internal data class PrivacyModelTimings(
     val prepareMs: Double, val inferenceMs: Double, val facesMs: Double,
     val maskMs: Double, val renderMs: Double,
 )
 
-/** Numeric diagnostics only; no face identity or camera pixels. */
+/** 수치 진단 정보만 담으며, 얼굴 신원이나 카메라 픽셀은 없습니다. */
 internal data class PrivacyFrameAnalysis(
     val detectorGpu: Boolean, val faces: Int, val plates: Int, val exemptFaces: Int,
     val maskPixels: Int, val blurGpu: Boolean, val detectorNnapi: Boolean = false,

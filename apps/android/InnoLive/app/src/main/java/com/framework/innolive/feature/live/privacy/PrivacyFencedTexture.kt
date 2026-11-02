@@ -10,7 +10,7 @@ internal object PrivacyTextureReadbackCounter {
     fun record() {count.incrementAndGet()}
 }
 
-/** The underlying buffer owns the fence until all derived views and consumers release it. */
+/** 파생된 모든 view와 소비자가 해제할 때까지 원본 버퍼가 fence를 소유합니다. */
 internal class PrivacyFencedTexture(
     private val buffer: VideoFrame.TextureBuffer,
     private val fence: Long,

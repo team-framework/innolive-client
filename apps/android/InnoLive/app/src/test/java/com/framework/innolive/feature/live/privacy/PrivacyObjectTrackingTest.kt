@@ -47,7 +47,7 @@ class PrivacyObjectTrackingTest {
         val tracking = PrivacyObjectTracking()
         tracking.update(listOf(face(100f)), 1.0)
         tracking.update(listOf(face(100f)), 1.033)
-        // IoU 0.6 with a .3 score is too weak to continue the track, but it protects the same place.
+        // IoU 0.6에 점수 .3은 트랙을 이어 가기에는 약하지만, 같은 위치를 보호합니다.
         val objects = tracking.update(listOf(face(112.5f, .3f)), 1.067)
         assertEquals(1, objects.size)
         assertFalse(objects.single().held)

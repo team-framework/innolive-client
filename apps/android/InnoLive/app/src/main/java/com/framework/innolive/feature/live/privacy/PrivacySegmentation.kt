@@ -5,7 +5,7 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
-/** The one-to-many YOLO segmentation output used by the iOS privacy pipeline. */
+/** iOS 개인정보 보호 파이프라인이 쓰는 일대다 YOLO 세그멘테이션 출력입니다. */
 internal object PrivacySegmentation {
     const val INPUT_SIZE = 640
     const val MASK_SIZE = 160
@@ -13,14 +13,14 @@ internal object PrivacySegmentation {
     const val CHANNELS = 32
     private const val DETECTION_CHANNELS = 38
     const val MAX_OBJECTS = 100
-    /** BoT-SORT `track_low_thresh`: a weaker candidate may only continue an existing track. */
+    /** BoT-SORT `track_low_thresh`: 더 약한 후보는 기존 트랙을 이어 가는 경우에만 쓸 수 있습니다. */
     const val CONTINUATION_CONFIDENCE = 0.05f
-    /** BoT-SORT `track_high_thresh`/`new_track_thresh`, and the score that is always protected. */
+    /** BoT-SORT `track_high_thresh`/`new_track_thresh`이자 항상 보호하는 점수입니다. */
     const val ACTIVATION_CONFIDENCE = 0.25f
     const val NO_TRACK = -1
     /**
-     * Class-aware NMS IoU. innolive-ai and iOS use 0.70, but Android keeps 0.45: a duplicate box of one face would
-     * overlap it and revoke its registered-face exemption.
+     * 클래스별 NMS IoU입니다. innolive-ai와 iOS는 0.70을 쓰지만 Android는 0.45를 유지합니다. 한 얼굴의
+     * 중복 상자가 겹치면 등록 얼굴 예외가 취소되기 때문입니다.
      */
     private const val NMS_IOU = 0.45f
 
@@ -36,9 +36,9 @@ internal object PrivacySegmentation {
     }
 
     /**
-     * [trackId] comes from [PrivacyObjectTracking]; a [held] object is a lost track kept at its predicted box, and a
-     * [predicted] object is a tracked one moved by BoT-SORT in a frame that skipped detection. Both repeat their
-     * track's last mask instead of a new instance mask.
+     * [trackId]는 [PrivacyObjectTracking]에서 옵니다. [held] 객체는 예측 상자 위치에 유지된 lost 트랙이고,
+     * [predicted] 객체는 검출을 건너뛴 프레임에서 BoT-SORT가 이동한 tracked 트랙입니다. 둘 다 새 인스턴스
+     * 마스크 대신 트랙의 마지막 마스크를 반복합니다.
      */
     data class Detection(val box: Box, val score: Float, val classId: Int, val coefficients: FloatArray,
                          val trackId: Int = NO_TRACK, val held: Boolean = false, val predicted: Boolean = false) {
@@ -58,7 +58,7 @@ internal object PrivacySegmentation {
         val top = floor((INPUT_SIZE - resizedHeight) / 2f).toInt()
     }
 
-    /** Candidates above [CONTINUATION_CONFIDENCE]; only those at [ACTIVATION_CONFIDENCE] can fail the frame. */
+    /** [CONTINUATION_CONFIDENCE]를 넘는 후보입니다. [ACTIVATION_CONFIDENCE] 이상인 후보만 프레임을 실패시킬 수 있습니다. */
     fun detections(values: FloatArray, candidateCount: Int = CANDIDATES): List<Detection> {
         require(candidateCount > 0 && values.size == DETECTION_CHANNELS * candidateCount)
         class Candidate(val index: Int, val box: Box, val score: Float, val classId: Int)
@@ -104,7 +104,7 @@ internal object PrivacySegmentation {
         return kept
     }
 
-    /** Returns an opaque model-space mask for every detected face and plate. */
+    /** 검출된 모든 얼굴과 번호판에 대해 불투명한 모델 공간 마스크를 반환합니다. */
     fun instanceMasks(detections: List<Detection>, prototypes: FloatArray,
                       areFinite: (FloatArray) -> Boolean = { it.all(Float::isFinite) }): List<InstanceMask> {
         val pixels = MASK_SIZE * MASK_SIZE
@@ -131,7 +131,7 @@ internal object PrivacySegmentation {
                     covered = true
                 }
             }
-            // A valid box must remain protected even if the model returns an empty instance mask.
+            // 모델이 빈 인스턴스 마스크를 반환해도 유효한 상자는 보호된 상태로 남아야 합니다.
             if (!covered) for (y in y0 until y1) for (x in x0 until x1) {
                 bytes[y * MASK_SIZE + x] = -1
             }

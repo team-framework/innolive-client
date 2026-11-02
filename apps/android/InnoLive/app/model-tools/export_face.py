@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export iOS's pinned AdaFace ViT-KP-RPE with flip fusion to Android ONNX FP16."""
+"""iOS의 고정 AdaFace ViT-KP-RPE를 좌우 반전 융합과 함께 Android ONNX FP16으로 내보냅니다."""
 
 import argparse
 import hashlib
@@ -64,8 +64,8 @@ def main():
         raise ValueError("Unexpected embedding shape")
     converted = float16.convert_float_to_float16(graph, keep_io_types=True,
                                                   disable_shape_infer=False, op_block_list=[])
-    # The converter changes one explicit PyTorch float Cast's output to FP16
-    # but leaves its ONNX `to` attribute at FP32. Reconcile it with the inferred type.
+    # 변환기는 명시적인 PyTorch float Cast 하나의 출력을 FP16으로 바꾸지만
+    # ONNX `to` 속성은 FP32로 둡니다. 추론된 타입에 맞춰 일치시킵니다.
     types = {value.name: value.type.tensor_type.elem_type for value in
              list(converted.graph.input) + list(converted.graph.output) + list(converted.graph.value_info)}
     fixed = 0

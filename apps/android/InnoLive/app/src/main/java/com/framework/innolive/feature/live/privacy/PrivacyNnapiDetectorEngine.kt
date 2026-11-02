@@ -12,7 +12,7 @@ import java.security.MessageDigest
 import java.util.EnumSet
 import kotlin.math.abs
 
-/** Same pinned FP32 model. NNAPI neural hardware is considered only after parity and speed checks. */
+/** 같은 고정 FP32 모델입니다. NNAPI 신경망 하드웨어는 일치·속도 검사를 통과한 뒤에만 고려합니다. */
 internal class PrivacyNnapiDetectorEngine private constructor(context: Context) : AutoCloseable {
     private val bytes = ByteBuffer.allocateDirect(3 * 640 * 640 * 4).order(ByteOrder.nativeOrder())
     private val tensor = OnnxTensor.createTensor(OrtEnvironment.getEnvironment(), bytes.asFloatBuffer(), longArrayOf(1, 3, 640, 640))

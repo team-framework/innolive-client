@@ -6,7 +6,7 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
-/** Keeps a matched object's older edge briefly, aligned to its current box, and repeats a held track's mask. */
+/** 매칭된 객체의 이전 경계를 현재 상자에 맞춰 잠시 유지하고, 유지된 트랙의 마스크를 반복합니다. */
 internal class PrivacyMaskStabilizer {
     private var previous = emptyList<PrivacySegmentation.InstanceMask>()
     private var previousTimeSeconds: Double? = null
@@ -25,7 +25,7 @@ internal class PrivacyMaskStabilizer {
         val available = previous.indices.toMutableSet()
         val stabilized = current.map { instance ->
             val detection = instance.detection
-            // A held or predicted track repeats its own last mask at the predicted box, like the server's mask hold.
+            // 서버의 마스크 유지처럼, 유지되거나 예측된 트랙은 자신의 마지막 마스크를 예측 상자 위치에 반복합니다.
             if (detection.repeatsMask) previous.firstOrNull {
                 it.detection.trackId == detection.trackId && it.detection.classId == detection.classId
             }?.let { older ->
@@ -44,7 +44,7 @@ internal class PrivacyMaskStabilizer {
         return PrivacySegmentation.union(stabilized)
     }
 
-    /** Raises [bytes] inside [destination] to [older]'s mask scaled from its box, multiplied by [decay]. */
+    /** [destination] 안의 [bytes]를, [older] 마스크를 그 상자 기준으로 맞춰 늘리고 [decay]를 곱한 값까지 올립니다. */
     private fun warp(older: PrivacySegmentation.InstanceMask, destination: PrivacySegmentation.Box,
                      bytes: ByteArray, decay: Float): ByteArray {
         val size = PrivacySegmentation.MASK_SIZE

@@ -24,8 +24,10 @@ import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Serial AI/compositing graph. CPU encoders convert textures on a separate shared EGL queue.
- * Output textures remain owned until every renderer/encoder releases its frame. */
+/**
+ * 직렬 AI·합성 그래프입니다. CPU 인코더는 별도의 공유 EGL 큐에서 텍스처를 변환합니다.
+ * 출력 텍스처는 모든 렌더러·인코더가 프레임을 해제할 때까지 소유 상태로 남습니다.
+ */
 internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3: Boolean = false,
     private val useFence: Boolean = true, private val compactMask: Boolean = true,
     private val cacheBindings: Boolean = true,
@@ -110,7 +112,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         return checkNotNull(result).getOrThrow()
     }
 
-    /** Keep preprocessing, inference, postprocessing and render on the owning GL queue. */
+    /** 전처리·추론·후처리·렌더링을 소유한 GL 큐에서 실행합니다. */
     internal fun <T> runFrame(block: () -> T): T = onGl {
         check(!closing)
         egl.makeCurrent()
@@ -164,7 +166,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         layout
     }
 
-    /** Uploads camera-owned planes directly. UV is one interleaved texture when views share storage. */
+    /** 카메라 소유 plane을 바로 업로드합니다. view가 저장 공간을 공유하면 UV는 하나의 interleaved 텍스처입니다. */
     fun prepare(camera: PrivacyCameraInput,readModel:Boolean=true): PrivacySegmentation.Letterbox = onGl {
         check(!closing)
         if(leased.size>=6) throw PrivacyGpuBackpressureException()
@@ -232,8 +234,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 planeSizes[index]=plane.width to plane.height;planeFormats[index]=format
             }
             if(lastPair!=null) {
-                // CameraX may hide the final unused interleaved byte in the base plane view.
-                // Upload bounded rows, then assemble only the last pair from the two valid views.
+                // CameraX는 기본 plane view에서 쓰지 않는 마지막 interleaved 바이트를 숨길 수 있습니다.
+                // 범위 안의 행만 업로드하고, 마지막 쌍만 두 유효 view에서 조합합니다.
                 if(plane.height>1) glTexSubImage2D(GL_TEXTURE_2D,0,0,0,plane.width,plane.height-1,format,GL_UNSIGNED_BYTE,pixels)
                 val lastRow=pixels.duplicate().apply {position((plane.height-1)*plane.rowStride)}.slice()
                 if(plane.width>1) glTexSubImage2D(GL_TEXTURE_2D,0,0,plane.height-1,plane.width-1,1,format,GL_UNSIGNED_BYTE,lastRow)
@@ -262,7 +264,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         }
     }
 
-    /** Diagnostic asynchronous crop; all original pixels and crop coordinates are preserved. */
+    /** 진단용 비동기 crop입니다. 원본 픽셀과 crop 좌표를 모두 보존합니다. */
     internal fun cropAsync(bounds: Rect): PrivacyFaceReadback = onGl {
         check(!closing && rowLengthSupported)
         require(bounds.left >= 0 && bounds.top >= 0 && bounds.right <= width && bounds.bottom <= height
@@ -280,7 +282,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         finally { egl.makeCurrent(); glBindFramebuffer(GL_FRAMEBUFFER, 0) }
     }
 
-    /** Owned current pixels for a protected CPU fallback after the camera image has been returned. */
+    /** 카메라 이미지를 돌려준 뒤 보호된 CPU 대체 경로에서 쓸, 소유한 현재 픽셀입니다. */
     fun copyUpright(): Bitmap = onGl {
         val pixels=ByteBuffer.allocateDirect(width*height*4)
         readPixels(targets.getValue("upright"),pixels)
@@ -331,7 +333,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         GlUtil.checkNoGLES2Error("privacy GPU validation input")
     }
 
-    /** Re-submit the real camera's YUV/letterbox work so readback timing includes its GPU dependency. */
+    /** readback 시간에 GPU 의존성이 포함되도록 실제 카메라의 YUV·letterbox 작업을 다시 제출합니다. */
     private fun redrawCameraInput() = onGl {
         draw("yuv",YUV,targets.getValue("upright"),cameraTextures()) { p ->
             glUniform1i(p.getUniformLocation("rotation"),rotation)
@@ -344,7 +346,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         }
     }
 
-    /** Calibrate once with the same RGB pixels, including the eliminated readback/tensor copies. */
+    /** 제거된 readback·텐서 복사까지 포함해, 같은 RGB 픽셀로 한 번 보정합니다. */
     fun validateNativeInput(context: Context, diagnosticBenchmark: Boolean = true, baseline: (FloatArray) -> Pair<FloatArray, FloatArray>) {
         if (nativeChecked) return
         nativeChecked = true
@@ -389,8 +391,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             repeat(12) {sample -> if(sample%2==0) {legacy();direct()} else {direct();legacy()} }
             val old=oldTimes.sorted()[oldTimes.size/2]; val direct=newTimes.sorted()[newTimes.size/2]
             val wins=oldTimes.indices.count {newTimes[it]<oldTimes[it]}
-            // Prefer the supported, output-validated zero-readback path. Startup DVFS samples are
-            // diagnostics, not a permanent veto of the camera's steady-state input path.
+            // 지원되고 출력이 검증된 zero-readback 경로를 우선합니다. 시작 시 DVFS 샘플은 진단용이며,
+            // 카메라의 안정 상태 입력 경로를 영구히 막는 근거가 아닙니다.
             Log.i("PrivacyDetector","gpu_input_validated legacy_ms=${old/1e6} direct_ms=${direct/1e6} wins=$wins/12 managed_input_sync=$nativeInputUsesManagedSync")
             } else Log.i("PrivacyDetector", "gpu_input_validated patterns=3 managed_input_sync=$nativeInputUsesManagedSync")
         } catch(error: Throwable) {
@@ -404,7 +406,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         }
     }
 
-    /** Restore the current GPU image for the protected fallback, never a previous input bitmap. */
+    /** 보호된 대체 경로를 위해 이전 입력 비트맵이 아닌 현재 GPU 이미지를 복원합니다. */
     fun disableNativeInput() {
         nativeValidated=false
         onGl { if(nativeModel!=0L) { PrivacyNativeGpuModel.destroy(nativeModel);nativeModel=0L;egl.makeCurrent() } }
@@ -425,7 +427,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         val outputRotation = if (outputUpright) 0 else rotation
         val output = outputPool.firstOrNull { it !in leased && it.width == outputWidth && it.height == outputHeight }
             ?: run {
-                // Geometry changes may retire free targets, never frames retained by WebRTC.
+                // 형상이 바뀌면 사용하지 않는 타깃은 폐기할 수 있지만, WebRTC가 보관한 프레임은 폐기하지 않습니다.
                 outputPool.filter { it !in leased }.toList().forEach { it.close(); outputPool.remove(it) }
                 if (leased.size >= 6) throw PrivacyGpuBackpressureException()
                 Target(outputWidth, outputHeight).also { outputPool.add(it) }
@@ -438,7 +440,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             val reduced = target("reduced", quarterW, quarterH)
             val sigma = blurSigma ?: PrivacyBroadcastBlur.sigma(width, height)
             val blurRegion=if(roiBlur) blurScissor(mask,layout,maskPixels,quarterW,quarterH,sigma,edgeCells) else null
-            // iOS broadcastStyleBlur: area-average reduction, not a point-sampled 24px block grid.
+            // iOS broadcastStyleBlur와 같이 면적 평균으로 축소하며, 한 점에서 샘플링하는 24px 블록 격자를 쓰지 않습니다.
             draw("reduce", REDUCE, reduced, listOf(original.texture),scissor=blurRegion) { p ->
                 glUniform2f(p.getUniformLocation("texelSize"), 1f / width, 1f / height)
             }
@@ -497,7 +499,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         if (fence == 0L) buffer else PrivacyFencedTexture(buffer, fence)
     }
 
-    /** The Gaussian for the full-resolution sigma, run at the reduced resolution. One program per sigma. */
+    /** 전체 해상도 sigma용 가우시안을 축소 해상도에서 실행합니다. sigma마다 프로그램 하나를 둡니다. */
     private val blurShaders = mutableMapOf<String, String>()
     private fun blurShader(name: String, sigma: Int): String = blurShaders.getOrPut(name) {
         val reduced = sigma.toDouble() / PrivacyBroadcastBlur.REDUCTION
@@ -506,7 +508,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         else PrivacyBroadcastBlur.loopGaussianShader(radius, reduced)
     }
 
-    /** Expand sparse mask bounds by dilation, feather, two Gaussian axes and the reduction footprint. */
+    /** 희소 마스크 범위를 팽창, 페더, 가우시안 두 축, 축소 범위만큼 넓힙니다. */
     private fun blurScissor(mask:ByteArray,layout:PrivacySegmentation.Letterbox,count:Int,
                             targetWidth:Int,targetHeight:Int,sigma:Int,edgeCells:Int):Rect? {
         if(count==mask.size) return null
@@ -518,9 +520,9 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         if(right<left) return null
         val scaleX=layout.sourceWidth.toFloat()/layout.resizedWidth
         val scaleY=layout.sourceHeight.toFloat()/layout.resizedHeight
-        // The protected edge cells plus 9 model-mask cells cover the opaque core (at most one cell
-        // wider), the two-cell outer mask, its sigma 1.5 feather and the bilinear fade. The upright margin covers both Gaussian axes at the reduced
-        // resolution plus the 4x4 reduction footprint, even at odd dimensions.
+        // 보호 경계 셀과 모델 마스크 셀 9개가 불투명 핵심부(최대 한 셀 더 넓음), 두 셀 바깥 마스크,
+        // 그 sigma 1.5 페더, bilinear 감쇠를 덮습니다. upright 여백은 축소 해상도의 가우시안 두 축과
+        // 4x4 축소 범위를 홀수 크기에서도 덮습니다.
         val reach=PrivacyBroadcastBlur.REDUCTION*(PrivacyBroadcastBlur.kernelRadius(
             PrivacyBroadcastBlur.reducedSigma(sigma))+2)
         val cells=edgeCells+9
@@ -555,8 +557,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             glTexSubImage2D(GL_TEXTURE_2D,0,0,0,160,160,GL_RGBA,GL_UNSIGNED_BYTE,bytes)
             raw.texture
         }
-        // iOS PrivacyMask: the opaque core, then max(core, the wider mask feathered at sigma 1.5).
-        // Both are the same disks as the CPU path, so a wide margin follows the contour.
+        // iOS PrivacyMask와 같이 불투명 핵심부를 만든 뒤 max(핵심부, sigma 1.5로 페더 처리한 더 넓은 마스크)를 씁니다.
+        // 둘 다 CPU 경로와 같은 원판이므로, 넓은 여백도 윤곽을 따라갑니다.
         val alpha = target("mask-alpha",160,160,maskTargetsCompact)
         val coreCells = PrivacyMaskRenderer.softCoreCells(edgeCells)
         val core = target("mask-core",160,160,maskTargetsCompact)
@@ -694,8 +696,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         """
         private const val CROP = "uniform sampler2D tex0; uniform vec4 box; void main(){ gl_FragColor=texture2D(tex0,box.xy+uv*box.zw); }"
         private const val RESTORE = "uniform sampler2D tex0; uniform int rotation; " + FORWARD + "void main(){ gl_FragColor=texture2D(tex0,upright(uv)); }"
-        // Four bilinear taps one source texel away from the quarter-pixel centre average an exact
-        // 4x4 block when the target is a quarter of the source; a single fetch would skip texels.
+        // 타깃이 원본의 4분의 1이면, 1/4 픽셀 중심에서 원본 텍셀 하나 떨어진 bilinear 탭 네 개가 정확히
+        // 4x4 블록을 평균합니다. 한 번만 조회하면 일부 텍셀을 건너뜁니다.
         private const val REDUCE = """
             uniform sampler2D tex0; uniform vec2 texelSize;
             void main(){ gl_FragColor=0.25*(texture2D(tex0,uv+vec2(-1.0,-1.0)*texelSize)+texture2D(tex0,uv+vec2(1.0,-1.0)*texelSize)
@@ -709,13 +711,13 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 if(float(i*i+j*j)<=radiusSq) a=max(a,texture2D(tex0,uv+vec2(float(i),float(j))*texel).r);
               gl_FragColor=vec4(vec3(a),1.0); }
         """
-        /** Separable sigma 1.5 Gaussian over the 160 mask (2·sigma² = 4.5), as iOS `CIGaussianBlur` radius 1.5. */
+        /** 160 마스크에 대한 분리형 sigma 1.5 가우시안(2·sigma² = 4.5)이며, iOS `CIGaussianBlur` 반경 1.5와 같습니다. */
         private const val FEATHER_SUM =
             "float value=0.0; float sum=0.0; for(int i=-5;i<=5;i++){ float w=exp(-float(i*i)/4.5); " +
             "value+=texture2D(tex0,uv+float(i)*stepSize).r*w; sum+=w; }"
         private const val FEATHER = "uniform sampler2D tex0; uniform vec2 stepSize; " +
             "void main(){ $FEATHER_SUM gl_FragColor=vec4(vec3(value/sum),1.0); }"
-        /** The vertical feather pass also keeps the opaque core: max(feathered outer, core). */
+        /** 세로 페더 패스는 불투명 핵심부도 유지합니다: max(페더 처리한 바깥 마스크, 핵심부). */
         private const val FEATHER_MAX = "uniform sampler2D tex0,tex1; uniform vec2 stepSize; " +
             "void main(){ $FEATHER_SUM gl_FragColor=vec4(vec3(max(value/sum,texture2D(tex1,uv).r)),1.0); }"
         private const val COMPOSITE = "uniform sampler2D tex0,tex1,tex2; uniform vec4 box; uniform int rotation; " + FORWARD +
@@ -723,5 +725,5 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     }
 }
 
-/** A slow encoder/renderer holds all output slots; drop input instead of overwriting or growing memory. */
+/** 느린 인코더·렌더러가 모든 출력 슬롯을 잡고 있으면, 덮어쓰거나 메모리를 늘리지 않고 입력을 버립니다. */
 internal class PrivacyGpuBackpressureException : RuntimeException()

@@ -42,7 +42,7 @@ struct Api {
         API_LIST(LOAD)
 #undef LOAD
     }
-    // Runtime also serves Kotlin model instances. Keep this process-global handle loaded.
+    // 런타임은 Kotlin 모델 인스턴스에도 쓰이므로, 이 프로세스 전역 핸들은 로드된 상태로 유지합니다.
 };
 Api& api() { static Api value; return value; }
 void check(LiteRtStatus status, const char* operation) {
@@ -89,7 +89,7 @@ struct Model {
         check(a.LiteRtCreateOptions(&compileOptions),"options");
         try {
             check(a.LiteRtSetOptionsHardwareAccelerators(compileOptions,kLiteRtHwAcceleratorGpu),"accelerator");
-            // The SDK's LrtGetOpaqueGpuOptionsData serializes this public GPU option as TOML.
+            // SDK의 LrtGetOpaqueGpuOptionsData는 이 공개 GPU 옵션을 TOML로 직렬화합니다.
             const std::string toml = "precision = " + std::to_string(kLiteRtDelegatePrecisionFp32) + "\n";
             char* data = strdup(toml.c_str());
             if (!data) throw std::bad_alloc();
@@ -154,12 +154,12 @@ struct Model {
         glUniform1i(layoutLocation,nhwcInput);
         glDispatchCompute(40,40,1); glMemoryBarrier(GL_ALL_BARRIER_BITS);
         auto& a=api();
-        // LiteRT 2.2 OpenCL's GlInteropFabricLiteRt::Start creates the EGL fence,
-        // imports it to the CL queue when supported, then acquires the GL buffer.
-        // Do not attach a separate EGL input event: that backend rejects it.
-        // Run is synchronous at output completion, allowing this SSBO to be reused.
+        // LiteRT 2.2 OpenCL의 GlInteropFabricLiteRt::Start는 EGL fence를 만들고,
+        // 지원되면 CL 큐로 가져온 뒤 GL 버퍼를 획득합니다.
+        // 별도 EGL 입력 이벤트를 붙이지 않습니다. 이 백엔드가 거부합니다.
+        // Run은 출력 완료 시점까지 동기로 동작하므로 이 SSBO를 재사용할 수 있습니다.
         inputInteropSync=useFence;
-        if(useFence) glFlush(); else glFinish(); // Explicit baseline for device A/B.
+        if(useFence) glFlush(); else glFinish(); // 기기 A/B용 명시적 기준선입니다.
         if(glGetError()!=GL_NO_ERROR) throw std::runtime_error("GPU input dispatch failed");
         check(a.LiteRtRunCompiledModel(compiled,0,1,&input,2,outputs),"run");
     }
@@ -218,7 +218,7 @@ struct Model {
     }
     jobjectArray outputBufferTypes(JNIEnv* env) {
         auto& a=api();
-        // Diagnostic queries are optional; older runtimes must keep the validated path.
+        // 진단 조회는 선택 사항이며, 이전 런타임은 검증된 경로를 유지해야 합니다.
         auto count=reinterpret_cast<decltype(&LiteRtGetNumTensorBufferRequirementsSupportedBufferTypes)>(dlsym(a.library,"LiteRtGetNumTensorBufferRequirementsSupportedBufferTypes"));
         auto supported=reinterpret_cast<decltype(&LiteRtGetTensorBufferRequirementsSupportedTensorBufferType)>(dlsym(a.library,"LiteRtGetTensorBufferRequirementsSupportedTensorBufferType"));
         auto actual=reinterpret_cast<decltype(&LiteRtGetTensorBufferType)>(dlsym(a.library,"LiteRtGetTensorBufferType"));
