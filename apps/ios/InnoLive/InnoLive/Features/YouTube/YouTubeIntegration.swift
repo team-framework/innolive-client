@@ -298,7 +298,8 @@ final class YouTubeIntegration: ObservableObject {
             }
             .removeDuplicates()
             .dropFirst()
-            .filter { $0 }
+            // stop() resets the state to server mode; that reset is not a server recovery.
+            .filter { [weak self] recovered in recovered && self?.operatingMode.isMonitoring == true }
             .sink { [weak self] _ in
                 guard let self else { return }
                 Task { _ = await self.isAdministrator(accessToken: self.api.currentAccessToken(fallback: "")) }
