@@ -83,21 +83,8 @@ private final class MemoryOfflineGrantStore: OfflineGrantStoring {
     func remove() { grant = nil }
 }
 
-private final class OfflineURLProtocol: URLProtocol {
-    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
-    nonisolated deinit {}
+private final class OfflineURLProtocol: StubURLProtocol {
+    static var recorded: [String] { requests.map { $0.url?.absoluteString ?? "?" } }
 
-    private nonisolated static let lock = NSLock()
-    nonisolated(unsafe) private static var urls: [String] = []
-
-    nonisolated static var recorded: [String] { lock.withLock { urls } }
-    nonisolated static func reset() { lock.withLock { urls = [] } }
-
-    override nonisolated class func canInit(with request: URLRequest) -> Bool { true }
-    override nonisolated class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override nonisolated func startLoading() {
-        Self.lock.withLock { Self.urls.append(request.url?.absoluteString ?? "?") }
-        client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
-    }
-    override nonisolated func stopLoading() {}
+    override class var fallbackResponse: Response { .failure(.notConnectedToInternet) }
 }
