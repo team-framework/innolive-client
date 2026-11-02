@@ -85,13 +85,7 @@ struct BroadcastSettingsView: View {
             Button(youtube.selectedYouTubeAccount?.displayTitle ?? "YouTube") { performPrimaryAction() }
             Button(String(localized: "취소"), role: .cancel) {}
         }
-        .onChange(of: youtube.selectedBroadcastProviders) { _, selected in
-            if !isLiveEditing, modeProvider == nil, !selected.contains(editor.provider),
-               let provider = BroadcastSettingsProvider.allCases.first(where: selected.contains) {
-                editor.select(provider)
-                query = ""
-            }
-        }
+        .onChange(of: youtube.selectedBroadcastProviders) { _, selected in selectEditableProvider(from: selected) }
         .onChange(of: query) { _, _ in editor.invalidateCategorySearch() }
         .task { if !isLiveEditing, !token.isEmpty { await youtube.refreshConnection(accessToken: token) } }
         // 얼굴 관리에서 돌아오면 다시 확인해 다시 등록한 뒤 안내가 사라지게 한다.
@@ -100,22 +94,7 @@ struct BroadcastSettingsView: View {
                 await faceReregistration.refresh(authentication: authentication)
             }
         }
-        .task(id: contextKey) {
-            if let liveProvider {
-                youtube.beginLiveEditing(liveProvider, accessToken: token)
-            } else {
-                youtube.configureSettingsEditor(accessToken: token)
-                if let modeProvider {
-                    editor.select(modeProvider)
-                } else if !youtube.selectedBroadcastProviders.contains(editor.provider),
-                   let provider = BroadcastSettingsProvider.allCases.first(where: youtube.selectedBroadcastProviders.contains) {
-                    editor.select(provider)
-                }
-                await editor.loadDefaults(session: youtube.session, accessToken: token, provider: editor.provider)
-            }
-            let provider = editor.provider
-            if provider == .youtube, !token.isEmpty { await editor.searchCategories(query: "", accessToken: token) }
-        }
+        .task(id: contextKey) { await loadEditorContext() }
         .alert(String(localized: "방송 설정 저장 완료"), isPresented: $isSaved) {
             Button(String(localized: "확인"), role: .cancel) {}
         } message: {
@@ -129,15 +108,7 @@ struct BroadcastSettingsView: View {
         }
         .sheet(item: $transmissionNoticeProvider, onDismiss: showNextTransmissionNotice) { provider in
             BroadcastTransmissionNoticeView(provider: provider) { consent in
-                guard youtube.acknowledgeTransmission(consent, for: provider) else { return }
-                // YouTube와 치지직을 함께 처음 송출하면 남은 안내를 이 시트가 닫힌 뒤 연다.
-                if let next = pendingTransmissionNoticeProvider {
-                    nextTransmissionNoticeProvider = next
-                } else if modeProvider != nil {
-                    saveModeSettings()
-                } else {
-                    submitPreparation(editor.provider)
-                }
+                confirmTransmissionNotice(consent, for: provider)
             }
         }
     }
@@ -503,6 +474,33 @@ struct BroadcastSettingsView: View {
         content().innoLiveSettingsCard()
     }
     private func searchCHZZK() { Task { await editor.searchCategories(query: query, accessToken: token) } }
+
+    /// 송출 대상에서 빠진 플랫폼을 편집 중이면 남은 첫 플랫폼으로 편집기를 옮긴다.
+    private func selectEditableProvider(from selected: Set<BroadcastSettingsProvider>) {
+        if !isLiveEditing, modeProvider == nil, !selected.contains(editor.provider),
+           let provider = BroadcastSettingsProvider.allCases.first(where: selected.contains) {
+            editor.select(provider)
+            query = ""
+        }
+    }
+
+    /// 계정·플랫폼·세션이 바뀌면 편집기를 다시 맞추고 기본값과 YouTube 카테고리를 불러온다.
+    private func loadEditorContext() async {
+        if let liveProvider {
+            youtube.beginLiveEditing(liveProvider, accessToken: token)
+        } else {
+            youtube.configureSettingsEditor(accessToken: token)
+            if let modeProvider {
+                editor.select(modeProvider)
+            } else if !youtube.selectedBroadcastProviders.contains(editor.provider),
+               let provider = BroadcastSettingsProvider.allCases.first(where: youtube.selectedBroadcastProviders.contains) {
+                editor.select(provider)
+            }
+            await editor.loadDefaults(session: youtube.session, accessToken: token, provider: editor.provider)
+        }
+        let provider = editor.provider
+        if provider == .youtube, !token.isEmpty { await editor.searchCategories(query: "", accessToken: token) }
+    }
     private func primaryAction() {
         if !isLiveEditing, youtube.youtubeAccounts.count > 1,
            (modeProvider == .youtube || (onPrepare != nil && youtube.selectedBroadcastProviders.contains(.youtube))),
@@ -584,6 +582,18 @@ struct BroadcastSettingsView: View {
         guard let next = nextTransmissionNoticeProvider else { return }
         nextTransmissionNoticeProvider = nil
         showTransmissionNotice(for: next)
+    }
+
+    private func confirmTransmissionNotice(_ consent: SignupConsent, for provider: BroadcastSettingsProvider) {
+        guard youtube.acknowledgeTransmission(consent, for: provider) else { return }
+        // YouTube와 치지직을 함께 처음 송출하면 남은 안내를 이 시트가 닫힌 뒤 연다.
+        if let next = pendingTransmissionNoticeProvider {
+            nextTransmissionNoticeProvider = next
+        } else if modeProvider != nil {
+            saveModeSettings()
+        } else {
+            submitPreparation(editor.provider)
+        }
     }
 }
 
