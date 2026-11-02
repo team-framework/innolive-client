@@ -183,16 +183,20 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 4.dp))
         if (props.onDeviceProcessing) {
-            Text("실험실 · 얼굴 효과", style = MaterialTheme.typography.titleSmall)
-            listOf("blur" to "블러", "rabbit" to "토끼", "owl" to "부엉이").forEach { (value, title) ->
+            Text(stringResource(R.string.lab_face_effect), style = MaterialTheme.typography.titleSmall)
+            listOf(
+                "blur" to R.string.lab_face_anonymization_blur,
+                "rabbit" to R.string.lab_face_effect_rabbit,
+                "owl" to R.string.lab_face_effect_owl,
+            ).forEach { (value, title) ->
                 Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(selected = animal == value, enabled = enabled, role = Role.RadioButton,
                     onClick = { animalPreferences.edit().putString("selected", value).apply(); animal = value }),
                     verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(selected = animal == value, onClick = null, enabled = enabled)
-                    Text(title)
+                    Text(stringResource(title))
                 }
             }
-            Text("동물 필터 아래에도 얼굴 블러를 유지합니다.", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.lab_face_effect_description), style = MaterialTheme.typography.bodySmall)
         }
         listOf(false to R.string.ai_mode_server, true to R.string.ai_mode_on_device).forEach { (onDevice, label) ->
             val selected = props.onDeviceProcessing == onDevice
