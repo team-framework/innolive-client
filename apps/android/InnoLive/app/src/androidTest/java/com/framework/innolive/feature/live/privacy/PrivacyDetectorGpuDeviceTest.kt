@@ -15,7 +15,7 @@ import org.junit.runner.RunWith
 import java.nio.FloatBuffer
 import kotlin.math.abs
 
-/** Same pinned weights and input tensor; GPU failures are reported rather than mislabelled as CPU speed. */
+/** 같은 고정 가중치와 입력 텐서를 씁니다. GPU 실패는 CPU 속도로 잘못 표시하지 않고 그대로 보고합니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyDetectorGpuDeviceTest {
     @Test fun convertedModelRunsOnAndroidCpuWithMatchingOutputs() {
@@ -52,7 +52,7 @@ class PrivacyDetectorGpuDeviceTest {
     }
 
     @Test fun compareDetectorGpuOutputsAndLatency() {
-        // The emulator's OpenGL delegate compiles the graph but cannot allocate its input buffer.
+        // 에뮬레이터의 OpenGL delegate는 그래프는 컴파일하지만 입력 버퍼를 할당하지 못합니다.
         assumeFalse("GPU tensor buffers require a physical device", Build.HARDWARE.contains("ranchu") ||
             Build.HARDWARE.contains("goldfish") || Build.MODEL.startsWith("sdk_"))
         val context = InstrumentationRegistry.getInstrumentation().targetContext

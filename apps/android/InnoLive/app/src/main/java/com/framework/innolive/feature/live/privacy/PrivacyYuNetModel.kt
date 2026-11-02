@@ -37,7 +37,7 @@ internal data class YuNetFace(val box: RectF, val landmarks: List<PointF>, val s
 
 internal class AmbiguousFaceSampleException : IllegalStateException("Multiple faces in recognition crop")
 
-/** YuNet output decoding follows OpenCV FaceDetectorYN and the iOS implementation. */
+/** YuNet 출력 디코딩은 OpenCV FaceDetectorYN과 iOS 구현을 따릅니다. */
 internal object PrivacyYuNetDecoding {
     fun decode(outputs: Map<String, FloatArray>, width: Int, height: Int): List<YuNetFace> {
         require(width > 0 && height > 0 && width % 32 == 0 && height % 32 == 0)
@@ -133,7 +133,7 @@ internal class PrivacyYuNetModel(context: Context, private val reuseInputs: Bool
 
     internal fun resized(image:Bitmap,width:Int,height:Int):Bitmap {
         if (image.width==width && image.height==height) return image
-        // Keep Android's color-space/config conversion for uncommon enrollment formats.
+        // 흔하지 않은 등록 이미지 형식은 Android의 색 공간·config 변환을 유지합니다.
         if (image.config!=Bitmap.Config.ARGB_8888 || image.colorSpace?.isSrgb!=true)
             return Bitmap.createScaledBitmap(image,width,height,true)
         if (resizedScratch?.width!=width || resizedScratch?.height!=height) {

@@ -5,7 +5,7 @@ import org.webrtc.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-/** Host ICE test peer. Does not contact the server or publish a broadcast. */
+/** 호스트 ICE 테스트 피어입니다. 서버에 접속하거나 방송을 송출하지 않습니다. */
     internal class PrivacyCameraPeer(factory:PeerConnectionFactory,private val onFrame:(VideoFrame)->Unit) {
         val gathered=CountDownLatch(1)
         val connected=CountDownLatch(1)

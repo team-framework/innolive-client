@@ -33,8 +33,8 @@ class AIProcessingSelectionDeviceTest {
                 assertTrue(session.canChangeAIProcessing)
                 assertTrue(session.selectAIProcessing(compose.activity, true))
                 assertTrue(AIProcessingPreference(compose.activity).onDevice)
-                // Settings has no CameraPreview. Starting here would wait for a protected frame
-                // that cannot arrive and turn the selection into a 30-second connection failure.
+                // 설정 화면에는 CameraPreview가 없습니다. 여기서 시작하면 도착할 수 없는 보호 프레임을 기다리다가
+                // 선택이 30초 연결 실패로 바뀝니다.
                 assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
             }
         } finally {

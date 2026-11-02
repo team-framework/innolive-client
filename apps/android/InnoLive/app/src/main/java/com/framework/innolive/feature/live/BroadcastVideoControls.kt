@@ -67,7 +67,7 @@ fun BroadcastVideoControls(
         ModalBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            // Dimming only the camera makes its colors look different from the preset cards.
+            // 카메라만 어둡게 하면 색이 프리셋 카드와 다르게 보입니다.
             // 같은 이유로 뒤를 흐리게 하지 않고, 다른 모달과 같은 흰 유리 바탕만 씁니다.
             scrimColor = Color.Transparent,
             containerColor = ModalGlassColor,
@@ -76,7 +76,7 @@ fun BroadcastVideoControls(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // Keep the top of the camera visible so adjustments can be judged on the live preview.
+                    // 실시간 미리보기로 조정 결과를 판단할 수 있도록 카메라 위쪽이 보이게 둡니다.
                     .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.6f).dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)

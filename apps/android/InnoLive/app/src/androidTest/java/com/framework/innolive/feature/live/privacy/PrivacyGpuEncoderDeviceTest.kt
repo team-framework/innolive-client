@@ -32,7 +32,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Exercises the same shared EGL surface encoder used for broadcasting, without signaling/network. */
+/** 방송에 쓰는 것과 같은 공유 EGL surface 인코더를 시그널링·네트워크 없이 실행합니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyGpuEncoderDeviceTest {
     @Test fun serverVp8IsFirstInRealAndroidOffer() = codecFirstInRealAndroidOffer(true)

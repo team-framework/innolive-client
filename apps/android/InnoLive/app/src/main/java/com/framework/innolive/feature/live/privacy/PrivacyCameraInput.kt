@@ -6,7 +6,7 @@ import org.webrtc.JavaI420Buffer
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Owns the CameraX image until upload or an owned CPU copy captures its pixels. No consumer receives its mutable storage. */
+/** 업로드하거나 소유한 CPU 사본에 픽셀을 담을 때까지 CameraX 이미지를 소유합니다. 어떤 소비자도 변경 가능한 저장 공간을 받지 않습니다. */
 internal class PrivacyCameraInput(private val image: ImageProxy) : AutoCloseable {
     private val closed = AtomicBoolean(false)
     private val crop = Rect(image.cropRect)
@@ -40,7 +40,7 @@ internal class PrivacyCameraInput(private val image: ImageProxy) : AutoCloseable
         }
     }
 
-    /** Only the protected CPU fallback copies camera planes into owned I420 storage. */
+    /** 보호된 CPU 대체 경로만 카메라 plane을 소유한 I420 저장 공간으로 복사합니다. */
     fun copyI420(): JavaI420Buffer {
         val planes=planes()
         val output=JavaI420Buffer.allocate(width,height)

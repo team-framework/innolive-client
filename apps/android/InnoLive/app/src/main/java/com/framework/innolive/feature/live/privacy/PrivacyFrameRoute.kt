@@ -2,7 +2,7 @@ package com.framework.innolive.feature.live.privacy
 
 internal enum class PrivacyFrameMode { SERVER, LOCAL_PROTECTED, LOCAL_RAW }
 
-/** A mode switch invalidates an inference result captured under the previous route. */
+/** 모드가 바뀌면 이전 경로에서 캡처한 추론 결과는 무효가 됩니다. */
 internal class PrivacyFrameRoute(initial: PrivacyFrameMode) {
     data class Ticket(val generation: Long, val mode: PrivacyFrameMode)
     private val lock = Any()

@@ -15,7 +15,7 @@ class BroadcastTutorialTest {
 
     private val store = MemoryStore()
 
-    // Policy
+    // 정책
 
     @Test
     fun idleHomeAsksToOpenPreparation() {
@@ -119,7 +119,7 @@ class BroadcastTutorialTest {
         assertNull(BroadcastTutorialStep.WAIT_FOR_PREPARATION.anchor(BroadcastTutorialHost.SETTINGS_DIALOG))
     }
 
-    // Coordinator
+    // 코디네이터
 
     @Test
     fun firstLaunchStartsAtTheFirstStep() {
@@ -292,7 +292,7 @@ class BroadcastTutorialTest {
         assertNull(tutorial.stage)
     }
 
-    // Helpers
+    // 헬퍼
 
     private fun coordinator() = BroadcastTutorialCoordinator(store)
 

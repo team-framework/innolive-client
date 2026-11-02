@@ -3,13 +3,13 @@ package com.framework.innolive.feature.live.privacy
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-/** Serial frame owner. Only the small, selected detections and final mask cross into Java. */
+/** 직렬 프레임 소유자입니다. 선택된 작은 검출 결과와 최종 마스크만 Java로 넘어옵니다. */
 internal class PrivacyNativePostprocessor : AutoCloseable {
     val predictions: ByteBuffer = ByteBuffer.allocateDirect(38 * 8400 * 4).order(ByteOrder.nativeOrder())
     val prototypes: ByteBuffer = ByteBuffer.allocateDirect(32 * 160 * 160 * 4).order(ByteOrder.nativeOrder())
     private var handle = Native.create()
     private var ready = false
-    /** Prototypes from a decode remain in [prototypes] until [reset]. */
+    /** decode한 프로토타입은 [reset] 전까지 [prototypes]에 남습니다. */
     private var decoded = false
     var maskPixels: Int = 0
         private set
@@ -17,7 +17,7 @@ internal class PrivacyNativePostprocessor : AutoCloseable {
     fun decode(): List<PrivacySegmentation.Detection> {
         check(handle != 0L)
         ready = false
-        // Native code raises IllegalStateException only for frame content; buffer and state errors stay IAE.
+        // 네이티브 코드는 프레임 내용 문제에만 IllegalStateException을 던지고, 버퍼·상태 오류는 IAE로 남깁니다.
         val selected = try {
             Native.decode(handle, predictions, prototypes)
         } catch (error: IllegalStateException) {
@@ -34,8 +34,8 @@ internal class PrivacyNativePostprocessor : AutoCloseable {
     }
 
     /**
-     * Protect [objects] from [PrivacyObjectTracking] instead of every decoded candidate. A frame that skipped
-     * detection selects its predicted objects against the last decoded prototypes.
+     * 디코딩된 모든 후보가 아니라 [PrivacyObjectTracking]의 [objects]를 보호합니다. 검출을 건너뛴 프레임은
+     * 마지막으로 decode한 프로토타입으로 예측 객체를 선택합니다.
      */
     fun select(objects: List<PrivacySegmentation.Detection>) {
         check(handle != 0L && (ready || decoded))

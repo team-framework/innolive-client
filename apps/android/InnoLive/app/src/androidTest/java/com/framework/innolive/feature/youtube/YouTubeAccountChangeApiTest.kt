@@ -146,7 +146,7 @@ class YouTubeAccountChangeApiTest {
 
     private data class CapturedRequest(val authorization: String, val body: String)
 
-    /** Exercises the coordinator and production HTTP/parser path against a local test server. */
+    /** 로컬 테스트 서버를 상대로 coordinator와 운영 HTTP·파서 경로를 실행합니다. */
     private suspend fun withServer(
         statuses: List<Int>,
         loseReplacementResponse: Boolean = false,
@@ -163,7 +163,7 @@ class YouTubeAccountChangeApiTest {
                         server.accept().use { socket -> respond(socket, status, isLookup) { requests += it } }
                     }
                 }
-                // Redirect only the injected test client; the production API still requires HTTPS.
+                // 주입한 테스트 클라이언트의 요청만 로컬로 돌립니다. 운영 API는 여전히 HTTPS를 요구합니다.
                 var attempts = 0
                 val client = OkHttpClient.Builder().addInterceptor { chain ->
                     val request = chain.request()
@@ -178,7 +178,7 @@ class YouTubeAccountChangeApiTest {
                         ).build(),
                     )
                     if (loseReplacementResponse && attempt == 0) {
-                        // The server has completed the POST; lose only its return path to the app.
+                        // 서버는 POST 처리를 마쳤고, 앱으로 돌아오는 응답만 유실시킵니다.
                         response.close()
                         throw IOException("Replacement response lost after server applied it")
                     }
@@ -250,7 +250,7 @@ class YouTubeAccountChangeApiTest {
             """{"error":{"code":"test_rejection","message":"test rejection"}}"""
         }
         val response = responseBody.toByteArray(Charsets.UTF_8)
-        // Publish the capture before responding so assertions see every completed request.
+        // 응답하기 전에 캡처 결과를 전달해, 검증 시점에 완료된 요청이 모두 보이게 합니다.
         val captured = CapturedRequest(checkNotNull(headers["authorization"]), body.toString(Charsets.UTF_8))
         onCaptured(captured)
         socket.getOutputStream().apply {

@@ -22,7 +22,7 @@
 
 `BroadcastTutorialPolicy`는 기록이 아니라 현재 앱 상태로 단계를 정한다. 입력은 시트 표시 여부, 선택한 계정 연결 여부, `preparationStatus`, 서버 `broadcast_phase`, 라이브 시작 여부다. 사용자가 시트를 닫거나 준비를 취소하면 첫 단계로 돌아가고, `going_live`나 라이브가 시작되면 안내를 끝내고 완료로 기록한다.
 
-`BroadcastControllsView`가 시트 상태를 알기 때문에 이 화면이 상태를 모아 `BroadcastTutorialCoordinator`에 전달한다. 홈은 카메라 권한 응답이 끝나고 권한 알림이 없을 때 0.6초 뒤 안내를 시작한다. 진행 중인 세션이 있으면 자동으로 시작하지 않는다.
+`BroadcastControlsView`가 시트 상태를 알기 때문에 이 화면이 상태를 모아 `BroadcastTutorialCoordinator`에 전달한다. 홈은 카메라 권한 응답이 끝나고 권한 알림이 없을 때 0.6초 뒤 안내를 시작한다. 진행 중인 세션이 있으면 자동으로 시작하지 않는다.
 
 ### 화면 구성
 
@@ -80,7 +80,7 @@
 - `apps/ios/InnoLive/InnoLive/Features/Home/LiveStatus/BroadcastTargetStatus.swift`
 - `apps/ios/InnoLive/InnoLive/Features/Home/LiveStatus/BroadcastUplinkQuality.swift`
 - `apps/ios/InnoLive/InnoLive/Features/Home/BroadcastControlViews.swift`
-- `apps/ios/InnoLive/InnoLive/Features/Home/BroadcastControllsView.swift`
+- `apps/ios/InnoLive/InnoLive/Features/Home/BroadcastControlsView.swift`
 - `apps/ios/InnoLive/InnoLive/Features/Home/HomeView.swift`
 - `apps/ios/InnoLive/InnoLive/Features/Home/WebRTC/WebRTCVideoUplink.swift`
 - `apps/ios/InnoLive/InnoLive/Features/Home/WebRTC/WebRTCVideoUplink+Diagnostics.swift`

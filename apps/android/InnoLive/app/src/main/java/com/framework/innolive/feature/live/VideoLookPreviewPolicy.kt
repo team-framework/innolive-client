@@ -4,7 +4,7 @@ import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
-/** One preview job at a time, at most eight accepted camera frames per second. */
+/** 미리보기 작업은 한 번에 하나만, 초당 최대 8개의 카메라 프레임만 받습니다. */
 internal class VideoLookPreviewGate {
     private var enabled = false
     private var closed = false
@@ -64,7 +64,7 @@ internal fun videoLookPreviewDimensions(width: Int, height: Int): Pair<Int, Int>
 internal fun previewExposureLookup(targetEV: Float, appliedEV: Float): IntArray {
     val delta = (targetEV - appliedEV).takeIf(Float::isFinite)?.coerceIn(-4f, 4f) ?: 0f
     val factor = 2.0.pow(delta.toDouble())
-    // EV scales light, not gamma-encoded display bytes. Preserve an exact identity at 0 EV.
+    // EV는 감마 인코딩된 표시 바이트가 아니라 빛의 양을 조절합니다. 0 EV에서는 정확히 원본을 유지합니다.
     if (delta == 0f) return IntArray(256) { it }
     return IntArray(256) {
         val encoded = it / 255.0
