@@ -422,7 +422,7 @@ private struct MosaicDraft: Equatable {
     }
 }
 
-private enum BroadcastVideoLook: CaseIterable, Identifiable, Sendable {
+nonisolated private enum BroadcastVideoLook: CaseIterable, Identifiable, Sendable {
     case vivid
     case bright
     case warm
