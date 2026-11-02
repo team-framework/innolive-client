@@ -13,7 +13,7 @@ import android.media.ImageReader
 import android.os.Build
 import androidx.annotation.RequiresApi
 
-/** Owned and closed by one serial processor. GPU failure falls back to protected CPU pixels. */
+/** 하나의 직렬 처리기가 소유하고 닫습니다. GPU가 실패하면 보호된 CPU 픽셀로 대체합니다. */
 internal class PrivacyBitmapBlur : AutoCloseable {
     private var gpu: Gpu? = null
     private var gpuUnavailable = false
@@ -60,7 +60,7 @@ internal class PrivacyBitmapBlur : AutoCloseable {
             } catch (error: Exception) { close(); throw error }
         }
 
-        /** The same full-resolution sigma as the GPU graph and iOS, via HWUI's radius conversion. */
+        /** HWUI 반경 변환을 거쳐 GPU 그래프·iOS와 같은 전체 해상도 sigma를 씁니다. */
         var sigma = 0
             set(value) {
                 if (field == value) return
@@ -70,7 +70,7 @@ internal class PrivacyBitmapBlur : AutoCloseable {
             }
 
         fun apply(source: Bitmap): Bitmap {
-            // iOS broadcastStyleBlur: area-average reduction, then one wide Gaussian; no block grid.
+            // iOS broadcastStyleBlur와 같이 면적 평균으로 축소한 뒤 넓은 가우시안을 한 번 적용하며, 블록 격자는 쓰지 않습니다.
             val reduced = PrivacyMaskRenderer.reduce(source)
             try {
                 val canvas = node.beginRecording()
@@ -84,7 +84,7 @@ internal class PrivacyBitmapBlur : AutoCloseable {
                         val hardware = checkNotNull(Bitmap.wrapHardwareBuffer(buffer,
                             ColorSpace.get(ColorSpace.Named.SRGB)))
                         try {
-                            // Copy before closing the GPU image; the caller owns an independent CPU bitmap.
+                            // GPU 이미지를 닫기 전에 복사합니다. 호출자는 독립된 CPU 비트맵을 소유합니다.
                             return checkNotNull(hardware.copy(Bitmap.Config.ARGB_8888, false))
                         } finally { hardware.recycle() }
                     }

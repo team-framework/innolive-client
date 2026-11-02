@@ -35,8 +35,8 @@ internal fun parseYouTubeApiErrorMessage(body: String): String? {
     if (trimmedBody.isEmpty()) return null
 
     val payload = runCatching { JSONObject(trimmedBody) }.getOrElse {
-        // A server may intentionally return a plain-text error instead of the
-        // API error envelope. It is external content, so preserve it verbatim.
+        // 서버가 API 오류 형식 대신 일반 텍스트 오류를 의도적으로 돌려줄 수 있습니다.
+        // 외부 내용이므로 그대로 보존합니다.
         return trimmedBody
     }
     return payload

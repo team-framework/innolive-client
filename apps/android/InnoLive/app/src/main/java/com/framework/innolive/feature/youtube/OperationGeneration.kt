@@ -3,8 +3,8 @@ package com.framework.innolive.feature.youtube
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Identifies the latest asynchronous operation so a completed older request
- * cannot publish state after logout, account replacement, or recreation.
+ * 가장 최근 비동기 작업을 식별해, 먼저 끝난 이전 요청이 로그아웃·계정 교체·재생성 뒤에
+ * 상태를 반영하지 못하게 합니다.
  */
 internal class OperationGeneration(initialValue: Long = 0L) {
     private val value = AtomicLong(initialValue)

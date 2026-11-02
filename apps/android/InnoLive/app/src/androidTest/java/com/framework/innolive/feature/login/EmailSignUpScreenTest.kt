@@ -105,10 +105,10 @@ class EmailSignUpScreenTest {
         rule.onNodeWithText(string(R.string.action_send_verification_email)).performScrollTo().performClick()
         rule.runOnIdle { assertEquals(1, signups) }
         rule.onNodeWithText(string(R.string.account_consent_accept)).assertDoesNotExist()
-        // A failed request may be retried within the same form without another dialog.
+        // 실패한 요청은 다른 다이얼로그 없이 같은 양식에서 다시 시도할 수 있습니다.
         rule.onNodeWithText(string(R.string.action_send_verification_email)).performClick()
         rule.runOnIdle { assertEquals(2, signups) }
-        // Leaving the signup flow clears the in-memory acceptance.
+        // 회원가입 흐름을 벗어나면 메모리에 있던 동의 상태가 지워집니다.
         rule.onNodeWithText(string(R.string.action_sign_in)).performScrollTo().performClick()
         rule.onNodeWithText(string(R.string.action_sign_up)).performScrollTo().performClick()
         rule.onNodeWithText(string(R.string.account_consent_cancel)).assertIsDisplayed()

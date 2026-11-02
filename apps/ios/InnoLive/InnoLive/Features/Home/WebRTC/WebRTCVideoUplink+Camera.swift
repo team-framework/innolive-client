@@ -1,4 +1,4 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 @preconcurrency import LiveKitWebRTC
 
 extension WebRTCVideoUplink {
@@ -551,7 +551,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         directMediaSink = sink
         lock.unlock()
         processor.setMetricsHandler(sink.map { sink in
-            { [weak sink] metric in
+            { @Sendable [weak sink] metric in
                 switch metric {
                 case let .inference(milliseconds): sink?.recordInference(milliseconds: milliseconds)
                 case .failure: sink?.recordAnonymizationFailure()

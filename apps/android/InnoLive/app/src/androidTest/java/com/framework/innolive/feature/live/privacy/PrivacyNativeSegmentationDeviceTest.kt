@@ -16,7 +16,7 @@ class PrivacyNativeSegmentationDeviceTest {
         val random = Random(320)
         val proto = FloatArray(32*160*160) { random.nextFloat()*2-1 }
         val weights = FloatArray(32) { random.nextFloat()*2-1 }
-        // Cancellation and zero must preserve the >0 decision, with no fused multiply/add.
+        // 상쇄와 0 값에서도 >0 판정이 유지돼야 하며, fused multiply/add를 쓰지 않습니다.
         for (c in 0 until 32) proto[c*160*160+5*160+5] = if(c%2==0)1f else -1f
         for (width in listOf(1,3,4,5,159,160)) {
             val objects = listOf(detection(PrivacySegmentation.Box(0f,0f,width*4f,640f), weights),
