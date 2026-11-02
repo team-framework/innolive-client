@@ -1,5 +1,5 @@
-# Classes, constructors and fields that native libraries look up by name, in R8 seeds.txt notation.
-# verifyReleaseJniKeeps fails the release build when keep rules no longer cover one of them.
+# 네이티브 라이브러리가 이름으로 조회하는 클래스·생성자·필드를 R8 seeds.txt 표기로 적습니다.
+# keep 규칙이 이 중 하나라도 더 이상 보장하지 않으면 verifyReleaseJniKeeps가 릴리스 빌드를 실패시킵니다.
 
 # ONNX Runtime 1.23.2 (libonnxruntime4j_jni.so)
 ai.onnxruntime.NodeInfo: NodeInfo(java.lang.String,ai.onnxruntime.ValueInfo)
