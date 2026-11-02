@@ -11,6 +11,7 @@ struct BroadcastSettingsView: View {
     @State private var transmissionNoticeProvider: BroadcastSettingsProvider?
     @State private var nextTransmissionNoticeProvider: BroadcastSettingsProvider?
     @State private var isShowingMediaConsent = false
+    @State private var isShowingLocalRecordingNotice = false
     @State private var isSubmittingPreparation = false
     @State private var transmissionNotice = YouTubeTransmissionNotice()
     @StateObject private var faceReregistration = ReferenceFaceReregistrationCheck()
@@ -246,6 +247,13 @@ struct BroadcastSettingsView: View {
                 continuePrepare()
             }
         }
+        .sheet(isPresented: $isShowingLocalRecordingNotice) {
+            LocalRecordingNotice(onAcknowledge: {
+                youtube.consentStore.recordLocalRecordingNotice()
+                isShowingLocalRecordingNotice = false
+                submitPreparation(editor.provider)
+            }, onCancel: { isShowingLocalRecordingNotice = false })
+        }
         .sheet(item: $transmissionNoticeProvider, onDismiss: showNextTransmissionNotice) { provider in
             BroadcastTransmissionNoticeView(provider: provider) { consent in
                 guard youtube.acknowledgeTransmission(consent, for: provider) else { return }
@@ -261,9 +269,10 @@ struct BroadcastSettingsView: View {
         }
     }
 
-    /// 방송 준비 시트에서 송출 플랫폼을 모두 해제한 상태다. 계정·방송 정보 없이 비식별화만 연다.
+    /// 방송 준비 시트에서 송출 플랫폼을 모두 해제했거나 송출할 수 없는 로컬 모드다. 계정·방송 정보 없이 비식별화만 연다.
     private var isPrivacyOnly: Bool {
-        !isLiveEditing && modeProvider == nil && onPrepare != nil && youtube.selectedBroadcastProviders.isEmpty
+        !isLiveEditing && modeProvider == nil && onPrepare != nil
+            && (youtube.selectedBroadcastProviders.isEmpty || youtube.startsPrivacyOnlyLocally)
     }
 
     private var prepareButtonTitle: String {
@@ -282,9 +291,12 @@ struct BroadcastSettingsView: View {
         if youtube.preparationStatus?.isRunning == true || youtube.preparationStatus?.phase == .cancelling {
             return true
         }
-        if planStore.snapshot?.preparationBlockMessage(youtube.preparationPlanMode, processing: youtube.planProcessingMode) != nil { return true }
+        if !youtube.startsPrivacyOnlyLocally,
+           planStore.snapshot?.preparationBlockMessage(youtube.preparationPlanMode, processing: youtube.planProcessingMode) != nil {
+            return true
+        }
         if isPrivacyOnly && youtube.isPrivacyOnlySession { return true }
-        if !youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) { return true }
+        if !isPrivacyOnly && !youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) { return true }
         return youtube.isBroadcastSettingsLocked && youtube.preparationStatus?.isFailed != true
     }
 
@@ -496,7 +508,7 @@ struct BroadcastSettingsView: View {
             Task { isSaved = await youtube.saveEditorSettings(accessToken: token) }
             return
         }
-        guard youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) else { return }
+        guard isPrivacyOnly || youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) else { return }
         guard !isSubmittingPreparation else { return }
         guard authentication.hasAcceptedMediaTransmission else {
             isShowingMediaConsent = true
@@ -519,7 +531,13 @@ struct BroadcastSettingsView: View {
     }
 
     private func continuePrepare() {
-        if let provider = pendingTransmissionNoticeProvider {
+        if youtube.startsPrivacyOnlyLocally {
+            if youtube.consentStore.hasAcknowledgedLocalRecordingNotice {
+                submitPreparation(editor.provider)
+            } else {
+                isShowingLocalRecordingNotice = true
+            }
+        } else if let provider = pendingTransmissionNoticeProvider {
             showTransmissionNotice(for: provider)
         } else {
             submitPreparation(editor.provider)
