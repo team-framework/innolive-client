@@ -18,14 +18,12 @@ final class BroadcastSettingsTests: XCTestCase {
         config.protocolClasses = [SettingsURLProtocol.self]
         api = YouTubeAPI(urlSession: URLSession(configuration: config), serverURLProvider: { URL(string: "https://example.invalid\($0)") })
         editor = BroadcastSettingsEditor(api: api, preferences: preferences)
-        SettingsURLProtocol.responses = []
-        SettingsURLProtocol.requests = []
+        SettingsURLProtocol.reset()
         editor.configure(scope: scope("A"), channels: ["youtube": "yt-a", "chzzk": "cz-a"])
     }
     override func tearDown() {
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
-        SettingsURLProtocol.responses = []
-        SettingsURLProtocol.requests = []
+        SettingsURLProtocol.reset()
     }
     private func scope(_ user: String) -> BroadcastSessionScope {
         let payload = Data("{\"sub\":\"\(user)\"}".utf8).base64EncodedString()
@@ -37,7 +35,7 @@ final class BroadcastSettingsTests: XCTestCase {
         """.utf8))
     }
     private func enqueue(_ body: String, status: Int = 200, delay: TimeInterval = 0) {
-        SettingsURLProtocol.responses.append(.init(status: status, body: Data(body.utf8), delay: delay))
+        SettingsURLProtocol.responses.append(.init(status: status, json: body, delay: .seconds(delay)))
     }
     private func body(_ request: URLRequest) throws -> [String: Any] {
         if let data = request.httpBody { return try JSONSerialization.jsonObject(with: data) as! [String: Any] }
@@ -260,24 +258,4 @@ final class BroadcastSettingsTests: XCTestCase {
     }
 }
 
-private final class SettingsURLProtocol: URLProtocol {
-    struct Response { let status: Int; let body: Data; let delay: TimeInterval }
-    nonisolated(unsafe) static var responses: [Response] = []
-    nonisolated(unsafe) static var requests: [URLRequest] = []
-    private var work: DispatchWorkItem?
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        Self.requests.append(request)
-        let response = Self.responses.isEmpty ? Response(status: 500, body: Data(), delay: 0) : Self.responses.removeFirst()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.client?.urlProtocol(self, didReceive: HTTPURLResponse(url: self.request.url!, statusCode: response.status, httpVersion: nil, headerFields: ["Content-Type":"application/json"])!, cacheStoragePolicy: .notAllowed)
-            self.client?.urlProtocol(self, didLoad: response.body)
-            self.client?.urlProtocolDidFinishLoading(self)
-        }
-        self.work = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + response.delay, execute: work)
-    }
-    override func stopLoading() { work?.cancel() }
-}
+private final class SettingsURLProtocol: StubURLProtocol {}
