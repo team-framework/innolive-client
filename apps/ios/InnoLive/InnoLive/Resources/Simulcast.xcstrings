@@ -1,28 +1,6 @@
 {
   "sourceLanguage": "ko",
   "strings": {
-    "방송할 플랫폼을 하나 이상 선택해 주세요.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "방송할 플랫폼을 하나 이상 선택해 주세요."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select at least one broadcast platform."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配信先を1つ以上選択してください。"
-          }
-        }
-      }
-    },
     "방송 제어를 완료하지 못했습니다.": {
       "localizations": {
         "ko": {

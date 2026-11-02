@@ -24,6 +24,10 @@ formatting; API timestamps retain their original parsing rules.
   accessibility, client-generated errors, and state descriptions.
 - `apps/ios/InnoLive/InnoLive/Resources/InfoPlist.xcstrings` owns camera and
   microphone permission explanations.
+- Per-feature catalogs in the same folder (`BroadcastGuide`, `CHZZK`,
+  `Simulcast`, ...) hold strings looked up with `table:`. Remove a key when its
+  last `String(localized:)` use goes away; the extraction check below fails on
+  keys no source file uses.
 - Catalog source language is `ko`; add complete `ko`, `en`, and `ja` entries.
 - Generated catalog symbols are disabled because the app uses original text
   keys, including punctuation-only formats and punctuation variants that
@@ -54,13 +58,18 @@ xcodebuild test -project apps/ios/InnoLive/InnoLive.xcodeproj \
 
 Repeat focused `-only-testing:InnoLiveTests/LocalizationTests` runs with
 `-testLanguage en -testRegion US` and `-testLanguage ja -testRegion JP`.
-The catalog validator checks completed translations, untranslated Korean,
-format-argument parity, and permission keys. `LocalizationTests` checks the
-compiled app's actual language bundles, translated sign-in text, permission
-resources, dynamic display titles, and unchanged wire values.
+The catalog validator checks every `*.xcstrings` in `Resources` for completed
+translations, untranslated Korean, format-argument parity, and permission keys.
+`LocalizationTests` checks the compiled app's actual language bundles,
+translated sign-in text, permission resources, dynamic display titles, and
+unchanged wire values. The validator's own unit tests run with
+`python3 scripts/test_validate_ios_localizations.py`.
 
-After a fresh build, pass the app's compiler extraction directory to also
-detect missing source keys (including interpolation format keys):
+After a fresh build, pass the app's compiler extraction directory to compare
+the catalogs with the keys the compiler actually extracted. Missing source keys
+(including interpolation format keys) and catalog keys that no source file uses
+any more both fail the run. `InfoPlist` keys are exempt from the unused check
+because the system resolves them, not the compiler:
 
 ```sh
 python3 scripts/validate-ios-localizations.py --stringsdata-dir \

@@ -155,50 +155,6 @@
         }
       }
     },
-    "선택한 방식으로 방송할 수 있는 시간이 부족합니다.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "선택한 방식으로 방송할 수 있는 시간이 부족합니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "There is not enough broadcast time for the selected mode."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "選択した方式で配信できる時間が不足しています。"
-          }
-        }
-      }
-    },
-    "현재 요금제에서 사용할 수 없는 방송 방식입니다.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "현재 요금제에서 사용할 수 없는 방송 방식입니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This broadcast mode is not available on your current plan."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "現在のプランではこの配信方式を利用できません。"
-          }
-        }
-      }
-    },
     "방송 방식 변경 중": {
       "localizations": {
         "ko": {
@@ -525,28 +481,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "配信解像度に合わせてカメラ画質を変更できませんでした。カメラの状態を確認してください。"
-          }
-        }
-      }
-    },
-    "현재 요금제와 남은 시간으로 선택한 송출 방식을 사용할 수 없습니다.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "현재 요금제와 남은 시간으로 선택한 송출 방식을 사용할 수 없습니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your current plan and remaining time do not support the selected broadcast mode."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "現在のプランと残り時間では、選択した配信方式を利用できません。"
           }
         }
       }
