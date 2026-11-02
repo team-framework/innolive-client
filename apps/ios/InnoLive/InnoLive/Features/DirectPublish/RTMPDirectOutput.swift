@@ -88,11 +88,11 @@ nonisolated final class RTMPDirectOutput: DirectMediaOutput, @unchecked Sendable
                 return
             }
         }
-        lock.lock()
-        isOpen = !isClosing
-        tasks = [videoTask, audioTask, statusTask]
-        let cancelled = isClosing
-        lock.unlock()
+        let cancelled = lock.withLock {
+            isOpen = !isClosing
+            tasks = [videoTask, audioTask, statusTask]
+            return isClosing
+        }
         if cancelled { tasks.forEach { $0.cancel() } }
     }
 
@@ -129,12 +129,13 @@ nonisolated final class RTMPDirectOutput: DirectMediaOutput, @unchecked Sendable
     }
 
     func close() async {
-        lock.lock()
-        isClosing = true
-        isOpen = false
-        let tasks = tasks
-        self.tasks = []
-        lock.unlock()
+        let tasks = lock.withLock {
+            isClosing = true
+            isOpen = false
+            let current = self.tasks
+            self.tasks = []
+            return current
+        }
         videoContinuation.finish()
         audioContinuation.finish()
         tasks.forEach { $0.cancel() }
