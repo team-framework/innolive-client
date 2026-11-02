@@ -6,16 +6,15 @@ import XCTest
 @MainActor
 final class YouTubeAccountAPITests: XCTestCase {
     override func tearDown() {
-        AccountManagementURLProtocol.responses = []
-        AccountManagementURLProtocol.requests = []
+        AccountManagementURLProtocol.reset()
         super.tearDown()
     }
 
     func testStreamingAccountsDecodesYouTubeSummaryAndReconnectState() async throws {
         AccountManagementURLProtocol.responses = [
             .init(
-                statusCode: 200,
-                data: Data(
+                status: 200,
+                body: Data(
                     """
                     [{
                       "provider": "youtube",
@@ -45,8 +44,8 @@ final class YouTubeAccountAPITests: XCTestCase {
 
     func testStreamingAccountsRetriesUnauthorizedAfterAuthenticationRefresh() async throws {
         AccountManagementURLProtocol.responses = [
-            .init(statusCode: 401, data: Data("{\"error\":{\"code\":\"unauthorized\"}}".utf8)),
-            .init(statusCode: 200, data: Data("[]".utf8))
+            .init(status: 401, json: "{\"error\":{\"code\":\"unauthorized\"}}"),
+            .init(status: 200, json: "[]")
         ]
         var refreshCallCount = 0
         let api = makeAPI()
@@ -78,7 +77,7 @@ final class YouTubeAccountAPITests: XCTestCase {
             "<html>private diagnostics</html>"
         ] {
             AccountManagementURLProtocol.responses = [
-                .init(statusCode: 500, data: Data(body.utf8))
+                .init(status: 500, body: Data(body.utf8))
             ]
 
             do {
@@ -96,10 +95,8 @@ final class YouTubeAccountAPITests: XCTestCase {
     func testKnownYouTubeServerErrorStillUsesRecoveryMessage() async {
         AccountManagementURLProtocol.responses = [
             .init(
-                statusCode: 422,
-                data: Data(
-                    "{\"error\":{\"code\":\"youtube_channel_missing\",\"message\":\"private server details\"}}".utf8
-                )
+                status: 422,
+                json: "{\"error\":{\"code\":\"youtube_channel_missing\",\"message\":\"private server details\"}}"
             )
         ]
 
@@ -117,7 +114,7 @@ final class YouTubeAccountAPITests: XCTestCase {
     }
 
     func testDisconnectStreamingAccountUsesDeleteAndRequires204() async throws {
-        AccountManagementURLProtocol.responses = [.init(statusCode: 204, data: Data())]
+        AccountManagementURLProtocol.responses = [.init(status: 204)]
         let api = makeAPI()
 
         try await api.disconnectStreamingAccount(accessToken: "access-token")
@@ -130,7 +127,7 @@ final class YouTubeAccountAPITests: XCTestCase {
     }
 
     func testDisconnectStreamingAccountRejectsSuccessfulStatusOtherThan204() async {
-        AccountManagementURLProtocol.responses = [.init(statusCode: 202, data: Data())]
+        AccountManagementURLProtocol.responses = [.init(status: 202)]
         let api = makeAPI()
 
         do {
@@ -145,8 +142,8 @@ final class YouTubeAccountAPITests: XCTestCase {
 
     func testDisconnectDoesNotRetryAfterAuthenticationRequestInvalidation() async {
         AccountManagementURLProtocol.responses = [
-            .init(statusCode: 401, data: Data("{\"error\":{\"code\":\"unauthorized\"}}".utf8)),
-            .init(statusCode: 204, data: Data())
+            .init(status: 401, json: "{\"error\":{\"code\":\"unauthorized\"}}"),
+            .init(status: 204)
         ]
         let refreshStarted = expectation(description: "authentication refresh started")
         let api = makeAPI()
@@ -177,7 +174,7 @@ final class YouTubeAccountAPITests: XCTestCase {
     }
 
     func testDisconnectSpecificChannelUsesAccountIDPath() async throws {
-        AccountManagementURLProtocol.responses = [.init(statusCode: 204, data: Data())]
+        AccountManagementURLProtocol.responses = [.init(status: 204)]
         try await makeAPI().disconnectStreamingAccount(accessToken: "access", accountID: "account-b")
         XCTAssertEqual(AccountManagementURLProtocol.requests.last?.url?.path, "/auth/streaming/accounts/youtube/account-b")
     }
@@ -186,7 +183,7 @@ final class YouTubeAccountAPITests: XCTestCase {
         let session = try JSONDecoder().decode(YouTubeBroadcastSession.self, from: Data("{\"session_id\":\"session\",\"owner_token\":\"owner\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0}}".utf8))
         let api = makeAPI()
         for operation in 0..<3 {
-            AccountManagementURLProtocol.responses = [.init(statusCode: 200, data: Data("{}".utf8))]
+            AccountManagementURLProtocol.responses = [.init(status: 200, json: "{}")]
             if operation == 0 { _ = try? await api.prepareStream(session: session, accessToken: "access", accountID: "account-b") }
             else { _ = try? await api.changeBroadcastMode(session: session, accessToken: "access", resolution: "fhd", targets: [.youtube], accountID: operation == 1 ? "account-b" : nil) }
             let request = try XCTUnwrap(AccountManagementURLProtocol.requests.last)
@@ -213,7 +210,7 @@ final class YouTubeAccountAPITests: XCTestCase {
     }
 
     func testDeleteSessionUsesOwnerAndAccessTokens() async throws {
-        AccountManagementURLProtocol.responses = [.init(statusCode: 204, data: Data())]
+        AccountManagementURLProtocol.responses = [.init(status: 204)]
         try await makeAPI().deleteSession(.init(sessionID: "previous", ownerToken: "owner"), accessToken: "access")
         let request = try XCTUnwrap(AccountManagementURLProtocol.requests.first)
         XCTAssertEqual(request.url?.path, "/sessions/previous")
@@ -228,7 +225,7 @@ final class YouTubeAccountAPITests: XCTestCase {
             (204, "", true), (404, "{\"error\":{\"code\":\"not_found\"}}", true),
             (404, "", false), (202, "", false), (403, "", false), (503, "", false)
         ] {
-            AccountManagementURLProtocol.responses = [.init(statusCode: status, data: Data(body.utf8))]
+            AccountManagementURLProtocol.responses = [.init(status: status, body: Data(body.utf8))]
             do {
                 try await makeAPI().deleteSession(.init(sessionID: "old", ownerToken: "owner"), accessToken: "access")
                 XCTAssertTrue(succeeds, "unexpected success: \(status)")
@@ -238,7 +235,7 @@ final class YouTubeAccountAPITests: XCTestCase {
 
     func testDeleteSessionRefreshesAccessTokenAndKeepsOwnerToken() async throws {
         AccountManagementURLProtocol.responses = [
-            .init(statusCode: 401, data: Data()), .init(statusCode: 204, data: Data())
+            .init(status: 401), .init(status: 204)
         ]
         var refreshed = false
         let api = makeAPI()
@@ -253,39 +250,4 @@ final class YouTubeAccountAPITests: XCTestCase {
     }
 }
 
-private final class AccountManagementURLProtocol: URLProtocol {
-    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
-    nonisolated deinit {}
-
-    struct Response {
-        let statusCode: Int
-        let data: Data
-    }
-
-    nonisolated(unsafe) static var responses: [Response] = []
-    nonisolated(unsafe) static var requests: [URLRequest] = []
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        Self.requests.append(request)
-        let response = Self.responses.isEmpty
-            ? Response(statusCode: 500, data: Data())
-            : Self.responses.removeFirst()
-        let httpResponse = HTTPURLResponse(
-            url: request.url!,
-            statusCode: response.statusCode,
-            httpVersion: nil,
-            headerFields: ["Content-Type": "application/json"]
-        )!
-        client?.urlProtocol(self, didReceive: httpResponse, cacheStoragePolicy: .notAllowed)
-        if !response.data.isEmpty {
-            client?.urlProtocol(self, didLoad: response.data)
-        }
-        client?.urlProtocolDidFinishLoading(self)
-    }
-
-    override func stopLoading() {}
-}
+private final class AccountManagementURLProtocol: StubURLProtocol {}

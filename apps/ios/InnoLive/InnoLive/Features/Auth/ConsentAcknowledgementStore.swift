@@ -1,6 +1,6 @@
 import Foundation
 
-final class ConsentAcknowledgementStore {
+nonisolated final class ConsentAcknowledgementStore {
     // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
     nonisolated deinit {}
 

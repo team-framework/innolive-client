@@ -5,8 +5,7 @@ import XCTest
 @MainActor
 final class PlanAPITests: XCTestCase {
     override func tearDown() {
-        PlanURLProtocol.responses = []
-        PlanURLProtocol.requests = []
+        PlanURLProtocol.reset()
         super.tearDown()
     }
     private func api() -> YouTubeAPI {
@@ -16,8 +15,8 @@ final class PlanAPITests: XCTestCase {
     }
     func testPlanAndUsageUseAuthenticatedGETWithoutOwnerToken() async throws {
         PlanURLProtocol.responses = [
-            (200, Data("{\"plan\":\"spark\",\"allowed_modes\":[\"720p_single\"],\"monthly_broadcast_seconds\":18000,\"max_per_broadcast_seconds\":7200}".utf8)),
-            (200, Data("{\"plan\":\"spark\",\"used_seconds\":0,\"remaining_seconds\":18000,\"available_by_mode\":[]}".utf8))
+            .init(status: 200, json: "{\"plan\":\"spark\",\"allowed_modes\":[\"720p_single\"],\"monthly_broadcast_seconds\":18000,\"max_per_broadcast_seconds\":7200}"),
+            .init(status: 200, json: "{\"plan\":\"spark\",\"used_seconds\":0,\"remaining_seconds\":18000,\"available_by_mode\":[]}")
         ]
         let client = api()
         _ = try await client.userPlan(accessToken: "test-token")
@@ -31,8 +30,8 @@ final class PlanAPITests: XCTestCase {
     }
     func testUsageRefreshesExpiredAuthenticationOnce() async throws {
         PlanURLProtocol.responses = [
-            (401, Data("{\"error\":{\"code\":\"unauthorized\"}}".utf8)),
-            (200, Data("{\"plan\":\"glow\",\"used_seconds\":0,\"remaining_seconds\":null,\"available_by_mode\":[]}".utf8))
+            .init(status: 401, json: "{\"error\":{\"code\":\"unauthorized\"}}"),
+            .init(status: 200, json: "{\"plan\":\"glow\",\"used_seconds\":0,\"remaining_seconds\":null,\"available_by_mode\":[]}")
         ]
         let client = api()
         var refreshes = 0
@@ -47,22 +46,7 @@ final class PlanAPITests: XCTestCase {
     }
 }
 
-private final class PlanURLProtocol: URLProtocol {
-    static var responses: [(Int, Data)] = []
-    static var requests: [URLRequest] = []
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        Self.requests.append(request)
-        guard !Self.responses.isEmpty else {
-            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
-            return
-        }
-        let (status, data) = Self.responses.removeFirst()
-        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: data)
-        client?.urlProtocolDidFinishLoading(self)
-    }
-    override func stopLoading() {}
+private final class PlanURLProtocol: StubURLProtocol {
+    override class var fallbackResponse: Response { .failure(.badServerResponse) }
+    override class var defaultHeaders: [String: String] { [:] }
 }

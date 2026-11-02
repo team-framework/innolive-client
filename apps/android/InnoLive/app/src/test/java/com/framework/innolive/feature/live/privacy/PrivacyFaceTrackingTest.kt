@@ -10,7 +10,7 @@ class PrivacyFaceTrackingTest {
     private val now get() = frame / 30.0
     private val face = PrivacyFaceTracking.Face(0, 1, box)
 
-    /** Advance one 30fps frame with [faces]; BoT-SORT keeps [live] IDs (null: not provided). */
+    /** 30fps 한 프레임을 [faces]로 진행합니다. BoT-SORT는 [live] ID를 유지합니다(null: 제공하지 않음). */
     private fun step(vararg faces: PrivacyFaceTracking.Face = arrayOf(face), live: Set<Int>? = setOf(1)) {
         frame++
         tracker.update(faces.toList(), now, live)

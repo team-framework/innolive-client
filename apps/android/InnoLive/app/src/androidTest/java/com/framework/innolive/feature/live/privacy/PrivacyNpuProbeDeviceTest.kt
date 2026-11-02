@@ -16,9 +16,11 @@ import java.io.File
 import java.nio.FloatBuffer
 import kotlin.math.abs
 
-/** Opt-in diagnostic with official vendor libraries staged in the app's private directory.
- * A passing probe verifies execution and finite output, not model accuracy or product NPU selection.
- * No vendor binaries are distributed in the APK. Compare parity_pass with the product's GPU gate. */
+/**
+ * 공식 벤더 라이브러리를 앱 전용 디렉터리에 두고 실행하는 선택 진단입니다.
+ * 통과는 실행과 유한한 출력만 확인하며, 모델 정확도나 제품의 NPU 선택을 보장하지 않습니다.
+ * APK에는 벤더 바이너리를 포함하지 않습니다. parity_pass를 제품의 GPU 기준과 비교합니다.
+ */
 @RunWith(AndroidJUnit4::class)
 class PrivacyNpuProbeDeviceTest {
     @Test fun compareQualcommNpuWithThePinnedCpuAndGpuModel() {

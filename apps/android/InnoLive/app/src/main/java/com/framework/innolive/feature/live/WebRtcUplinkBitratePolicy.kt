@@ -3,14 +3,14 @@ package com.framework.innolive.feature.live
 import com.framework.innolive.feature.live.direct.DirectPublishResolution
 import org.webrtc.RtpParameters
 
-/** Bandwidth-estimator seed and cap for the server-AI uplink, in bits per second. */
+/** 서버 AI 업링크의 대역폭 추정 시작값과 상한이며, 단위는 초당 비트입니다. */
 internal data class UplinkBitratePolicy(val startBps: Int, val maxBps: Int)
 
 /**
- * libwebrtc caps a 1080p stream at 2500kbps and seeds the estimator at 300kbps when the app
- * sets nothing. The server re-encodes FHD at 5000k, so the default cap keeps the H.264 QP high
- * and the quality scaler oscillates between 720p and 1080p, recreating MediaCodec each time.
- * The on-device path keeps the library defaults because it may use the software VP8 encoder.
+ * 앱이 아무것도 설정하지 않으면 libwebrtc는 1080p 스트림 상한을 2500kbps로, 추정 시작값을
+ * 300kbps로 둡니다. 서버는 FHD를 5000k로 재인코딩하므로 기본 상한에서는 H.264 QP가 높게 유지되고,
+ * 품질 스케일러가 720p와 1080p 사이를 오가며 매번 MediaCodec을 다시 만듭니다.
+ * 온디바이스 경로는 소프트웨어 VP8 인코더를 쓸 수 있으므로 라이브러리 기본값을 유지합니다.
  */
 internal fun uplinkBitratePolicyForAI(
     onDevice: Boolean,
@@ -24,15 +24,15 @@ internal fun uplinkBitratePolicyForAI(
 }
 
 /**
- * The server egress runs at a constant 30fps from wall-clock timestamps, so a short frame-rate
- * dip only repeats a frame, while a resolution switch costs an encoder restart of about 300ms.
+ * 서버 송출은 벽시계 타임스탬프 기준으로 30fps를 일정하게 유지하므로, 짧은 프레임 레이트 저하는
+ * 프레임 하나를 반복할 뿐이지만 해상도 전환은 약 300ms의 인코더 재시작 비용이 듭니다.
  */
 internal fun uplinkDegradationPreferenceForAI(onDevice: Boolean): RtpParameters.DegradationPreference? =
     if (onDevice) null else RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION
 
 /**
- * Layers the server-AI degradation and encoding cap over [applyVideoSendPolicy] before the offer.
- * Returns false when the session has nothing to add, so the caller can skip setParameters.
+ * offer 전에 [applyVideoSendPolicy] 위에 서버 AI 저하 설정과 인코딩 상한을 덧붙입니다.
+ * 세션에 추가할 내용이 없으면 false를 반환해 호출자가 setParameters를 건너뛸 수 있게 합니다.
  */
 internal fun applyUplinkSenderPolicy(
     parameters: RtpParameters,
@@ -43,8 +43,8 @@ internal fun applyUplinkSenderPolicy(
     val policy = uplinkBitratePolicyForAI(onDevice, resolution)
     if (preference == null && policy == null) return false
     preference?.let { parameters.degradationPreference = it }
-    // setBitrate only bounds the estimator; the encoder keeps libwebrtc's 2500kbps
-    // 1080p default until the encoding's own maximum is raised.
+    // setBitrate는 추정기 범위만 제한합니다. 인코딩 자체의 최댓값을 올리기 전까지 인코더는
+    // libwebrtc의 1080p 기본값인 2500kbps를 유지합니다.
     policy?.let { budget -> parameters.encodings.forEach { it.maxBitrateBps = budget.maxBps } }
     return true
 }

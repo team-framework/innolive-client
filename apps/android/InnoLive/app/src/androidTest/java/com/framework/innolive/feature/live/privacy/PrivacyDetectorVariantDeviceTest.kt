@@ -12,7 +12,7 @@ import org.webrtc.PeerConnectionFactory
 import java.io.File
 import kotlin.math.abs
 
-/** Experimental runtime buffers/layouts use the same weights; product SHA and selection stay pinned. */
+/** 실험용 런타임 버퍼·레이아웃도 같은 가중치를 씁니다. 제품 SHA와 선택 결과는 고정합니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyDetectorVariantDeviceTest {
     @Test fun compareGlOutputsAgainstManagedOutputs() = compare("gl_output",null,true)

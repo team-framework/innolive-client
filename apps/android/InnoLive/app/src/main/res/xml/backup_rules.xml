@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+   샘플 백업 규칙 파일입니다. 필요하면 주석을 해제하고 맞게 수정합니다.
+   자세한 내용은 https://developer.android.com/guide/topics/data/autobackup
+   문서를 참고합니다.
+   참고: API 31 미만 기기에서는 이 파일을 무시합니다.
+   https://developer.android.com/about/versions/12/backup-restore 문서를 참고합니다.
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="innolive_google_session.xml" />

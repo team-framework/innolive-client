@@ -532,7 +532,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
         PreparationFlowURLProtocol.responses = [.created("new"), .status(500, ""), .targets("idle", "idle"), .targets("idle", "prepared")]
         _ = await prepare(integration)
         let ready = PreparationFlowURLProtocol.Response.readyTargets()
-        integration.applyLiveEditingSnapshotForTesting(try JSONDecoder().decode(YouTubeSessionResponse.self, from: Data(ready.body.utf8)))
+        integration.applyLiveEditingSnapshotForTesting(try JSONDecoder().decode(YouTubeSessionResponse.self, from: ready.body))
         PreparationFlowURLProtocol.requests = []
         let result = await prepare(integration)
         XCTAssertTrue(result)
@@ -696,88 +696,39 @@ private final class MemoryPreparationSessionStore: BroadcastSessionStoring {
     func remove(scope: BroadcastSessionScope) throws { records.removeValue(forKey: scope.storageKey) }
 }
 
-private final class PreparationFlowURLProtocol: URLProtocol {
-    nonisolated deinit {}
+private final class PreparationFlowURLProtocol: StubURLProtocol {
+    override class var fallbackResponse: Response { .failure(.badServerResponse) }
+}
 
-    struct Response {
-        let status: Int
-        let body: String
-        var hold = false
-        static func empty(_ status: Int) -> Self { .init(status: status, body: "") }
-        static func json(_ body: String, status: Int = 200) -> Self { .init(status: status, body: body) }
-        static func status(_ status: Int, _ body: String) -> Self { .init(status: status, body: body) }
-        static func created(_ id: String, hold: Bool = false) -> Self {
-            .init(
-                status: 201,
-                body: "{\"session_id\":\"\(id)\",\"owner_token\":\"owner\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0}}",
-                hold: hold
-            )
-        }
-        static func snapshot(phase: String) -> Self {
-            .json("{\"session_id\":\"new\",\"owner_token\":\"owner\",\"provider\":\"youtube\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0,\"broadcast_phase\":\"\(phase)\"}}")
-        }
-        static func targets(_ youtube: String, _ chzzk: String) -> Self {
-            func stream(_ phase: String) -> String {
-                "{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0,\"broadcast_phase\":\"\(phase)\"}"
-            }
-            return .json("{\"session_id\":\"new\",\"provider\":\"youtube\",\"stream\":\(stream(youtube)),\"targets\":[{\"provider\":\"youtube\",\"stream\":\(stream(youtube))},{\"provider\":\"chzzk\",\"stream\":\(stream(chzzk))}]}")
-        }
-        static func partial() -> Self {
-            let stream = "{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0,\"broadcast_phase\":\"prepared\"}"
-            let idle = "{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0,\"broadcast_phase\":\"idle\"}"
-            return .json("{\"session_id\":\"new\",\"owner_token\":\"owner\",\"provider\":\"youtube\",\"stream\":\(stream),\"targets\":[{\"provider\":\"youtube\",\"stream\":\(stream)},{\"provider\":\"chzzk\",\"stream\":\(idle)}],\"failed_targets\":[{\"provider\":\"chzzk\",\"code\":\"not_prepared\",\"message\":\"fail\"}]}")
-        }
-        static func readyTargets() -> Self {
-            let stream = "{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0,\"broadcast_phase\":\"prepared\"}"
-            return .json("{\"session_id\":\"new\",\"owner_token\":\"owner\",\"provider\":\"youtube\",\"stream\":\(stream),\"targets\":[{\"provider\":\"youtube\",\"stream\":\(stream)},{\"provider\":\"chzzk\",\"stream\":\(stream)}],\"failed_targets\":[]}")
-        }
+private extension StubURLProtocol.Response {
+    static func empty(_ status: Int) -> Self { .init(status: status) }
+    static func json(_ body: String, status: Int = 200) -> Self { .init(status: status, json: body) }
+    static func status(_ status: Int, _ body: String) -> Self { .init(status: status, json: body) }
+    static func created(_ id: String, hold: Bool = false) -> Self {
+        .init(
+            status: 201,
+            json: "{\"session_id\":\"\(id)\",\"owner_token\":\"owner\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0}}",
+            hold: hold
+        )
     }
-
-    @MainActor static var responses: [Response] = []
-    @MainActor static var requests: [URLRequest] = []
-    @MainActor static var beforeResponse: ((URLRequest) -> Void)?
-    @MainActor static var isHolding = false
-    @MainActor private static var holdContinuation: CheckedContinuation<Void, Never>?
-
-    @MainActor static func reset() {
-        responses = []
-        requests = []
-        beforeResponse = nil
-        isHolding = false
+    static func snapshot(phase: String) -> Self {
+        .json("{\"session_id\":\"new\",\"owner_token\":\"owner\",\"provider\":\"youtube\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0,\"broadcast_phase\":\"\(phase)\"}}")
     }
-
-    @MainActor static func resumeHold() {
-        let continuation = holdContinuation
-        holdContinuation = nil
-        isHolding = false
-        continuation?.resume()
-    }
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        Task { @MainActor in
-            Self.requests.append(self.request)
-            guard !Self.responses.isEmpty else {
-                self.client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
-                return
-            }
-            let response = Self.responses.removeFirst()
-            Self.beforeResponse?(self.request)
-            if response.hold {
-                Self.isHolding = true
-                await withCheckedContinuation { continuation in
-                    Self.holdContinuation = continuation
-                }
-                Self.isHolding = false
-            }
-            let http = HTTPURLResponse(url: self.request.url!, statusCode: response.status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
-            self.client?.urlProtocol(self, didReceive: http, cacheStoragePolicy: .notAllowed)
-            self.client?.urlProtocol(self, didLoad: Data(response.body.utf8))
-            self.client?.urlProtocolDidFinishLoading(self)
+    static func targets(_ youtube: String, _ chzzk: String) -> Self {
+        func stream(_ phase: String) -> String {
+            "{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0,\"broadcast_phase\":\"\(phase)\"}"
         }
+        return .json("{\"session_id\":\"new\",\"provider\":\"youtube\",\"stream\":\(stream(youtube)),\"targets\":[{\"provider\":\"youtube\",\"stream\":\(stream(youtube))},{\"provider\":\"chzzk\",\"stream\":\(stream(chzzk))}]}")
     }
-    override func stopLoading() {}
+    static func partial() -> Self {
+        let stream = "{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0,\"broadcast_phase\":\"prepared\"}"
+        let idle = "{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0,\"broadcast_phase\":\"idle\"}"
+        return .json("{\"session_id\":\"new\",\"owner_token\":\"owner\",\"provider\":\"youtube\",\"stream\":\(stream),\"targets\":[{\"provider\":\"youtube\",\"stream\":\(stream)},{\"provider\":\"chzzk\",\"stream\":\(idle)}],\"failed_targets\":[{\"provider\":\"chzzk\",\"code\":\"not_prepared\",\"message\":\"fail\"}]}")
+    }
+    static func readyTargets() -> Self {
+        let stream = "{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0,\"broadcast_phase\":\"prepared\"}"
+        return .json("{\"session_id\":\"new\",\"owner_token\":\"owner\",\"provider\":\"youtube\",\"stream\":\(stream),\"targets\":[{\"provider\":\"youtube\",\"stream\":\(stream)},{\"provider\":\"chzzk\",\"stream\":\(stream)}],\"failed_targets\":[]}")
+    }
 }
 
 private final class SimulcastEmptyTokenStore: AuthenticationTokenStoring {

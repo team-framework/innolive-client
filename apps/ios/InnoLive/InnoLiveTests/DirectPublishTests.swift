@@ -492,8 +492,8 @@ final class DirectPublishIntegrationTests: XCTestCase {
         ) as? [String: Any])
         prepare["targets"] = [["provider": "youtube", "stream": prepare["stream"] as Any]]
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
-            .init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: prepare)),
+            .init(status: 200, body: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
+            .init(status: 200, body: try JSONSerialization.data(withJSONObject: prepare)),
         ]
 
         let prepared = await integration.prepareYouTubeStream(accessToken: "access-token")
@@ -521,9 +521,9 @@ final class DirectPublishIntegrationTests: XCTestCase {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "idle")
         publisher.failStart = true
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
-            .init(statusCode: 200, data: try ContractTestFixtures.data(named: "direct-publish-prepare-youtube.v1")),
-            .init(statusCode: 200, data: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
+            .init(status: 200, body: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
+            .init(status: 200, body: try ContractTestFixtures.data(named: "direct-publish-prepare-youtube.v1")),
+            .init(status: 200, body: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
         ]
 
         let prepared = await integration.prepareYouTubeStream(accessToken: "access-token")
@@ -544,9 +544,9 @@ final class DirectPublishIntegrationTests: XCTestCase {
         ) as? [String: Any])
         prepare.removeValue(forKey: "ingest_url")
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
-            .init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: prepare)),
-            .init(statusCode: 200, data: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
+            .init(status: 200, body: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
+            .init(status: 200, body: try JSONSerialization.data(withJSONObject: prepare)),
+            .init(status: 200, body: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
         ]
 
         let prepared = await integration.prepareYouTubeStream(accessToken: "access-token")
@@ -565,7 +565,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
         ) as? [String: Any])
         live["failed_targets"] = [["provider": "chzzk", "code": "streaming_golive_failed", "message": "failed"]]
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: live)),
+            .init(status: 200, body: try JSONSerialization.data(withJSONObject: live)),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -582,8 +582,8 @@ final class DirectPublishIntegrationTests: XCTestCase {
         ) as? [String: Any])
         live.removeValue(forKey: "direct_ingest")
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: live)),
-            .init(statusCode: 200, data: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
+            .init(status: 200, body: try JSONSerialization.data(withJSONObject: live)),
+            .init(status: 200, body: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -599,8 +599,8 @@ final class DirectPublishIntegrationTests: XCTestCase {
     func testServerSessionIgnoresIngestURL() async throws {
         let integration = try makeIntegration(aiProcessing: "server", phase: "idle")
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
-            .init(statusCode: 200, data: try ContractTestFixtures.data(named: "direct-publish-prepare-youtube.v1")),
+            .init(status: 200, body: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
+            .init(status: 200, body: try ContractTestFixtures.data(named: "direct-publish-prepare-youtube.v1")),
         ]
 
         let prepared = await integration.prepareYouTubeStream(accessToken: "access-token")
@@ -613,7 +613,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
     func testGoLiveConnectsCHZZKDirectIngest() async throws {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared", providers: ["chzzk"])
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: try ContractTestFixtures.data(named: "direct-publish-golive-chzzk.v1")),
+            .init(status: 200, body: try ContractTestFixtures.data(named: "direct-publish-golive-chzzk.v1")),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -641,7 +641,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
         XCTAssertFalse(DirectPublishURLProtocol.paths.contains { $0.hasSuffix("/pause") || $0.hasSuffix("/resume") })
 
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
+            .init(status: 200, body: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
         ]
         await integration.stopYouTubeStream(accessToken: "access-token")
         XCTAssertEqual(publisher.stopped, ["youtube"])
@@ -656,7 +656,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
         publisher.states = ["youtube": .publishing]
         integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(phase: "live", status: "idle"))
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 502, data: Data(#"{"error":{"code":"streaming_stop_failed","message":"none"}}"#.utf8)),
+            .init(status: 502, json: #"{"error":{"code":"streaming_stop_failed","message":"none"}}"#),
         ]
 
         await integration.stopYouTubeStream(accessToken: "access-token")
@@ -697,9 +697,9 @@ final class DirectPublishIntegrationTests: XCTestCase {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared")
         publisher.states = ["youtube": .publishing]
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
-            .init(statusCode: 200, data: Data(#"{"stop_targets":["youtube"],"notices":[{"code":"broadcast_limit_10m","at":"2026-10-12T08:30:00Z"}],"broadcast_remaining_seconds":540}"#.utf8)),
-            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "idle", status: "stopped").utf8)),
+            .init(status: 200, body: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
+            .init(status: 200, json: #"{"stop_targets":["youtube"],"notices":[{"code":"broadcast_limit_10m","at":"2026-10-12T08:30:00Z"}],"broadcast_remaining_seconds":540}"#),
+            .init(status: 200, body: Data(SessionStateFixture.json(phase: "idle", status: "stopped").utf8)),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -732,9 +732,9 @@ final class DirectPublishIntegrationTests: XCTestCase {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared")
         publisher.states = ["youtube": .publishing]
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
-            .init(statusCode: 409, data: try ContractTestFixtures.data(named: "direct-publish-heartbeat-not-applicable.v1")),
-            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "idle", status: "stopped").utf8)),
+            .init(status: 200, body: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
+            .init(status: 409, body: try ContractTestFixtures.data(named: "direct-publish-heartbeat-not-applicable.v1")),
+            .init(status: 200, body: Data(SessionStateFixture.json(phase: "idle", status: "stopped").utf8)),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -751,8 +751,8 @@ final class DirectPublishIntegrationTests: XCTestCase {
             let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared")
             publisher.states = ["youtube": .publishing]
             DirectPublishURLProtocol.responses = [
-                .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
-                .init(statusCode: status, data: Data(#"{"error":{"code":"\#(code)","message":"none"}}"#.utf8)),
+                .init(status: 200, body: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
+                .init(status: status, json: #"{"error":{"code":"\#(code)","message":"none"}}"#),
             ]
 
             await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -766,8 +766,8 @@ final class DirectPublishIntegrationTests: XCTestCase {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared")
         publisher.states = ["youtube": .publishing]
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
-            .init(statusCode: 503, data: Data(#"{"error":{"code":"unavailable","message":"none"}}"#.utf8)),
+            .init(status: 200, body: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
+            .init(status: 503, json: #"{"error":{"code":"unavailable","message":"none"}}"#),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -781,7 +781,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
     func testServerSessionNeverSendsHeartbeat() async throws {
         let integration = try makeIntegration(aiProcessing: "server", phase: "prepared")
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "streaming").utf8)),
+            .init(status: 200, body: Data(SessionStateFixture.json(phase: "live", status: "streaming").utf8)),
         ]
         await integration.goLiveYouTubeStream(accessToken: "access-token")
         XCTAssertFalse(integration.isSendingDirectHeartbeat)
@@ -879,23 +879,8 @@ private final class FakeDirectPublisher: DirectBroadcastPublishing {
     }
 }
 
-private final class DirectPublishURLProtocol: URLProtocol {
-    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
-    nonisolated deinit {}
-
-    struct Response {
-        let statusCode: Int
-        let data: Data
-    }
-
-    nonisolated(unsafe) static var responses: [Response] = []
-    nonisolated(unsafe) static var requests: [URLRequest] = []
+private final class DirectPublishURLProtocol: StubURLProtocol {
     static var paths: [String] { requests.compactMap { $0.url?.path } }
-
-    static func reset() {
-        responses = []
-        requests = []
-    }
 
     static func body(_ request: URLRequest) -> Data? {
         if let data = request.httpBody { return data }
@@ -911,22 +896,6 @@ private final class DirectPublishURLProtocol: URLProtocol {
         }
         return data
     }
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        Self.requests.append(request)
-        let response = Self.responses.isEmpty ? Response(statusCode: 500, data: Data()) : Self.responses.removeFirst()
-        guard let url = request.url,
-              let http = HTTPURLResponse(url: url, statusCode: response.statusCode, httpVersion: nil,
-                                         headerFields: ["Content-Type": "application/json"]) else { return }
-        client?.urlProtocol(self, didReceive: http, cacheStoragePolicy: .notAllowed)
-        if !response.data.isEmpty { client?.urlProtocol(self, didLoad: response.data) }
-        client?.urlProtocolDidFinishLoading(self)
-    }
-
-    override func stopLoading() {}
 }
 
 @MainActor

@@ -244,8 +244,8 @@ fun CameraPreview(
             imageAnalysis?.clearAnalyzer()
             val sessionConfig = boundSessionConfig
             if (sessionConfig != null) {
-                // CameraX ignores UseCase unbind calls for a SessionConfig binding.
-                // Keep the exact instance so an old effect cannot unbind a newer session.
+                // SessionConfig로 바인딩하면 CameraX가 UseCase 단위 unbind 호출을 무시합니다.
+                // 이전 effect가 새 세션을 unbind하지 못하도록 정확한 인스턴스를 유지합니다.
                 cameraProvider?.unbind(sessionConfig)
             } else {
                 cameraProvider?.unbind(*listOfNotNull(preview, imageAnalysis).toTypedArray())
@@ -278,7 +278,7 @@ fun CameraPreview(
     }
 }
 
-/** CameraX's supported range is specific to the combined preview and analysis session. */
+/** CameraX가 지원하는 범위는 미리보기와 분석을 합친 세션마다 다릅니다. */
 internal object CameraFrameRateBinding {
     fun bind(provider:ProcessCameraProvider, owner:LifecycleOwner, selector:CameraSelector,
              useCases:List<UseCase>, viewPort:ViewPort,

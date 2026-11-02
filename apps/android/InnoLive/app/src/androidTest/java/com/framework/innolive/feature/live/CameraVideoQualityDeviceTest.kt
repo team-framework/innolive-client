@@ -28,7 +28,7 @@ import org.webrtc.CapturerObserver
 import org.webrtc.VideoFrame
 import org.webrtc.VideoSink
 
-/** Uses CameraX's real capture callback and ImageProxy planes; no account or WebRTC session. */
+/** CameraX의 실제 캡처 콜백과 ImageProxy plane을 사용하며, 계정이나 WebRTC 세션은 쓰지 않습니다. */
 class CameraVideoQualityDeviceTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 

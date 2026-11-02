@@ -36,7 +36,7 @@ class PrivacyMaskRendererDeviceTest {
         val output = PrivacyMaskRenderer.render(bitmap, ByteArray(160 * 160) { -1 },
             PrivacySegmentation.Letterbox(384, 192))
         try {
-            // Sigma 48 (the minimum) spreads the edge over about 4 sigma on each side with no block steps.
+            // 최솟값인 sigma 48은 경계를 양쪽으로 약 4 sigma에 걸쳐 블록 계단 없이 퍼뜨립니다.
             assertTrue(Color.red(output.getPixel(168, 96)) in 1..127)
             assertTrue(Color.red(output.getPixel(216, 96)) in 128..254)
             val ramp = (120..264 step 8).map { Color.red(output.getPixel(it, 96)) }

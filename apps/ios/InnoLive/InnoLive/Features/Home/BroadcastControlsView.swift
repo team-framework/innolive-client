@@ -1,5 +1,5 @@
 //
-//  BroadcastControllsView.swift
+//  BroadcastControlsView.swift
 //  InnoLive
 //
 //  Created by chaeyn on 7/26/26.
@@ -12,7 +12,7 @@ enum BroadcastControlsDisplayMode {
     case minimal
 }
 
-struct BroadcastControllsView: View {
+struct BroadcastControlsView: View {
     @Binding var isBroadcasting: Bool
     @Binding var previewTransition: BroadcastPreviewTransition
     @ObservedObject var authentication: AuthSession
