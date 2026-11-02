@@ -1,6 +1,126 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "720p": {
+      "extractionState": "manual",
+      "shouldTranslate": false,
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p"
+          }
+        }
+      }
+    },
+    "FHD": {
+      "extractionState": "manual",
+      "shouldTranslate": false,
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD"
+          }
+        }
+      }
+    },
+    "%lld fps": {
+      "extractionState": "manual",
+      "shouldTranslate": false,
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fps"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fps"
+          }
+        }
+      }
+    },
+    "– fps": {
+      "extractionState": "manual",
+      "shouldTranslate": false,
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "– fps"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "– fps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "– fps"
+          }
+        }
+      }
+    },
+    "%@ · %@": {
+      "extractionState": "manual",
+      "shouldTranslate": false,
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        }
+      }
+    },
     "온디바이스 비식별화": {
       "extractionState": "manual",
       "localizations": {
