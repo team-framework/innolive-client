@@ -419,7 +419,7 @@ class CameraFrameAnalyzer(
                     val copyMs = (System.nanoTime() - copyStarted) / 1e6
                     try {
                         worker.execute { processProtected(frame, currentTicket, copyMs,receivedAtNs) }
-                        reserved = false // The worker now owns the frame and the in-flight slot.
+                        reserved = false // 이제 worker가 프레임과 처리 중 슬롯을 소유합니다.
                     } catch (error: Exception) {
                         frame.release()
                         throw error
