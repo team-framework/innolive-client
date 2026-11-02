@@ -216,7 +216,7 @@ internal fun FaceCaptureCamera(
             isDisposed.set(true)
             imageAnalysis.clearAnalyzer()
             cameraProvider?.unbind(imageAnalysis)
-            // Drain already queued callbacks; each one closes its ImageProxy in finally.
+            // 이미 대기 중인 콜백을 모두 처리합니다. 각 콜백은 finally에서 ImageProxy를 닫습니다.
             analysisExecutor.shutdown()
         }
     }
