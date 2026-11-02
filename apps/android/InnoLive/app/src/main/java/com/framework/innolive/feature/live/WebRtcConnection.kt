@@ -127,8 +127,8 @@ internal class WebRtcConnection(
     private val connectivityManager = applicationContext.getSystemService(ConnectivityManager::class.java)
     private val mainHandler = Handler(Looper.getMainLooper())
     /**
-     * The owner for all WebRTC, signaling, audio-route, and teardown work.
-     * Callback threads only enqueue work here; they never touch native state.
+     * 모든 WebRTC·시그널링·오디오 경로·정리 작업을 소유하는 executor입니다.
+     * 콜백 스레드는 여기에 작업을 넣기만 하고 네이티브 상태를 직접 건드리지 않습니다.
      */
     private val ownerExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val timerExecutor: ScheduledExecutorService =
@@ -324,7 +324,7 @@ internal class WebRtcConnection(
                 checkNotNull(frameAnalyzer).start()
                 val negotiationId = UUID.randomUUID().toString()
                 activeNegotiationId = negotiationId
-                // Start the signaling window after the HTTP and native connection setup.
+                // HTTP와 네이티브 연결 설정이 끝난 뒤 시그널링 대기 시간을 시작합니다.
                 mainHandler.post { if (isActive()) onInitialSignalingStarted() }
                 connectionTimeoutTask = timerExecutor.schedule(
                     { fail(ConnectionFailure.TIMEOUT) },
@@ -350,9 +350,8 @@ internal class WebRtcConnection(
     }
 
     /**
-     * Closes this connection and invokes [onComplete] after the owner has
-     * released every resource. The callback is useful when a failed session
-     * must finish teardown before a retry creates its replacement.
+     * 이 연결을 닫고, owner가 모든 자원을 해제한 뒤 [onComplete]를 호출합니다.
+     * 실패한 세션이 재시도로 대체 세션을 만들기 전에 정리를 마쳐야 할 때 유용합니다.
      */
     override fun close(onComplete: (() -> Unit)?) {
         var callbackAfterShutdown: (() -> Unit)? = null
@@ -885,7 +884,7 @@ internal class WebRtcConnection(
                         cancelRecoveryWork()
                         updateState(WebRtcConnectionState.CONNECTED)
                     } else {
-                        // Deliver the successful stop before closing an unverified preview.
+                        // 확인되지 않은 미리보기를 닫기 전에 성공한 중지 결과를 먼저 전달합니다.
                         executeOnOwner { fail(ConnectionFailure.DISCONNECTED) }
                     }
                 }
@@ -1266,7 +1265,7 @@ internal class WebRtcConnection(
         videoSender = sender
     }
 
-    /** Applied before the offer so the first keyframe already uses the session's bitrate budget. */
+    /** offer 전에 적용해 첫 키프레임부터 세션의 비트레이트 예산을 사용합니다. */
     private fun applyUplinkPolicy(connection: PeerConnection) {
         val sender = videoSender ?: return
         val preference = uplinkDegradationPreferenceForAI(onDeviceProcessing)
@@ -1296,14 +1295,14 @@ internal class WebRtcConnection(
 
     private fun createSession(): CreatedSession {
         sessionRecoveryStore.load(sessionRecoveryScope)?.let { staleSession ->
-            // The owner token is only returned at creation. A previous process may have
-            // died before its normal close could remove this account's session.
+            // owner 토큰은 생성 시에만 반환됩니다. 이전 프로세스가 정상 종료로 이 계정의 세션을
+            // 제거하기 전에 종료됐을 수 있습니다.
             deleteSession(staleSession, allowAfterClose = false)
         }
         var created = requestSessionCreation()
         if (created == null) {
-            // Legacy records have no account identity. A 409 proves that the current account
-            // already owns a server session before its owner token may be used for cleanup.
+            // 이전 형식 기록에는 계정 식별 정보가 없습니다. 409 응답으로 현재 계정이 이미 서버 세션을
+            // 소유한다는 것이 확인돼야 정리에 owner 토큰을 쓸 수 있습니다.
             val legacySession = sessionRecoveryStore.loadLegacy()
                 ?: throw sessionAlreadyExistsException()
             deleteLegacySession(legacySession)
@@ -1762,7 +1761,7 @@ internal class WebRtcConnection(
                 val payload = readSessionStatus(created)
                 val state = parseBroadcastState(payload, provider) ?: return@launch
                 executeOnOwner {
-                    // A control request or session change invalidates an older status response.
+                    // 제어 요청이나 세션 변경이 있으면 이전 상태 응답은 무효가 됩니다.
                     if (!isActive() || session?.sessionId != created.sessionId ||
                         sessionRequestRevision.get() != revision || broadcastOperation.get()) return@executeOnOwner
                     if (state != broadcastState && state in setOf(BroadcastState.IDLE,

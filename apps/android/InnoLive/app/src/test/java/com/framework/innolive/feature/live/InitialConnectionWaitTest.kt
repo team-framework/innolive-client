@@ -21,7 +21,7 @@ class InitialConnectionWaitTest {
             states.value = states.value.copy(connection = WebRtcConnectionState.CONNECTED)
         }
 
-        // A single 1-second deadline from the beginning would fail this 1.2-second flow.
+        // 처음부터 1초 기한 하나만 두면 1.2초가 걸리는 이 흐름은 실패합니다.
         awaitInitialConnection(states, 1, setupTimeoutMillis = 1_000, signalingTimeoutMillis = 1_000)
         assertEquals(WebRtcConnectionState.CONNECTED, states.value.connection)
         updates.join()
@@ -36,7 +36,7 @@ class InitialConnectionWaitTest {
             awaitInitialConnection(states, 1, setupTimeoutMillis = 100, signalingTimeoutMillis = 1_000)
             fail("Expected setup timeout")
         } catch (_: TimeoutCancellationException) {
-            // An HTTP or native setup stall must not wait forever.
+            // HTTP나 네이티브 설정이 멈춰도 무한히 기다리면 안 됩니다.
         }
     }
 
@@ -49,7 +49,7 @@ class InitialConnectionWaitTest {
             awaitInitialConnection(states, 1, setupTimeoutMillis = 1_000, signalingTimeoutMillis = 100)
             fail("Expected signaling timeout")
         } catch (_: TimeoutCancellationException) {
-            // The second deadline starts after signaling begins.
+            // 두 번째 기한은 시그널링이 시작된 뒤부터 셉니다.
         }
     }
 }

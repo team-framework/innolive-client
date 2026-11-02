@@ -55,7 +55,7 @@ internal fun applyVideoSendEncodings(encodings: List<RtpParameters.Encoding>, re
     }
 }
 
-/** Absent or malformed capability keeps compatibility with legacy return-only servers. */
+/** 기능 정보가 없거나 형식이 잘못되면 반환 전용 이전 서버와의 호환성을 유지합니다. */
 internal fun parseSendOnlyVideoSupport(payload: JSONObject): Boolean =
     payload.optJSONObject("features")?.opt("send_only_video") == true
 
@@ -63,6 +63,6 @@ internal fun videoDirectionForAI(onDevice: Boolean, sendOnlySupported: Boolean) 
     if (onDevice && sendOnlySupported) RtpTransceiver.RtpTransceiverDirection.SEND_ONLY
     else RtpTransceiver.RtpTransceiverDirection.SEND_RECV
 
-/** Release authentication uses HTTPS; the debug manifest already permits IPv4 loopback HTTP. */
+/** 릴리스 인증은 HTTPS를 씁니다. 디버그 매니페스트는 이미 IPv4 루프백 HTTP를 허용합니다. */
 internal fun isAllowedWebRtcServer(scheme: String, host: String, debug: Boolean): Boolean =
     scheme == "https" || (debug && scheme == "http" && host == "127.0.0.1")

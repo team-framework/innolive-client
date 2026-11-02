@@ -36,11 +36,11 @@ import com.framework.innolive.feature.live.consent.BroadcastConsentRule
 import org.junit.Rule
 
 /**
- * Opt-in real-time camera/return-stream measurement against the configured backend.
- * Requires productionProbe=true and a pre-existing login. Does not go live.
- * Optional switchTo=server|on_device also requires a linked YouTube account: it prepares a
- * private broadcast after the mode selection, verifies the replacement session, then cancels it.
- * Connection/codec assertions are not a performance acceptance gate; analyze recorded stats.
+ * 설정된 백엔드를 상대로 실시간 카메라·반환 스트림을 측정하는 선택 실행 테스트입니다.
+ * productionProbe=true와 기존 로그인이 필요합니다. 방송을 시작하지는 않습니다.
+ * switchTo=server|on_device를 지정하면 연결된 YouTube 계정도 필요합니다. 모드 선택 뒤 비공개
+ * 방송을 준비하고, 교체된 세션을 확인한 다음 취소합니다.
+ * 연결·코덱 단언은 성능 합격 기준이 아니므로, 기록된 통계를 따로 분석합니다.
  */
 class ProductionVideoReturnDeviceTest {
     @get:Rule val broadcastConsents = BroadcastConsentRule()

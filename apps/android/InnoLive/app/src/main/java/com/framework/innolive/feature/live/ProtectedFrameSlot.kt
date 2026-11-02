@@ -1,6 +1,6 @@
 package com.framework.innolive.feature.live
 
-/** One processing frame plus the newest waiting frame; callers own and close displaced inputs. */
+/** 처리 중 프레임 하나와 가장 최근 대기 프레임 하나를 둡니다. 밀려난 입력은 호출자가 소유하고 닫습니다. */
 internal class ProtectedFrameSlot<T> {
     data class Offer<T>(val start:Boolean,val displaced:T?)
     private var busy=false
