@@ -650,23 +650,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
     }
 
     private func jsonBody(_ request: URLRequest) throws -> [String: Any] {
-        let data = try bodyData(request)
-        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-    }
-
-    private func bodyData(_ request: URLRequest) throws -> Data {
-        if let body = request.httpBody { return body }
-        let stream = try XCTUnwrap(request.httpBodyStream)
-        stream.open()
-        defer { stream.close() }
-        var collected = Data()
-        var buffer = [UInt8](repeating: 0, count: 2048)
-        while stream.hasBytesAvailable {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            if count <= 0 { break }
-            collected.append(buffer, count: count)
-        }
-        return collected
+        try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.bodyData)) as? [String: Any])
     }
 
     private static func token(_ user: String) -> String {

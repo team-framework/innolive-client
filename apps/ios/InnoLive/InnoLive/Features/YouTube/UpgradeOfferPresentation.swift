@@ -1,11 +1,7 @@
 import Foundation
 
 extension BroadcastUpgradeOffer {
-    var expirationDate: Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.date(from: expiresAt) ?? ISO8601DateFormatter().date(from: expiresAt)
-    }
+    var expirationDate: Date? { ISO8601Timestamp.date(from: expiresAt) }
 
     func isExpired(at date: Date = Date()) -> Bool {
         guard let expirationDate else { return true }

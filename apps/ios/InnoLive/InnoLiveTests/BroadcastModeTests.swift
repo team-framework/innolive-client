@@ -232,17 +232,7 @@ final class BroadcastModeTests: XCTestCase {
     }
 
     private func payload(_ request: URLRequest) throws -> [String: Any] {
-        if let body = request.httpBody { return try JSONSerialization.jsonObject(with: body) as! [String: Any] }
-        let input = try XCTUnwrap(request.httpBodyStream)
-        input.open()
-        defer { input.close() }
-        var data = Data(), buffer = [UInt8](repeating: 0, count: 2048)
-        while input.hasBytesAvailable {
-            let length = input.read(&buffer, maxLength: buffer.count)
-            if length <= 0 { break }
-            data.append(buffer, count: length)
-        }
-        return try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        try JSONSerialization.jsonObject(with: XCTUnwrap(request.bodyData)) as! [String: Any]
     }
 }
 

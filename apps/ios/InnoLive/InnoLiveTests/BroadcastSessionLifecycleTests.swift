@@ -396,7 +396,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         let ready = await integration.prepareSession(accessToken: token)
         XCTAssertTrue(ready)
         XCTAssertEqual(methods, ["POST"])
-        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
+        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first?.bodyData.map { String(decoding: $0, as: UTF8.self) })
         // 공유 계약(direct-publish-v1)은 최상위 ai_processing을 쓴다. metadata는 구 서버 협상용이다.
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
         XCTAssertEqual(json["ai_processing"] as? String, "on_device")
@@ -410,7 +410,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         SessionLifecycleURLProtocol.responses = [.created("server", mode: "server")]
         let integration = makeIntegration(mode: .server)
         _ = await integration.prepareSession(accessToken: token)
-        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
+        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first?.bodyData.map { String(decoding: $0, as: UTF8.self) })
         XCTAssertFalse(body.contains("ai_processing"))
         XCTAssertFalse(integration.isDirectPublishSession)
     }
@@ -434,7 +434,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         let ready = await integration.prepareSession(accessToken: token, broadcastResolution: "fhd")
         XCTAssertTrue(ready)
         XCTAssertEqual(methods, ["POST", "PATCH"])
-        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
+        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first?.bodyData.map { String(decoding: $0, as: UTF8.self) })
         XCTAssertFalse(body.contains("ai_processing"))
         // 서버 송출도 선택한 카메라 화질로 세션을 만든다. 생략하면 서버 기본값 720p 세션이 된다.
         XCTAssertEqual(try screenBlurRequestBody(SessionLifecycleURLProtocol.requests[0])["broadcast_resolution"] as? String, "fhd")
@@ -543,21 +543,6 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertNotNil(integration.errorMessage)
         XCTAssertNil(defaults.string(forKey: OnDeviceTransport.storageKey))
         XCTAssertTrue(integration.changeOnDeviceTransport(.direct))
-    }
-
-    private static func body(_ request: URLRequest) -> String? {
-        if let data = request.httpBody { return String(decoding: data, as: UTF8.self) }
-        guard let stream = request.httpBodyStream else { return nil }
-        stream.open()
-        defer { stream.close() }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 1_024)
-        while stream.hasBytesAvailable {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            guard count > 0 else { break }
-            data.append(buffer, count: count)
-        }
-        return String(decoding: data, as: UTF8.self)
     }
 
     func testChangingModeKeepsSessionAndStoredCredentialsInBothDirections() async throws {
@@ -791,18 +776,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
     }
 
     private func screenBlurRequestBody(_ request: URLRequest) throws -> [String: Any] {
-        var data = request.httpBody ?? Data()
-        if data.isEmpty, let input = request.httpBodyStream {
-            input.open()
-            defer { input.close() }
-            var buffer = [UInt8](repeating: 0, count: 1024)
-            while input.hasBytesAvailable {
-                let count = input.read(&buffer, maxLength: buffer.count)
-                guard count > 0 else { break }
-                data.append(contentsOf: buffer.prefix(count))
-            }
-        }
-        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        try XCTUnwrap(JSONSerialization.jsonObject(with: request.bodyData ?? Data()) as? [String: Any])
     }
 
     private static func token(_ user: String) -> String {
