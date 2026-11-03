@@ -27,6 +27,7 @@ export type SeoGuide = {
 
 const spark = getPersonalPlans(getMessages("ko"))[0];
 const sparkLimits = spark.features.slice(1).map(({ text }) => text).join(", ");
+const chzzkAnswer = "치지직(CHZZK) 공식 고객센터 도움말에는 방송 화면의 얼굴을 블러로 가리는 기능 안내가 없습니다(2026-11-03 확인). InnoLive는 방송 앱에서 카메라 영상의 미등록 얼굴을 실시간 블러로 처리한 뒤, 연결한 치지직(CHZZK) 계정으로 송출합니다.";
 
 export const seoGuides: SeoGuide[] = [
   koreanComparisonGuide,
@@ -105,12 +106,13 @@ export const seoGuides: SeoGuide[] = [
     title: "치지직(CHZZK) 라이브 방송 자동 모자이크 | InnoLive",
     description: "치지직(CHZZK) 방송 중 화면에 등장하는 사람과 행인의 얼굴을 실시간 블러로 가리세요. 계정을 연결하고 송출 전에 얼굴 비식별화 결과를 확인하세요.",
     heading: "치지직(CHZZK) 방송 실시간 자동 모자이크",
-    intro: "미등록 얼굴을 실시간 블러로 가린 영상을 치지직(CHZZK)으로 송출할 수 있습니다. 치지직(CHZZK)은 RTMP 송출 연결이 시작되면 방송을 시작하므로, 송출을 연결하기 전에 출연자 등록과 얼굴 처리 결과를 확인하세요.",
+    intro: `${chzzkAnswer} 치지직(CHZZK)은 RTMP 송출 연결이 시작되면 방송을 시작하므로, 송출을 연결하기 전에 출연자 등록과 얼굴 처리 결과를 확인하세요.`,
     sections: [
       { heading: "치지직(CHZZK) 계정과 방송 설정을 준비하세요", paragraphs: ["방송 앱에서 치지직(CHZZK) 계정을 연결하세요. 방송 제목과 카테고리 등 설정을 저장하고, 치지직(CHZZK) 채널에서 송출할 수 있는 상태인지 확인하세요.", "준비 과정에서 채널의 방송 설정과 송출 정보를 확인하세요. 연결한 채널과 방송 제목을 확인한 뒤 시작하세요."] },
       { heading: "송출 연결 전에 얼굴 처리 결과를 확인하세요", paragraphs: ["치지직(CHZZK)은 송출 연결이 방송 시작으로 이어집니다. 유튜브처럼 비공개로 방송을 준비하는 단계가 없으므로, 시작하기 전에 카메라 구도와 비식별화 설정을 점검하세요.", "얼굴을 가린 영상을 치지직(CHZZK)으로 보냅니다. 공개 대상자로 등록한 얼굴은 남기고 다른 사람의 얼굴을 가리는지 확인하세요."] },
       { heading: "야외 치지직(CHZZK) 방송 준비", paragraphs: ["거리 이동이나 행사 현장에서는 배경의 행인이 계속 바뀝니다. 치지직(CHZZK) 방송을 준비할 때 자동 감지 결과와 촬영 구도를 함께 점검하세요.", "현재 얼굴 처리 방식은 블러입니다. 방송 중 얼굴 비식별화를 끄면 얼굴을 가리지 않으므로 설정 상태를 확인해야 합니다."] },
     ],
+    faq: [{ question: "치지직(CHZZK)에 얼굴 블러 기능이 있나요?", answer: chzzkAnswer }],
     related: ["/live-mosaic", "/live-privacy", "/youtube"],
   },
   {
