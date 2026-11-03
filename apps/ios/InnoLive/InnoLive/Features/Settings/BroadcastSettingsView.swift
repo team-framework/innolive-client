@@ -539,7 +539,8 @@ struct BroadcastSettingsView: View {
         }
         guard isPrivacyOnly || youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) else { return }
         guard !isSubmittingPreparation else { return }
-        guard authentication.hasAcceptedMediaTransmission else {
+        guard authentication.hasAcceptedMediaTransmission
+                || !youtube.transmitsMedia(to: isPrivacyOnly ? [] : youtube.selectedBroadcastProviders) else {
             isShowingMediaConsent = true
             return
         }

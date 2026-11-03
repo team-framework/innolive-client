@@ -738,7 +738,8 @@ struct HomeView: View {
     }
 
     private func beginBroadcastPreparation(_ provider: BroadcastSettingsProvider) async {
-        guard authentication.hasAcceptedMediaTransmission, !isRequestingPreparation else { return }
+        guard authentication.hasAcceptedMediaTransmission || !youtube.transmitsMedia(to: youtube.selectedBroadcastProviders),
+              !isRequestingPreparation else { return }
         isRequestingPreparation = true
         defer { isRequestingPreparation = false }
         if !usesSimulatorVideo {

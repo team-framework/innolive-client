@@ -29,6 +29,12 @@ extension YouTubeIntegration {
         return AIProcessingMode(rawValue: session.aiProcessing ?? "server") ?? .server
     }
 
+    /// 방송 영상·음성 전송 동의가 필요한 준비인지다. 로컬 모드와 대상 플랫폼 없는 앱 직접 송출 세션은
+    /// 서버와 플랫폼 어디에도 영상·음성을 보내지 않는다.
+    func transmitsMedia(to providers: Set<BroadcastSettingsProvider>) -> Bool {
+        !startsPrivacyOnlyLocally && !(providers.isEmpty && planProcessingMode == .onDevice)
+    }
+
     /// 새 세션의 처리 방식이다. 서버 송출을 고른 온디바이스는 `server` 세션에서 서버 AI만 끈다.
     /// 서버 시간 소진 뒤의 온디바이스 전환(`preparationProcessingOverride`)은 항상 앱 직접 송출이다.
     var requestedSessionMode: AIProcessingMode {
@@ -355,7 +361,7 @@ extension YouTubeIntegration {
             showError(.unauthorized)
             return errorMessage
         }
-        if !permissions.hasMediaTransmissionConsent {
+        if !permissions.hasMediaTransmissionConsent, transmitsMedia(to: provider.map { [$0] } ?? []) {
             errorMessage = String(localized: "방송 영상·음성 전송에 동의한 뒤 방송을 준비할 수 있습니다.")
             return errorMessage
         }
