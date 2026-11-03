@@ -229,11 +229,7 @@ final class AuthSession: ObservableObject {
 
         guard isCurrentSession(generation) else { return false }
         cleanup()
-        invalidateSessionGeneration()
-        tokenStore.remove()
-        offlineGrantStore.remove()
-        PrivacyFaceLibrary.eraseAll()
-        pendingSignup = nil
+        clearStoredSession()
         consentStore.clearAccountCollection()
         hasAcceptedAccountCollection = false
         clearMediaTransmissionConsent()
@@ -243,23 +239,23 @@ final class AuthSession: ObservableObject {
     }
 
     func signOut() {
-        invalidateSessionGeneration()
-        tokenStore.remove()
-        offlineGrantStore.remove()
-        PrivacyFaceLibrary.eraseAll()
-        pendingSignup = nil
+        clearStoredSession()
         errorMessage = nil
         isAuthenticated = false
     }
 
     func expireSession() {
+        clearStoredSession()
+        errorMessage = String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
+        isAuthenticated = false
+    }
+
+    private func clearStoredSession() {
         invalidateSessionGeneration()
         tokenStore.remove()
         offlineGrantStore.remove()
         PrivacyFaceLibrary.eraseAll()
         pendingSignup = nil
-        errorMessage = String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
-        isAuthenticated = false
     }
 
     func refreshSession() async -> AuthenticationRefreshResult {
