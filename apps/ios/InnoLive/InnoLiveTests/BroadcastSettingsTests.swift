@@ -38,15 +38,7 @@ final class BroadcastSettingsTests: XCTestCase {
         SettingsURLProtocol.responses.append(.init(status: status, json: body, delay: .seconds(delay)))
     }
     private func body(_ request: URLRequest) throws -> [String: Any] {
-        if let data = request.httpBody { return try JSONSerialization.jsonObject(with: data) as! [String: Any] }
-        let stream = try XCTUnwrap(request.httpBodyStream)
-        stream.open(); defer { stream.close() }
-        var data = Data(); var buffer = [UInt8](repeating: 0, count: 2048)
-        while stream.hasBytesAvailable {
-            let n = stream.read(&buffer, maxLength: buffer.count)
-            if n <= 0 { break }; data.append(buffer, count: n)
-        }
-        return try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        try JSONSerialization.jsonObject(with: XCTUnwrap(request.bodyData)) as! [String: Any]
     }
     func testCHZZKNoCategoryPayloadAndProvider() async throws {
         enqueue(snapshot)

@@ -41,7 +41,7 @@ final class CHZZKAccountTests: XCTestCase {
         XCTAssertEqual(request.url?.path, "/auth/chzzk/connect")
         XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer fake-access")
-        XCTAssertEqual(try JSONSerialization.jsonObject(with: request.body()) as? [String: String],
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: request.bodyData ?? Data()) as? [String: String],
                        ["code": "fake-code", "state": "fake-state"])
         XCTAssertEqual(response.account.channelTitle, "CHZZK channel")
     }
@@ -404,23 +404,6 @@ private final class CHZZKTestURLProtocol: StubURLProtocol {
             data = Data("{\"error\":{\"code\":\"unauthorized\"}}".utf8)
         }
         return Response(status: status, body: data)
-    }
-}
-
-private extension URLRequest {
-    func body() throws -> Data {
-        if let httpBody { return httpBody }
-        guard let stream = httpBodyStream else { return Data() }
-        stream.open()
-        defer { stream.close() }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 1024)
-        while stream.hasBytesAvailable {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            if count <= 0 { break }
-            data.append(buffer, count: count)
-        }
-        return data
     }
 }
 

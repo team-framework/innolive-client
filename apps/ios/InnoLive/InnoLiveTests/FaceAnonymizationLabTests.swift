@@ -59,7 +59,7 @@ final class FaceAnonymizationLabTests: XCTestCase {
         _ = try await api.createSession(accessToken: "token", mode: .server, faceAnonymization: .faceSwap)
         let request = try XCTUnwrap(FaceAnonymizationLabURLProtocol.requests.first)
         XCTAssertEqual(request.url?.path, "/sessions")
-        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: Self.body(of: request)) as? [String: Any])
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: request.bodyData ?? Data()) as? [String: Any])
         XCTAssertEqual(body["face_anonymization"] as? String, "face_swap")
     }
 
@@ -92,21 +92,6 @@ final class FaceAnonymizationLabTests: XCTestCase {
         mode = .onDevice
         XCTAssertFalse(integration.usesFaceSwap)
         XCTAssertNil(integration.settingsEditor.validation["description"])
-    }
-
-    private static func body(of request: URLRequest) -> Data {
-        if let body = request.httpBody { return body }
-        guard let input = request.httpBodyStream else { return Data() }
-        input.open()
-        defer { input.close() }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 1024)
-        while input.hasBytesAvailable {
-            let count = input.read(&buffer, maxLength: buffer.count)
-            if count <= 0 { break }
-            data.append(buffer, count: count)
-        }
-        return data
     }
 }
 

@@ -40,12 +40,7 @@ final class LiveBroadcastEditingTests: XCTestCase {
         LiveEditURLProtocol.responses.append(.init(status: status, json: body, delay: .seconds(delay)))
     }
     private func body(_ request: URLRequest) throws -> [String: Any] {
-        if let data = request.httpBody { return try JSONSerialization.jsonObject(with: data) as! [String: Any] }
-        let input = try XCTUnwrap(request.httpBodyStream)
-        input.open(); defer { input.close() }
-        var data = Data(), buffer = [UInt8](repeating: 0, count: 2048)
-        while input.hasBytesAvailable { let n = input.read(&buffer, maxLength: buffer.count); if n <= 0 { break }; data.append(buffer, count: n) }
-        return try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        try JSONSerialization.jsonObject(with: XCTUnwrap(request.bodyData)) as! [String: Any]
     }
     private func waitForRequest() async {
         for _ in 0..<100 { if !LiveEditURLProtocol.requests.isEmpty { return }; try? await Task.sleep(for: .milliseconds(5)) }

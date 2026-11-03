@@ -545,21 +545,6 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertTrue(integration.changeOnDeviceTransport(.direct))
     }
 
-    private static func body(_ request: URLRequest) -> String? {
-        if let data = request.httpBody { return String(decoding: data, as: UTF8.self) }
-        guard let stream = request.httpBodyStream else { return nil }
-        stream.open()
-        defer { stream.close() }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 1_024)
-        while stream.hasBytesAvailable {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            guard count > 0 else { break }
-            data.append(buffer, count: count)
-        }
-        return String(decoding: data, as: UTF8.self)
-    }
-
     func testChangingModeKeepsSessionAndStoredCredentialsInBothDirections() async throws {
         SessionLifecycleURLProtocol.responses = [.created("same", mode: "server"), .snapshot(enabled: true), .snapshot(enabled: false), .snapshot(enabled: true)]
         let integration = makeIntegration(transport: .server)
@@ -791,18 +776,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
     }
 
     private func screenBlurRequestBody(_ request: URLRequest) throws -> [String: Any] {
-        var data = request.httpBody ?? Data()
-        if data.isEmpty, let input = request.httpBodyStream {
-            input.open()
-            defer { input.close() }
-            var buffer = [UInt8](repeating: 0, count: 1024)
-            while input.hasBytesAvailable {
-                let count = input.read(&buffer, maxLength: buffer.count)
-                guard count > 0 else { break }
-                data.append(contentsOf: buffer.prefix(count))
-            }
-        }
-        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        try XCTUnwrap(JSONSerialization.jsonObject(with: request.bodyData ?? Data()) as? [String: Any])
     }
 
     private static func token(_ user: String) -> String {
