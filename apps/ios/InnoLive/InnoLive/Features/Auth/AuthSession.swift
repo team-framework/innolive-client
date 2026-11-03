@@ -377,11 +377,3 @@ enum AuthenticationRefreshResult {
     case invalid
     case unavailable
 }
-
-enum AuthenticationSessionExpiration {
-    static let notification = Notification.Name("com.framework.innolive.authentication.expired")
-
-    static func notify() {
-        NotificationCenter.default.post(name: notification, object: nil)
-    }
-}

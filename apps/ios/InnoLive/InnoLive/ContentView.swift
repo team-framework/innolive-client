@@ -31,23 +31,6 @@ struct ContentView: View {
             youtube.configureAuthentication(authentication)
             authentication.restore()
         }
-        .onReceive(NotificationCenter.default.publisher(for: AuthenticationSessionExpiration.notification)) { _ in
-            guard authentication.isAuthenticated else { return }
-            Task {
-                switch await authentication.refreshSession() {
-                case .refreshed:
-                    break
-                case .invalid:
-                    youtube.reset()
-                    authentication.expireSession()
-                case .unavailable:
-                    youtube.operatingMode.send(.refreshUnavailable)
-                    // Local mode keeps working without the server, so it is not an error there.
-                    guard !youtube.operatingMode.state.mode.isLocal else { return }
-                    authentication.showError(String(localized: "로그인 상태를 갱신하지 못했습니다. 잠시 후 다시 시도해 주세요."))
-                }
-            }
-        }
         .onChange(of: authentication.isAuthenticated) { _, isAuthenticated in
             // 만료 요청의 비동기 실패 처리가 재로그인 뒤 도착해도 홈 화면에
             // 이전 만료 오류 배너가 남지 않도록 한다.
