@@ -5,6 +5,7 @@ import { getPersonalPlans } from "@/lib/plans";
 
 const spark = getPersonalPlans(getMessages("ja"))[0];
 const limits = spark.features.slice(1).map(({ text }) => text).join("、");
+const chzzkAnswer = "CHZZKの公式ヘルプセンターには、配信画面の顔をぼかす機能の案内がありません（2026-11-03確認）。InnoLiveは配信アプリでカメラ映像の未登録の顔をリアルタイムでぼかし、連携したCHZZKアカウントへ送信します。";
 
 export const japaneseSeoGuides: SeoGuide[] = [
   japaneseComparisonGuide,
@@ -75,12 +76,14 @@ export const japaneseSeoGuides: SeoGuide[] = [
     path: "/chzzk", title: "CHZZK配信のリアルタイム自動顔ぼかし | InnoLive",
     description: "CHZZK配信で未登録の顔をぼかします。アカウントを連携し、RTMP送信の接続前に顔の処理を確認してください。",
     heading: "CHZZKで顔をリアルタイムに自動でぼかす",
-    intro: "未登録の顔をぼかした映像をCHZZKへ送信します。CHZZKはRTMP送信の接続とともに配信が始まるため、接続前に出演者を登録し、顔の処理を確認してください。",
+    intro: `${chzzkAnswer}CHZZKはRTMP送信の接続とともに配信が始まるため、接続前に出演者を登録し、顔の処理を確認してください。`,
     sections: [
       { heading: "CHZZKアカウントと設定を準備する", paragraphs: ["配信アプリでCHZZKアカウントを連携します。タイトルやカテゴリなどを保存し、チャンネルが配信できるか確認してください。", "開始前に連携先のチャンネル、配信タイトル、送信情報を確認してください。"] },
       { heading: "接続前にぼかしを確認する", paragraphs: ["CHZZKでは送信接続とともに配信が始まります。YouTubeと同じ非公開の準備段階はないため、接続前に構図と匿名化を確認してください。", "送信する映像で、登録した出演者の顔が表示され、他の検出した顔がぼけていることを確認してください。"] },
       { heading: "屋外配信に備える", paragraphs: ["歩きながらの撮影やイベントでは周囲の人が入れ替わります。顔の検出と構図をあわせて確認してください。", "現在の処理方式はぼかしです。顔の匿名化を無効にするとぼかしが止まるため、配信前に設定を確認してください。"] },
-    ], related: ["/live-mosaic", "/live-privacy", "/youtube"],
+    ],
+    faq: [{ question: "CHZZKに顔ぼかし機能はありますか？", answer: chzzkAnswer }],
+    related: ["/live-mosaic", "/live-privacy", "/youtube"],
   },
   {
     path: "/mosaic-software", title: "リアルタイム顔匿名化サービス・アプリ | InnoLive",

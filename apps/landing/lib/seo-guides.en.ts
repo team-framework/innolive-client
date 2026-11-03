@@ -5,6 +5,7 @@ import { getPersonalPlans } from "@/lib/plans";
 
 const spark = getPersonalPlans(getMessages("en"))[0];
 const limits = spark.features.slice(1).map(({ text }) => text).join(", ");
+const chzzkAnswer = "The official CHZZK help center has no guide to a feature that blurs faces on stream (checked 2026-11-03). InnoLive blurs unregistered faces in camera video in its streaming app, then sends the processed video to your connected CHZZK account.";
 
 export const englishSeoGuides: SeoGuide[] = [
   englishComparisonGuide,
@@ -76,12 +77,14 @@ export const englishSeoGuides: SeoGuide[] = [
     path: "/chzzk", title: "CHZZK Real-time Automatic Face Blur | InnoLive",
     description: "Blur unregistered faces in CHZZK broadcasts. Connect your account and check face processing before the RTMP streaming connection starts.",
     heading: "Real-time automatic face blur for CHZZK",
-    intro: "Send video with unregistered faces blurred to CHZZK. CHZZK starts broadcasting when the RTMP streaming connection begins, so register your guests and check face processing before connecting the stream.",
+    intro: `${chzzkAnswer} CHZZK starts broadcasting when the RTMP streaming connection begins, so register your guests and check face processing before connecting the stream.`,
     sections: [
       { heading: "Prepare your CHZZK account and settings", paragraphs: ["Connect your CHZZK account in the streaming app. Save the title, category and other settings, and check that the channel can broadcast.", "Check the connected channel, broadcast title and streaming information before starting."] },
       { heading: "Check face blur before connecting", paragraphs: ["The streaming connection starts the CHZZK broadcast. It does not provide the same private preparation stage as YouTube, so check camera framing and anonymization before connecting.", "Confirm that registered guests remain visible and other detected faces are blurred in the video you will send."] },
       { heading: "Prepare for outdoor broadcasts", paragraphs: ["Bystanders change as you walk or film an event. Check detection and framing together.", "The current effect is blur. Disabling face anonymization stops face blurring, so check the setting before streaming."] },
-    ], related: ["/live-mosaic", "/live-privacy", "/youtube"],
+    ],
+    faq: [{ question: "Does CHZZK have a built-in face blur feature?", answer: chzzkAnswer }],
+    related: ["/live-mosaic", "/live-privacy", "/youtube"],
   },
   {
     path: "/mosaic-software", title: "Real-time De-identification Service & App | InnoLive",
