@@ -241,7 +241,8 @@ struct HomeView: View {
                 } : nil)
         }
         .overlay(alignment: .top) {
-            if !youtube.isYouTubeBroadcastActive, youtube.preparationStatus == nil, !isRequestingPreparation {
+            if !youtube.isYouTubeBroadcastActive, youtube.preparationStatus == nil, !isRequestingPreparation,
+               youtube.localCaptureID == nil {
                 LocalModeBanner(monitor: youtube.operatingMode,
                                 canStartLocalRecording: youtube.canOpenLocalCapture) {
                     isShowingLocalRecording = true
@@ -806,7 +807,7 @@ struct HomeView: View {
             }
         )
         previewTransition = .none
-        if youtube.isVideoConnected {
+        if youtube.isVideoConnected || youtube.isLocalTakeRecording {
             if !usesSimulatorVideo, let activeCameraID = youtube.videoUplink.currentCameraID {
                 _ = await cameraManager.switchCamera(to: activeCameraID)
             }

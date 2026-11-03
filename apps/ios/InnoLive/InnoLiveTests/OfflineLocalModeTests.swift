@@ -19,6 +19,7 @@ final class OfflineLocalModeTests: XCTestCase {
     }
 
     override func tearDown() {
+        UserDefaults.standard.removeObject(forKey: OperatingModeMonitor.alwaysLocalKey)
         URLProtocol.unregisterClass(OfflineURLProtocol.self)
         defaults.removePersistentDomain(forName: suite)
         try? FileManager.default.removeItem(at: directory)
@@ -70,6 +71,58 @@ final class OfflineLocalModeTests: XCTestCase {
         XCTAssertFalse(youtube.storedAdministrator(accessToken: token))
         await youtube.modelReadiness.warm()
         XCTAssertThrowsError(try youtube.startLocalTake())
+        XCTAssertEqual(OfflineURLProtocol.recorded, [])
+    }
+
+    private let allowed = BroadcastPreparationPermissions(hasMediaTransmissionConsent: true, cameraAuthorized: true,
+                                                          microphoneAuthorized: true)
+
+    func testLocalModeDecisionNeedsTheAdministratorMonitor() {
+        let youtube = makeIntegration(grant: nil)
+        youtube.operatingMode.setAlwaysLocal(true)
+        XCTAssertFalse(youtube.startsPrivacyOnlyLocally, "only the admin monitor decides local mode")
+
+        youtube.operatingMode.start { nil }
+        defer { youtube.operatingMode.stop() }
+        XCTAssertTrue(youtube.startsPrivacyOnlyLocally)
+    }
+
+    func testLocalModePrivacyStartNeverCreatesSession() async {
+        let youtube = makeIntegration(grant: nil)
+        youtube.operatingMode.setAlwaysLocal(true)
+        youtube.operatingMode.start { nil }
+        defer { youtube.operatingMode.stop() }
+        var handedOffCamera = false
+
+        let started = await youtube.startBroadcastPreparation(accessToken: token, providers: [], permissions: allowed,
+                                                              handoffCamera: { handedOffCamera = true })
+
+        XCTAssertFalse(started)
+        XCTAssertFalse(handedOffCamera, "a local start without an administrator grant keeps the camera preview")
+        XCTAssertEqual(youtube.errorMessage, OfflineGrant.unconfirmedMessage)
+        XCTAssertNil(youtube.session)
+        XCTAssertNil(youtube.preparationStatus)
+        XCTAssertEqual(OfflineURLProtocol.recorded, [], "the local-mode privacy start made a network request")
+    }
+
+    func testNonAdministratorOfflineStartKeepsTheSessionRoute() async {
+        let youtube = makeIntegration(grant: nil)
+
+        let started = await youtube.startBroadcastPreparation(accessToken: token, providers: [], permissions: allowed)
+
+        XCTAssertFalse(started)
+        XCTAssertEqual(youtube.preparationStatus?.failedPhase, .creatingSession)
+        XCTAssertTrue(OfflineURLProtocol.recorded.contains { $0.hasSuffix("/sessions") }, "\(OfflineURLProtocol.recorded)")
+    }
+
+    func testLocalCaptureStopMakesNoServerRequest() async {
+        let youtube = makeIntegration(grant: nil)
+        youtube.localCaptureID = UUID()
+        XCTAssertTrue(youtube.isPrivacyOnlySession, "the home 비식별화 종료 control covers a local capture")
+
+        await youtube.cancelBroadcastPreparation(accessToken: token)
+
+        XCTAssertNil(youtube.localCaptureID)
         XCTAssertEqual(OfflineURLProtocol.recorded, [])
     }
 }
