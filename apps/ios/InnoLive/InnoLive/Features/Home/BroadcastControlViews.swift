@@ -348,15 +348,12 @@ struct BroadcastFeedbackBanner: View {
 struct StudioBroadcastSummaryLabel: View {
     @ObservedObject var youtube: YouTubeIntegration
     @ObservedObject var editor: BroadcastSettingsEditor
-    @ObservedObject var operatingMode: OperatingModeMonitor
     @AppStorage(CameraQualityPreset.storageKey) private var selectedResolution = CameraQualityPreset.defaultValue.rawValue
     @AppStorage(AIProcessingMode.storageKey) private var selectedAIProcessing = AIProcessingMode.server.rawValue
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            if let reason = operatingMode.broadcastUnavailableReason {
-                unavailableTargets(reason: reason)
-            } else if youtube.selectedBroadcastProviders.isEmpty {
+            if youtube.selectedBroadcastProviders.isEmpty {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(String(localized: "송출 플랫폼 없음"))
@@ -368,25 +365,23 @@ struct StudioBroadcastSummaryLabel: View {
                     Image(systemName: "chevron.right").font(.caption)
                 }
             }
-            if operatingMode.broadcastUnavailableReason == nil {
-                ForEach(BroadcastSettingsProvider.allCases.filter(youtube.selectedBroadcastProviders.contains)) { provider in
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack(spacing: 4) {
-                                if !youtube.isSettingsAccountConnected(provider) {
-                                    Image(systemName: "exclamationmark.circle.fill")
-                                        .accessibilityHidden(true)
-                                }
-                                Text(channelTitle(for: provider))
+            ForEach(BroadcastSettingsProvider.allCases.filter(youtube.selectedBroadcastProviders.contains)) { provider in
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 4) {
+                            if !youtube.isSettingsAccountConnected(provider) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .accessibilityHidden(true)
                             }
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(youtube.isSettingsAccountConnected(provider) ? Color.white : Color.orange)
-                            Text(broadcastTitle(for: provider))
-                                .font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                            Text(channelTitle(for: provider))
                         }
-                        Spacer(minLength: 8)
-                        Image(systemName: "chevron.right").font(.caption)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(youtube.isSettingsAccountConnected(provider) ? Color.white : Color.orange)
+                        Text(broadcastTitle(for: provider))
+                            .font(.system(size: 12, weight: .semibold)).lineLimit(1)
                     }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(.caption)
                 }
             }
             Text(qualitySummary + " · " + processingSummary)
@@ -398,21 +393,6 @@ struct StudioBroadcastSummaryLabel: View {
         .innoLiveGlassBackground(cornerRadius: 18, overVideo: true)
         .contentShape(RoundedRectangle(cornerRadius: 18))
         .environment(\.colorScheme, .dark)
-    }
-
-    private func unavailableTargets(reason: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            ForEach(BroadcastSettingsProvider.allCases) { provider in
-                Label(provider.title, systemImage: "nosign")
-                    .font(.caption.weight(.semibold))
-            }
-            Text(reason)
-                .font(.system(size: 12, weight: .semibold))
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .foregroundStyle(.secondary)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("studio-broadcast-targets-unavailable")
     }
 
     private func broadcastTitle(for provider: BroadcastSettingsProvider) -> String {

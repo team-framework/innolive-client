@@ -11,7 +11,6 @@ struct BroadcastSettingsView: View {
     @State private var transmissionNoticeProvider: BroadcastSettingsProvider?
     @State private var nextTransmissionNoticeProvider: BroadcastSettingsProvider?
     @State private var isShowingMediaConsent = false
-    @State private var isShowingLocalRecordingNotice = false
     @State private var isSubmittingPreparation = false
     @State private var transmissionNotice = YouTubeTransmissionNotice()
     @StateObject private var faceReregistration = ReferenceFaceReregistrationCheck()
@@ -107,13 +106,6 @@ struct BroadcastSettingsView: View {
                 continuePrepare()
             }
         }
-        .sheet(isPresented: $isShowingLocalRecordingNotice) {
-            LocalRecordingNotice(onAcknowledge: {
-                youtube.consentStore.recordLocalRecordingNotice()
-                isShowingLocalRecordingNotice = false
-                submitPreparation(editor.provider)
-            }, onCancel: { isShowingLocalRecordingNotice = false })
-        }
         .sheet(item: $transmissionNoticeProvider, onDismiss: showNextTransmissionNotice) { provider in
             BroadcastTransmissionNoticeView(provider: provider) { consent in
                 confirmTransmissionNotice(consent, for: provider)
@@ -183,7 +175,7 @@ struct BroadcastSettingsView: View {
         }
         .broadcastTutorialAnchor(.connectAccount)
         BroadcastResolutionSelectionView(youtube: youtube)
-        BroadcastTargetSelectionView(youtube: youtube, operatingMode: youtube.operatingMode)
+        BroadcastTargetSelectionView(youtube: youtube)
     }
 
     @ViewBuilder
@@ -547,7 +539,8 @@ struct BroadcastSettingsView: View {
         }
         guard isPrivacyOnly || youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) else { return }
         guard !isSubmittingPreparation else { return }
-        guard authentication.hasAcceptedMediaTransmission else {
+        guard authentication.hasAcceptedMediaTransmission
+                || !youtube.transmitsMedia(to: isPrivacyOnly ? [] : youtube.selectedBroadcastProviders) else {
             isShowingMediaConsent = true
             return
         }
@@ -568,13 +561,7 @@ struct BroadcastSettingsView: View {
     }
 
     private func continuePrepare() {
-        if youtube.startsPrivacyOnlyLocally {
-            if youtube.consentStore.hasAcknowledgedLocalRecordingNotice {
-                submitPreparation(editor.provider)
-            } else {
-                isShowingLocalRecordingNotice = true
-            }
-        } else if let provider = pendingTransmissionNoticeProvider {
+        if !youtube.startsPrivacyOnlyLocally, let provider = pendingTransmissionNoticeProvider {
             showTransmissionNotice(for: provider)
         } else {
             submitPreparation(editor.provider)

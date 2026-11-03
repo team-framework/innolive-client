@@ -15,20 +15,20 @@ final class OperatingModeMonitor: ObservableObject {
 
     @Published private(set) var state: OperatingState
     @Published private(set) var isMonitoring = false
-    private let defaults: UserDefaults
     private let probeSession: URLSession
     private var pathMonitor: NWPathMonitor?
     private var loop: Task<Void, Never>?
     private var accessToken: () -> String? = { nil }
 
     init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = Self.probeTimeout
         configuration.timeoutIntervalForResource = Self.probeTimeout
         configuration.waitsForConnectivity = false
         probeSession = URLSession(configuration: configuration)
-        state = OperatingState(alwaysLocal: defaults.bool(forKey: Self.alwaysLocalKey))
+        // The always-local switch no longer has a settings row, so a choice saved by an earlier build must not pin local mode.
+        defaults.removeObject(forKey: Self.alwaysLocalKey)
+        state = OperatingState()
     }
 
     var alwaysLocal: Bool { state.alwaysLocal }
@@ -59,7 +59,7 @@ final class OperatingModeMonitor: ObservableObject {
         loop?.cancel()
         loop = nil
         isMonitoring = false
-        state = OperatingState(alwaysLocal: defaults.bool(forKey: Self.alwaysLocalKey))
+        state = OperatingState()
     }
 
     func send(_ event: OperatingEvent) {
@@ -69,7 +69,6 @@ final class OperatingModeMonitor: ObservableObject {
     }
 
     func setAlwaysLocal(_ enabled: Bool) {
-        defaults.set(enabled, forKey: Self.alwaysLocalKey)
         send(.alwaysLocal(enabled))
     }
 

@@ -94,6 +94,35 @@ final class BroadcastPreparationFlowTests: XCTestCase {
         XCTAssertNil(disconnected.preparationStatus)
     }
 
+    func testMediaTransmissionConsentOnlyGuardsMediaLeavingTheDevice() async {
+        let refusedConsent = BroadcastPreparationPermissions(
+            hasMediaTransmissionConsent: false, cameraAuthorized: true, microphoneAuthorized: true
+        )
+        let serverPrivacy = makeIntegration(mode: .server)
+        serverPrivacy.selectedBroadcastProviders = []
+        XCTAssertTrue(serverPrivacy.transmitsMedia(to: []), "server AI privacy sends the camera to our server")
+        let serverPrivacyStarted = await prepare(serverPrivacy, permissions: refusedConsent)
+        XCTAssertFalse(serverPrivacyStarted)
+        XCTAssertTrue(PreparationFlowURLProtocol.requests.isEmpty)
+        let consentMessage = serverPrivacy.errorMessage
+        XCTAssertNotNil(consentMessage)
+
+        let onDeviceBroadcast = makeIntegration(mode: .onDevice)
+        XCTAssertTrue(onDeviceBroadcast.transmitsMedia(to: [.youtube]), "direct publish sends media to the platform")
+        let onDeviceBroadcastStarted = await prepare(onDeviceBroadcast, permissions: refusedConsent)
+        XCTAssertFalse(onDeviceBroadcastStarted)
+        XCTAssertEqual(onDeviceBroadcast.errorMessage, consentMessage)
+        XCTAssertTrue(PreparationFlowURLProtocol.requests.isEmpty)
+
+        let onDevicePrivacy = makeIntegration(mode: .onDevice)
+        onDevicePrivacy.selectedBroadcastProviders = []
+        XCTAssertFalse(onDevicePrivacy.transmitsMedia(to: []), "on-device privacy without a platform keeps media on the device")
+        _ = await prepare(onDevicePrivacy, permissions: refusedConsent)
+        XCTAssertNotEqual(onDevicePrivacy.errorMessage, consentMessage)
+        XCTAssertTrue(PreparationFlowURLProtocol.requests.contains { $0.url?.path.hasSuffix("/sessions") == true },
+                      "the consent guard let the on-device privacy start through")
+    }
+
     func testPrepareCreatesSessionConnectsAndDoesNotGoLive() async throws {
         let integration = makeIntegration()
         integration.configureSettingsEditor(accessToken: token)
@@ -670,7 +699,8 @@ final class BroadcastPreparationFlowTests: XCTestCase {
             pollingInterval: .seconds(300),
             aiModeProvider: { mode },
             localModelsAvailable: { true },
-            persistAIProcessingMode: { _ in }
+            persistAIProcessingMode: { _ in },
+            transportProvider: { .direct }
         )
     }
 

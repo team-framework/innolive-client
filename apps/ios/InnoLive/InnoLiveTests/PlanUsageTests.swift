@@ -100,7 +100,8 @@ final class PlanUsageTests: XCTestCase {
         let suite = "plan-processing-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), aiModeProvider: { .onDevice })
+        let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), aiModeProvider: { .onDevice },
+                                             transportProvider: { .direct })
         XCTAssertEqual(integration.planProcessingMode, .onDevice)
         var session = try JSONDecoder().decode(YouTubeBroadcastSession.self, from: Data("""
         {"session_id":"test", "owner_token":"test", "ai_processing":"server", "stream":{"status":"idle","publisher_active":false,"reconnect_attempts":0}}

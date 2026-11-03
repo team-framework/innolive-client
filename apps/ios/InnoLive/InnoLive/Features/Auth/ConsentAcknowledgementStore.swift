@@ -9,7 +9,6 @@ nonisolated final class ConsentAcknowledgementStore {
         static let mediaTransmission = "com.framework.innolive.consent.media-transmission.v1"
         static let youtubeTransmission = "com.framework.innolive.consent.youtube-transmission.v1"
         static let chzzkTransmission = "com.framework.innolive.consent.chzzk-transmission.v1"
-        static let localRecordingNotice = "com.framework.innolive.consent.local-recording-notice.v1"
     }
 
     private let userDefaults: UserDefaults
@@ -64,14 +63,5 @@ nonisolated final class ConsentAcknowledgementStore {
 
     func clearCHZZKTransmission() {
         userDefaults.removeObject(forKey: Key.chzzkTransmission)
-    }
-
-    /// Per device, not per account: the notice describes what this device stores.
-    var hasAcknowledgedLocalRecordingNotice: Bool {
-        userDefaults.bool(forKey: Key.localRecordingNotice)
-    }
-
-    func recordLocalRecordingNotice() {
-        userDefaults.set(true, forKey: Key.localRecordingNotice)
     }
 }

@@ -274,7 +274,8 @@ final class DirectMediaPipelineTests: XCTestCase {
         wait(for: [slate], timeout: 2)
         paused.onVideo = nil
         XCTAssertEqual(paused.videoSizes.first, CGSize(width: 32, height: 64))
-        XCTAssertGreaterThan(paused.silentAudioBuffers, 0)
+        let silence = expectation(for: NSPredicate { _, _ in paused.silentAudioBuffers > 0 }, evaluatedWith: nil)
+        wait(for: [silence], timeout: 2)
 
         fanout.detach(provider: "youtube")
         fanout.detach(provider: "chzzk")

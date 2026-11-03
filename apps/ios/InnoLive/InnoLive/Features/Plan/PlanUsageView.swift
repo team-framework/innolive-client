@@ -77,10 +77,6 @@ struct PlanUsageContent: View {
                         ? snapshot.usage.usedSeconds : snapshot.usage.deviceUsedSeconds))
                     timeRow(String(localized: "이번 달 남은 시간"), value: processing == .server
                         ? PlanTimeText.duration(snapshot.usage.remainingSeconds) : nullableTime(snapshot.usage.deviceRemainingSeconds, present: snapshot.usage.hasDeviceRemainingSeconds))
-                    if processing == .onDevice, snapshot.pendingLocalSeconds > 0 {
-                        Text(String(localized: "업로드 대기 중인 로컬 녹화 \(PlanTimeText.duration(snapshot.pendingLocalSeconds)) 포함"))
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
                 }
                 timeRow(String(localized: "1회 방송 한도"), value: PlanTimeText.duration(
                     snapshot.perBroadcastLimit))
@@ -140,7 +136,7 @@ struct PlanUsageContent: View {
                 Button(String(localized: "다시 시도"), action: onRefresh).disabled(isLoading)
             }
             if let date = lastUpdatedAt {
-                Text(String(localized: "마지막 조회: \(date.formatted(date: .abbreviated, time: .shortened))"))
+                Text(String(localized: "마지막 조회: \(date.formatted(date: .omitted, time: .standard))"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
