@@ -5,15 +5,6 @@ private enum BroadcastControlLayout {
     static let height: CGFloat = 44
 }
 
-struct SettingsControlLabel: View {
-    var body: some View {
-        Image(systemName: "gearshape.fill")
-            .font(.system(size: 16, weight: .semibold))
-            .frame(width: BroadcastControlLayout.height, height: BroadcastControlLayout.height)
-            .contentShape(Rectangle())
-    }
-}
-
 struct AnonymizationControlLabel: View {
     let isLoading: Bool
     var isEnabled = false

@@ -67,12 +67,6 @@ final class CameraManager {
         CameraDeviceCatalog.resolvedDevice(for: cameraID)
     }
 
-    func addCameraInput(for cameraID: String) {
-        sessionQueue.async { [weak self] in
-            self?.addCameraInputOnSessionQueue(for: cameraID)
-        }
-    }
-
     @discardableResult
     private func addCameraInputOnSessionQueue(for cameraID: String) -> Bool {
         guard videoInput == nil else {

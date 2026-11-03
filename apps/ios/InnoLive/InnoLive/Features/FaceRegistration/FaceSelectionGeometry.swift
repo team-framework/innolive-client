@@ -18,8 +18,6 @@ nonisolated enum FaceSelectionGeometry {
     static let registrationCropScale: CGFloat = 2
     /// Covers hair and chin around a neighbor's tight face box.
     static let maskedFaceScale: CGFloat = 1.3
-    /// Vision boxes hug the face; the bracket frames the whole head.
-    static let bracketScale: CGFloat = 1.25
 
     static func candidates(
         for rects: [CGRect],

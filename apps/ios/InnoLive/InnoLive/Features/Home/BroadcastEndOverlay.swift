@@ -24,7 +24,6 @@ struct BroadcastEndOverlay: View {
         return url
     }
     private var isEnding: Bool { phase == .ending }
-    private var isFinalizing: Bool { visibleRecording == .finalizing }
 
     var body: some View {
         ZStack {
