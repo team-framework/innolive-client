@@ -396,7 +396,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         let ready = await integration.prepareSession(accessToken: token)
         XCTAssertTrue(ready)
         XCTAssertEqual(methods, ["POST"])
-        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
+        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first?.bodyData.map { String(decoding: $0, as: UTF8.self) })
         // 공유 계약(direct-publish-v1)은 최상위 ai_processing을 쓴다. metadata는 구 서버 협상용이다.
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
         XCTAssertEqual(json["ai_processing"] as? String, "on_device")
@@ -410,7 +410,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         SessionLifecycleURLProtocol.responses = [.created("server", mode: "server")]
         let integration = makeIntegration(mode: .server)
         _ = await integration.prepareSession(accessToken: token)
-        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
+        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first?.bodyData.map { String(decoding: $0, as: UTF8.self) })
         XCTAssertFalse(body.contains("ai_processing"))
         XCTAssertFalse(integration.isDirectPublishSession)
     }
@@ -434,7 +434,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         let ready = await integration.prepareSession(accessToken: token, broadcastResolution: "fhd")
         XCTAssertTrue(ready)
         XCTAssertEqual(methods, ["POST", "PATCH"])
-        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
+        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first?.bodyData.map { String(decoding: $0, as: UTF8.self) })
         XCTAssertFalse(body.contains("ai_processing"))
         // 서버 송출도 선택한 카메라 화질로 세션을 만든다. 생략하면 서버 기본값 720p 세션이 된다.
         XCTAssertEqual(try screenBlurRequestBody(SessionLifecycleURLProtocol.requests[0])["broadcast_resolution"] as? String, "fhd")
