@@ -103,30 +103,17 @@ private final class UpgradeRenderingTokenStore: AuthenticationTokenStoring {
     func remove() { XCTFail("Rendering must not sign out") }
 }
 
-private final class UpgradeRenderingURLProtocol: URLProtocol, @unchecked Sendable {
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
+private final class UpgradeRenderingURLProtocol: StubURLProtocol {
+    override class func response(for request: URLRequest) -> Response? {
         let path = request.url!.path
-        let status: Int
-        let body: String
         if path == "/auth/streaming/accounts" {
-            status = 200
-            body = "[{\"provider\":\"youtube\",\"channel_id\":\"fake-channel\",\"channel_title\":\"YT\",\"reconnect_required\":false},{\"provider\":\"chzzk\",\"channel_id\":\"fake-chzzk\",\"channel_title\":\"CH\",\"reconnect_required\":false}]"
+            return Response(status: 200, json: "[{\"provider\":\"youtube\",\"channel_id\":\"fake-channel\",\"channel_title\":\"YT\",\"reconnect_required\":false},{\"provider\":\"chzzk\",\"channel_id\":\"fake-chzzk\",\"channel_title\":\"CH\",\"reconnect_required\":false}]")
         } else if path.hasSuffix("/broadcast") {
-            status = 400
-            body = "{\"error\":{\"code\":\"bad_request\",\"details\":{\"field\":\"title\",\"reason\":\"retry\"}}}"
+            return Response(status: 400, json: "{\"error\":{\"code\":\"bad_request\",\"details\":{\"field\":\"title\",\"reason\":\"retry\"}}}")
         } else if path.hasSuffix("/defaults") {
-            status = 200
-            body = "{}"
+            return Response(status: 200, json: "{}")
         } else {
-            status = 500
-            body = "{}"
+            return Response(status: 500, json: "{}")
         }
-        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil,
-            headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Data(body.utf8))
-        client?.urlProtocolDidFinishLoading(self)
     }
-    override func stopLoading() {}
 }

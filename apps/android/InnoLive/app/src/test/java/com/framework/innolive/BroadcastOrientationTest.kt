@@ -37,7 +37,7 @@ class BroadcastOrientationTest {
 
     @Test
     fun liveOperationsKeepTheOriginalRotation() {
-        val originalRotation = 3 // The opposite landscape direction must not replace it.
+        val originalRotation = 3 // 반대쪽 가로 방향이 기존 방향을 대체하면 안 됩니다.
         for (state in listOf(
             BroadcastState.GOING_LIVE,
             BroadcastState.LIVE,

@@ -128,7 +128,7 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_copyPlane(
         }
         int x = 0;
 #if defined(__ARM_NEON) || defined(__aarch64__)
-        // Leave the final group to scalar code: camera buffers may omit the last padding byte.
+        // 마지막 묶음은 스칼라 코드에 맡깁니다. 카메라 버퍼에는 마지막 패딩 바이트가 없을 수 있습니다.
         if (pixelStride == 2) for (; x + 16 < width; x += 16) {
             vst1q_u8(dest + x, vld2q_u8(row + 2 * x).val[0]);
         }
@@ -232,8 +232,8 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_composite(
     env->ReleaseByteArrayElements(alpha, const_cast<jbyte*>(mask), JNI_ABORT);
 }
 
-// NNAPI CPU fallback is not an NPU. Probe actual exposed neural accelerators before
-// compiling another copy of the detector; absence is normal on newer Android builds.
+// NNAPI CPU 대체 경로는 NPU가 아닙니다. 검출기 사본을 하나 더 컴파일하기 전에 실제로 노출된
+// 신경망 가속기를 확인하며, 최신 Android 빌드에서는 없는 것이 정상입니다.
 #include <android/NeuralNetworks.h>
 extern "C" JNIEXPORT jint JNICALL
 Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_neuralAcceleratorCount(
@@ -251,8 +251,8 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_neuralAccel
     return accelerators;
 }
 
-// Vectorize across adjacent prototype pixels. Separate multiply/add preserves the
-// Kotlin channel accumulation order, including values very close to the zero threshold.
+// 인접한 프로토타입 픽셀 단위로 벡터화합니다. 곱셈과 덧셈을 분리해, 0 임계값에 매우 가까운 값까지
+// Kotlin 채널 누적 순서를 그대로 유지합니다.
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_computeInstanceMasks(
     JNIEnv* env, jobject, jfloatArray coefficients, jintArray bounds, jfloatArray prototypes, jboolean prototypesValidated) {
@@ -320,7 +320,7 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_computeInst
     return arrays;
 }
 
-// Recognize adjacent NV12/NV21 camera views without reading or copying their pixels.
+// 인접한 NV12/NV21 카메라 view를 픽셀을 읽거나 복사하지 않고 인식합니다.
 extern "C" JNIEXPORT jint JNICALL
 Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_cameraChromaLayout(
     JNIEnv* env,jobject,jobject u,jobject v,jint uStride,jint vStride,jint width,jint height) {

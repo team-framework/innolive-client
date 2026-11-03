@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Android system/app-language settings are the only language selector. -->
-    <!-- The base values catalog is Korean, so unsupported locales fall back to Korean. -->
+    <!-- 언어 선택은 Android 시스템·앱 언어 설정에서만 합니다. -->
+    <!-- 기본 values 문자열이 한국어이므로 지원하지 않는 로케일은 한국어로 대체됩니다. -->
     <locale android:name="ko" />
     <locale android:name="en" />
     <locale android:name="ja" />

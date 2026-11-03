@@ -35,7 +35,7 @@ class GoogleSignInControllerTest {
             started.await()
             controller.state.first { it is GoogleSignInState.InProgress }
 
-            // A configuration-recreated LoginScreen observes this same owner and must not relaunch.
+            // 구성 변경으로 다시 생성된 LoginScreen도 같은 owner를 관찰하므로 다시 실행하면 안 됩니다.
             controller.start(context)
             assertEquals(1, requests)
 

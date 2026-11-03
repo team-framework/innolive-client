@@ -33,7 +33,7 @@ class AuthenticatedNavigationTest {
         override fun before() {
             val instrumentation = InstrumentationRegistry.getInstrumentation()
             val packageName = instrumentation.targetContext.packageName
-            // Live requests both permissions, including when a session already exists at launch.
+            // 라이브 화면은 시작 시점에 세션이 이미 있어도 두 권한을 모두 요청합니다.
             instrumentation.uiAutomation.grantRuntimePermission(packageName, Manifest.permission.CAMERA)
             instrumentation.uiAutomation.grantRuntimePermission(packageName, Manifest.permission.RECORD_AUDIO)
         }

@@ -7,8 +7,7 @@ final class FaceAnonymizationLabTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        FaceAnonymizationLabURLProtocol.requests = []
-        FaceAnonymizationLabURLProtocol.responses = []
+        FaceAnonymizationLabURLProtocol.reset()
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FaceAnonymizationLabURLProtocol.self]
         api = YouTubeAPI(urlSession: URLSession(configuration: configuration), serverURLProvider: { URL(string: "https://example.invalid\($0)") })
@@ -37,9 +36,9 @@ final class FaceAnonymizationLabTests: XCTestCase {
 
     func testAdministratorCheckFollowsAdminMeStatus() async throws {
         FaceAnonymizationLabURLProtocol.responses = [
-            (200, Data(#"{"user_id":"550e8400-e29b-41d4-a716-446655440000"}"#.utf8)),
-            (403, Data(#"{"error":{"code":"forbidden","message":"Administrator access is required."}}"#.utf8)),
-            (404, Data()),
+            .init(status: 200, json: #"{"user_id":"550e8400-e29b-41d4-a716-446655440000"}"#),
+            .init(status: 403, json: #"{"error":{"code":"forbidden","message":"Administrator access is required."}}"#),
+            .init(status: 404),
         ]
         let isAdmin = try await api.isAdministrator(accessToken: "token")
         let forbidden = try await api.isAdministrator(accessToken: "token")
@@ -55,7 +54,7 @@ final class FaceAnonymizationLabTests: XCTestCase {
 
     func testCreateSessionSendsFaceSwap() async throws {
         FaceAnonymizationLabURLProtocol.responses = [
-            (201, Data(#"{"session_id":"s1","owner_token":"o1","broadcast_resolution":"720p","face_anonymization":"face_swap","stream":{"status":"idle","publisher_active":false,"reconnect_attempts":0},"media":{}}"#.utf8)),
+            .init(status: 201, json: #"{"session_id":"s1","owner_token":"o1","broadcast_resolution":"720p","face_anonymization":"face_swap","stream":{"status":"idle","publisher_active":false,"reconnect_attempts":0},"media":{}}"#),
         ]
         _ = try await api.createSession(accessToken: "token", mode: .server, faceAnonymization: .faceSwap)
         let request = try XCTUnwrap(FaceAnonymizationLabURLProtocol.requests.first)
@@ -111,18 +110,8 @@ final class FaceAnonymizationLabTests: XCTestCase {
     }
 }
 
-private final class FaceAnonymizationLabURLProtocol: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var requests: [URLRequest] = []
-    nonisolated(unsafe) static var responses: [(Int, Data)] = []
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        Self.requests.append(request)
-        let (status, body) = Self.responses.isEmpty ? (500, Data()) : Self.responses.removeFirst()
-        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil,
-            headerFields: ["Content-Type": "application/json", "Date": "Fri, 15 Jan 2027 08:00:00 GMT"])!, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: body)
-        client?.urlProtocolDidFinishLoading(self)
+private final class FaceAnonymizationLabURLProtocol: StubURLProtocol {
+    override class var defaultHeaders: [String: String] {
+        ["Content-Type": "application/json", "Date": "Fri, 15 Jan 2027 08:00:00 GMT"]
     }
-    override func stopLoading() {}
 }

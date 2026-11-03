@@ -1,3 +1,6 @@
+import type { Locale } from "@/lib/locales";
+import { getMessages } from "@/lib/messages";
+import { getPersonalPlans } from "@/lib/plans";
 import type { SeoGuide } from "@/lib/seo-guides";
 
 const sources = [
@@ -11,6 +14,14 @@ const sources = [
 const path = "/compare/live-face-blur-apps";
 const checkedAt = "2026-10-17";
 const related = ["/mosaic-software", "/mobile-live-face-blur", "/face-mosaic", "/free-face-blur"];
+
+function spark(locale: Locale, separator: string) {
+  const plan = getPersonalPlans(getMessages(locale))[0];
+  return { amount: plan.price.amount, limits: plan.features.slice(1).map(({ text }) => text).join(separator) };
+}
+const sparkKo = spark("ko", ", ");
+const sparkEn = spark("en", ", ");
+const sparkJa = spark("ja", "、");
 
 export const koreanComparisonGuide: SeoGuide = {
   path,
@@ -41,6 +52,8 @@ export const koreanComparisonGuide: SeoGuide = {
     { question: "PC 없이 실시간 얼굴 모자이크 방송을 할 수 있나요?", answer: "모바일 앱의 직접 송출 기능을 확인하세요. InnoLive는 Android·iOS 앱에서 얼굴 블러가 적용된 영상을 유튜브·치지직으로 송출합니다. 인터넷 연결과 방송 계정 또는 스트림 키, 사용 가능한 방송 시간이 필요합니다." },
     { question: "InnoLive는 OBS의 가상 카메라로 사용하나요?", answer: "이 안내에서 다루는 InnoLive의 공개 사용 흐름은 모바일 앱에서 유튜브·치지직으로 송출하는 방식입니다. OBS용 가상 카메라 설치나 연결 기능은 이 안내의 지원 범위에 포함하지 않습니다." },
     { question: "얼굴을 가리는 성능도 비교했나요?", answer: "이 표는 공식 기능 설명을 비교했습니다. 같은 기기·장면·네트워크에서 감지율이나 지연을 측정한 성능 비교는 하지 않았습니다. 실제 방송 환경에서 얼굴이 작아지거나 가려지는 장면까지 확인하세요." },
+    { question: "나만 빼고 다른 사람 얼굴만 실시간으로 모자이크할 수 있나요?", answer: "InnoLive에서는 본인의 얼굴을 공개 대상자로 등록하면 등록한 얼굴은 보여 주고 미등록 얼굴은 실시간 블러로 가립니다. 함께 출연하는 사람도 등록할 수 있습니다. 위 비교표 기준으로 DualMoza는 가장 가까운 사람을 제외한 대상을 선택하고, PRISM Lens는 전체 얼굴 또는 배경 얼굴에 효과를 적용합니다." },
+    { question: "무료로 실시간 얼굴 블러 방송을 할 수 있나요?", answer: `InnoLive의 Spark 요금제는 월 ${sparkKo.amount}원이며, 현재 이용 범위는 ${sparkKo.limits}입니다. 무료 웹 체험에서는 카메라로 얼굴 감지와 블러 결과를 확인할 수 있습니다. 위 비교표 기준으로 DualMoza는 스토어 설명상 라이브 방송에 Pro가 필요하고, PRISM Lens는 Basic·Plus별 효과와 제한을 확인해야 합니다.` },
   ],
   related,
 };
@@ -74,6 +87,8 @@ export const englishComparisonGuide: SeoGuide = {
     { question: "Can I stream with face blur without a PC?", answer: "Look for a mobile app with direct broadcasting. InnoLive streams processed camera video from Android and iOS to YouTube or CHZZK. You need internet access, a streaming account or stream key, and available streaming time." },
     { question: "Does this guide describe InnoLive as an OBS virtual camera?", answer: "The public InnoLive workflow covered here is direct broadcasting from the mobile app to YouTube or CHZZK. OBS virtual camera installation and integration are outside the supported scope of this guide." },
     { question: "Have you compared face detection performance?", answer: "This table compares official feature descriptions. We have not measured detection accuracy or latency across the apps on matched devices, scenes and networks. Test small and partially hidden faces in your own streaming environment." },
+    { question: "Can I blur everyone except myself in real time?", answer: "In InnoLive, register your own face to keep it visible while unregistered faces are blurred in real time. You can register guests too. In the table above, DualMoza can cover everyone except the closest person, and PRISM Lens applies effects to all faces or background faces." },
+    { question: "Can I stream with real-time face blur for free?", answer: `InnoLive's Spark plan costs KRW ${sparkEn.amount} per month and currently includes: ${sparkEn.limits}. The free web demo lets you check face detection and blur with your camera. In the table above, DualMoza's store description requires Pro for live streaming, and PRISM Lens effects and limits depend on Basic or Plus.` },
   ],
   related,
 };
@@ -107,6 +122,8 @@ export const japaneseComparisonGuide: SeoGuide = {
     { question: "PCなしで顔をぼかして配信できますか？", answer: "直接配信に対応したモバイルアプリをご確認ください。InnoLiveはAndroid・iOSから処理済みカメラ映像をYouTubeやCHZZKへ送信します。インターネット接続、配信アカウントまたはストリームキー、利用可能な配信時間が必要です。" },
     { question: "このガイドはInnoLiveをOBSの仮想カメラとして紹介していますか？", answer: "このガイドではモバイルアプリからYouTube・CHZZKへ直接配信する手順を紹介しています。OBS用の仮想カメラのインストールや連携は、このガイドの対応範囲に含まれません。" },
     { question: "顔の検出性能も比較していますか？", answer: "この表は公式の機能説明を比較しています。同じ端末、場面、ネットワークでの検出精度や遅延の測定は実施していません。実際の配信環境で、小さく映る顔や一部が隠れた顔も確認してください。" },
+    { question: "自分以外の顔だけをリアルタイムでぼかせますか？", answer: "InnoLiveでは自分の顔を表示する対象として登録すると、登録した顔は表示したまま、未登録の顔をリアルタイムでぼかします。出演者も登録できます。上の比較表では、DualMozaは最も近い人以外を対象に選択でき、PRISM Lensはすべての顔または背景の顔に効果を適用します。" },
+    { question: "無料でリアルタイムの顔ぼかし配信はできますか？", answer: `InnoLiveのSparkプランは月額${sparkJa.amount}ウォンで、現在の内容は${sparkJa.limits}です。無料のWeb体験ではカメラで顔検出とぼかしを確認できます。上の比較表では、DualMozaはストアの説明上ライブ配信にProが必要で、PRISM LensはBasic・Plusごとの効果と制限を確認する必要があります。` },
   ],
   related,
 };

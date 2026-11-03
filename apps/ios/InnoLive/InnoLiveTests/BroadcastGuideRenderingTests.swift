@@ -18,7 +18,7 @@ final class BroadcastGuideRenderingTests: XCTestCase {
             try await render("guide-home-prepare", appearance: appearance, textSize: textSize) {
                 ZStack(alignment: .bottom) {
                     GuidePreviewBackground()
-                    BroadcastControllsView(
+                    BroadcastControlsView(
                         isBroadcasting: .constant(false),
                         previewTransition: .constant(.none),
                         authentication: fixture.authentication,
@@ -85,7 +85,7 @@ final class BroadcastGuideRenderingTests: XCTestCase {
             try await render("studio-controls-\(mode)-\(live ? "live" : "idle")", appearance: .dark, textSize: textSize) {
                 ZStack {
                     GuidePreviewBackground()
-                    BroadcastControllsView(
+                    BroadcastControlsView(
                         isBroadcasting: .constant(live), previewTransition: .constant(.none),
                         authentication: fixture.authentication, youtube: fixture.youtube,
                         onPrepareBroadcast: { _ in XCTFail("Rendering must not prepare a session") },

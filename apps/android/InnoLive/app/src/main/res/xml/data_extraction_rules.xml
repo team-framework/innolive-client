@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+   샘플 데이터 추출 규칙 파일입니다. 필요하면 주석을 해제하고 맞게 수정합니다.
+   자세한 내용은 https://developer.android.com/about/versions/12/backup-restore#xml-changes
+   문서를 참고합니다.
 -->
 <data-extraction-rules>
     <cloud-backup>

@@ -17,15 +17,13 @@ final class BroadcastModeTests: XCTestCase {
         api = YouTubeAPI(urlSession: URLSession(configuration: configuration), serverURLProvider: { URL(string: "https://example.invalid\($0)") })
         orientationLock = BroadcastModeOrientationLock()
         integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: UserDefaults(suiteName: suite)!), api: api, orientationLock: orientationLock, consentStore: ConsentAcknowledgementStore(userDefaults: UserDefaults(suiteName: suite)!), pollingInterval: .seconds(60))
-        BroadcastModeURLProtocol.requests = []
-        BroadcastModeURLProtocol.responses = []
+        BroadcastModeURLProtocol.reset()
     }
 
     override func tearDown() {
         integration.reset()
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
-        BroadcastModeURLProtocol.requests = []
-        BroadcastModeURLProtocol.responses = []
+        BroadcastModeURLProtocol.reset()
     }
 
     private func snapshot(status: String? = nil, failures: Bool = false, liveProvider: String = "youtube") -> String {
@@ -49,7 +47,7 @@ final class BroadcastModeTests: XCTestCase {
     }
 
     private func enqueue(_ body: String, status: Int = 200, delay: TimeInterval = 0) {
-        BroadcastModeURLProtocol.responses.append(.init(body: Data(body.utf8), status: status, delay: delay))
+        BroadcastModeURLProtocol.responses.append(.init(status: status, json: body, delay: .seconds(delay)))
     }
 
     private func waitForRequest() async {
@@ -248,27 +246,7 @@ final class BroadcastModeTests: XCTestCase {
     }
 }
 
-private final class BroadcastModeURLProtocol: URLProtocol, @unchecked Sendable {
-    struct Response { let body: Data; let status: Int; let delay: TimeInterval }
-    nonisolated(unsafe) static var requests: [URLRequest] = []
-    nonisolated(unsafe) static var responses: [Response] = []
-    private var work: DispatchWorkItem?
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        Self.requests.append(request)
-        let response = Self.responses.isEmpty ? Response(body: Data(), status: 500, delay: 0) : Self.responses.removeFirst()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.client?.urlProtocol(self, didReceive: HTTPURLResponse(url: self.request.url!, statusCode: response.status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
-            self.client?.urlProtocol(self, didLoad: response.body)
-            self.client?.urlProtocolDidFinishLoading(self)
-        }
-        self.work = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + response.delay, execute: work)
-    }
-    override func stopLoading() { work?.cancel() }
-}
+private final class BroadcastModeURLProtocol: StubURLProtocol {}
 
 @MainActor
 private final class BroadcastModeOrientationLock: BroadcastOrientationLocking {

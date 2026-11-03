@@ -14,15 +14,11 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
         suiteName = "com.framework.innolive.tests.youtube-background-pause.\(UUID().uuidString)"
         userDefaults = UserDefaults(suiteName: suiteName)
         locker = BackgroundPauseOrientationLock()
-        YouTubeBackgroundPauseURLProtocol.responses = []
-        YouTubeBackgroundPauseURLProtocol.requests = []
-        YouTubeBackgroundPauseURLProtocol.onRequest = nil
+        YouTubeBackgroundPauseURLProtocol.reset()
     }
 
     override func tearDown() {
-        YouTubeBackgroundPauseURLProtocol.responses = []
-        YouTubeBackgroundPauseURLProtocol.requests = []
-        YouTubeBackgroundPauseURLProtocol.onRequest = nil
+        YouTubeBackgroundPauseURLProtocol.reset()
         if let suiteName {
             userDefaults.removePersistentDomain(forName: suiteName)
         }
@@ -35,7 +31,7 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     func testBackgroundWhileLivePausesYouTubeStream() async throws {
         let integration = try await makeLiveIntegration()
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(status: "paused")),
+            .init(status: 200, body: streamState(status: "paused")),
         ]
 
         await integration.handleAppBecameActive(accessToken: "access-token")
@@ -49,8 +45,8 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     func testForegroundAfterBackgroundPauseResumesYouTubeStream() async throws {
         let integration = try await makeLiveIntegration()
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(status: "paused")),
-            .init(statusCode: 200, data: streamState(status: "streaming")),
+            .init(status: 200, body: streamState(status: "paused")),
+            .init(status: 200, body: streamState(status: "streaming")),
         ]
 
         await integration.handleAppBecameActive(accessToken: "access-token")
@@ -65,7 +61,7 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     func testManualPauseIsNotResumedAfterBackground() async throws {
         let integration = try await makeLiveIntegration()
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(status: "paused")),
+            .init(status: 200, body: streamState(status: "paused")),
         ]
 
         await integration.handleAppBecameActive(accessToken: "access-token")
@@ -93,7 +89,7 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     func testInitialBackgroundBeforeForegroundDoesNotPauseOrShowError() async throws {
         let integration = try await makeLiveIntegration()
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 500, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8)),
+            .init(status: 500, json: "{\"error\":{\"message\":\"unavailable\"}}"),
         ]
 
         await integration.handleAppMovedToBackground(accessToken: "access-token")
@@ -108,7 +104,7 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     func testBackgroundPauseFailureDoesNotShowError() async throws {
         let integration = try await makeLiveIntegration()
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 500, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8)),
+            .init(status: 500, json: "{\"error\":{\"message\":\"unavailable\"}}"),
         ]
 
         await integration.handleAppBecameActive(accessToken: "access-token")
@@ -122,12 +118,12 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     func testForegroundDuringBackgroundPauseWaitsThenResumes() async throws {
         let integration = try await makeLiveIntegration()
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(status: "paused"), delay: .milliseconds(200)),
-            .init(statusCode: 200, data: streamState(status: "streaming")),
+            .init(status: 200, body: streamState(status: "paused"), delay: .milliseconds(200)),
+            .init(status: 200, body: streamState(status: "streaming")),
         ]
         await integration.handleAppBecameActive(accessToken: "access-token")
         let pauseStarted = expectation(description: "pause started")
-        YouTubeBackgroundPauseURLProtocol.onRequest = {
+        YouTubeBackgroundPauseURLProtocol.onNextRequest = { _ in
             pauseStarted.fulfill()
         }
 
@@ -146,8 +142,8 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     func testRecoverClearsBackgroundPauseSoForegroundDoesNotResume() async throws {
         let integration = try await makeLiveIntegration()
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(status: "paused")),
-            .init(statusCode: 204, data: Data()),
+            .init(status: 200, body: streamState(status: "paused")),
+            .init(status: 204),
         ]
 
         await integration.handleAppBecameActive(accessToken: "access-token")
@@ -165,7 +161,7 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     func testResetClearsBackgroundPauseSoForegroundDoesNotResume() async throws {
         let integration = try await makeLiveIntegration()
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(status: "paused")),
+            .init(status: 200, body: streamState(status: "paused")),
         ]
 
         await integration.handleAppBecameActive(accessToken: "access-token")
@@ -182,8 +178,8 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
             .replacingOccurrences(of: "\"provider\":\"youtube\",\"stream\":{\"status\":\"streaming\"", with: "\"provider\":\"youtube\",\"stream\":{\"status\":\"paused\"")
         integration.applyLiveEditingSnapshotForTesting(try JSONDecoder().decode(YouTubeSessionResponse.self, from: Data(json.utf8)))
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(status: "paused")),
-            .init(statusCode: 200, data: streamState(status: "streaming")),
+            .init(status: 200, body: streamState(status: "paused")),
+            .init(status: 200, body: streamState(status: "streaming")),
         ]
         await integration.handleAppBecameActive(accessToken: "access-token")
         await integration.handleAppMovedToBackground(accessToken: "access-token")
@@ -199,9 +195,9 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
         let integration = try await makeLiveIntegration()
         integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(providers: ["youtube", "chzzk"]))
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 500, data: Data()),
-            .init(statusCode: 200, data: streamState(status: "paused")),
-            .init(statusCode: 200, data: streamState(status: "streaming")),
+            .init(status: 500),
+            .init(status: 200, body: streamState(status: "paused")),
+            .init(status: 200, body: streamState(status: "streaming")),
         ]
         await integration.handleAppBecameActive(accessToken: "access-token")
         await integration.handleAppMovedToBackground(accessToken: "access-token")
@@ -218,8 +214,8 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
         let integration = try await makeLiveIntegration()
         integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(providers: ["youtube", "chzzk"]))
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 500, data: Data()),
-            .init(statusCode: 200, data: streamState(status: "stopped")),
+            .init(status: 500),
+            .init(status: 200, body: streamState(status: "stopped")),
         ]
         await integration.stopYouTubeStream(accessToken: "access-token")
         XCTAssertEqual(requestCount(suffix: "/stream/stop"), 2)
@@ -235,7 +231,7 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
         let integration = try makePreparedIntegration()
         integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(providers: ["youtube", "chzzk"], phase: "prepared", status: "idle"))
         let data = try ContractTestFixtures.data(named: "broadcast-session-state-golive-partial.v1")
-        YouTubeBackgroundPauseURLProtocol.responses = [.init(statusCode: 200, data: data)]
+        YouTubeBackgroundPauseURLProtocol.responses = [.init(status: 200, body: data)]
         await integration.goLiveYouTubeStream(accessToken: "access-token")
         XCTAssertEqual(requestCount(suffix: "/stream/golive"), 1)
         XCTAssertTrue(integration.hasStartedYouTubeBroadcast)
@@ -249,7 +245,7 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     func testStoppingOneTargetKeepsOtherLiveSessionAndOrientation() async throws {
         let integration = try await makeLiveIntegration()
         integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(providers: ["youtube", "chzzk"]))
-        YouTubeBackgroundPauseURLProtocol.responses = [.init(statusCode: 200, data: streamState(status: "stopped"))]
+        YouTubeBackgroundPauseURLProtocol.responses = [.init(status: 200, body: streamState(status: "stopped"))]
         await integration.stopYouTubeStream(accessToken: "access-token", provider: .youtube)
         XCTAssertEqual(requestCount(suffix: "/stream/stop"), 1)
         XCTAssertEqual(YouTubeBackgroundPauseURLProtocol.requests.last?.url?.query, "provider=youtube")
@@ -265,7 +261,7 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     private func makeLiveIntegration() async throws -> YouTubeIntegration {
         let integration = try makePreparedIntegration()
         YouTubeBackgroundPauseURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(status: "streaming")),
+            .init(status: 200, body: streamState(status: "streaming")),
         ]
         await integration.goLiveYouTubeStream(accessToken: "access-token")
         YouTubeBackgroundPauseURLProtocol.requests.removeAll {
@@ -375,61 +371,4 @@ private final class BackgroundPauseOrientationLock: BroadcastOrientationLocking 
     }
 }
 
-private final class YouTubeBackgroundPauseURLProtocol: URLProtocol {
-    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
-    nonisolated deinit {}
-
-    struct Response {
-        let statusCode: Int
-        let data: Data
-        var delay: Duration = .zero
-    }
-
-    nonisolated(unsafe) static var responses: [Response] = []
-    nonisolated(unsafe) static var requests: [URLRequest] = []
-    nonisolated(unsafe) static var onRequest: (() -> Void)?
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        Self.requests.append(request)
-        let onRequest = Self.onRequest
-        Self.onRequest = nil
-        onRequest?()
-        let response = Self.responses.isEmpty
-            ? Response(statusCode: 500, data: Data())
-            : Self.responses.removeFirst()
-        let deliver: @Sendable () -> Void = { [weak self] in
-            guard let self,
-                  let url = self.request.url,
-                  let httpResponse = HTTPURLResponse(
-                      url: url,
-                      statusCode: response.statusCode,
-                      httpVersion: nil,
-                      headerFields: ["Content-Type": "application/json"]
-                  ) else { return }
-            self.client?.urlProtocol(self, didReceive: httpResponse, cacheStoragePolicy: .notAllowed)
-            if !response.data.isEmpty {
-                self.client?.urlProtocol(self, didLoad: response.data)
-            }
-            self.client?.urlProtocolDidFinishLoading(self)
-        }
-
-        if response.delay == .zero {
-            deliver()
-        } else {
-            DispatchQueue.global().asyncAfter(deadline: .now() + response.delay.timeInterval, execute: deliver)
-        }
-    }
-
-    override func stopLoading() {}
-}
-
-private extension Duration {
-    var timeInterval: TimeInterval {
-        let components = self.components
-        return TimeInterval(components.seconds) + TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000
-    }
-}
+private final class YouTubeBackgroundPauseURLProtocol: StubURLProtocol {}

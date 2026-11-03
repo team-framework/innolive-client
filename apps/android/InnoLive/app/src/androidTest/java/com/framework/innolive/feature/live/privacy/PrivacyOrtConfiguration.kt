@@ -4,7 +4,7 @@ import ai.onnxruntime.OrtSession
 import ai.onnxruntime.providers.NNAPIFlags
 import java.util.EnumSet
 
-/** Explicit alternatives for device comparison; model weights and inference contracts stay identical. */
+/** 기기 비교용 명시적 대안입니다. 모델 가중치와 추론 계약은 동일하게 유지합니다. */
 internal enum class PrivacyOrtConfiguration {
     DEFAULT, CPU_TWO, CPU_FOUR, CPU_EIGHT, CPU_EIGHT_SPIN, XNNPACK_FOUR, NNAPI_FOUR, NNAPI_ALLOW_CPU;
 

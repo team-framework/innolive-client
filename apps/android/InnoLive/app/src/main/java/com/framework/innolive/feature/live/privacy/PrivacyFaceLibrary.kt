@@ -22,7 +22,7 @@ internal data class PrivacyRegisteredFace(
     val registeredAtMillis: Long,
 )
 
-/** App-install-scoped, encrypted embeddings. Face images are never persisted. */
+/** 앱 설치 단위로 암호화한 임베딩입니다. 얼굴 이미지는 저장하지 않습니다. */
 internal class PrivacyFaceLibrary(context: Context, accountScope: String) {
     private val file = AtomicFile(fileForAccount(context, accountScope))
     private var entries = emptyList<PrivacyRegisteredFace>()
@@ -30,7 +30,7 @@ internal class PrivacyFaceLibrary(context: Context, accountScope: String) {
     private var healthy = true
 
     init {
-        // The old installation-wide file has no owner, so it cannot be assigned to an account.
+        // 이전 설치 전체 공용 파일에는 소유자가 없으므로 계정에 배정할 수 없습니다.
         deleteLegacyFile(context)
         reload()
     }
@@ -165,7 +165,7 @@ internal class PrivacyFaceLibrary(context: Context, accountScope: String) {
         private val revision = AtomicLong()
         private val keyLock = Any()
 
-        /** Does not load or decrypt the file, so damaged stores can still be removed on deletion. */
+        /** 파일을 읽거나 복호화하지 않으므로, 손상된 저장소도 삭제 시 제거할 수 있습니다. */
         internal fun fileForAccount(context: Context, accountScope: String): File {
             require(accountScope.matches(Regex("[0-9a-f]{64}"))) { "Invalid face account scope" }
             return File(context.applicationContext.noBackupFilesDir, "privacy-local-faces-$accountScope.bin")

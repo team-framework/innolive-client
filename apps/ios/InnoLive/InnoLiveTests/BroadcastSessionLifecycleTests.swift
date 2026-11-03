@@ -15,14 +15,12 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         store = MemoryBroadcastSessionStore()
         suite = "broadcast-lifecycle-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suite)
-        SessionLifecycleURLProtocol.responses = []
-        SessionLifecycleURLProtocol.requests = []
-        SessionLifecycleURLProtocol.beforeResponse = nil
+        SessionLifecycleURLProtocol.reset()
     }
 
     override func tearDown() {
         defaults.removePersistentDomain(forName: suite)
-        SessionLifecycleURLProtocol.beforeResponse = nil
+        SessionLifecycleURLProtocol.reset()
         super.tearDown()
     }
 
@@ -89,7 +87,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
     func testRetainedSessionCleanupBlocksChannelChanges() async throws {
         let integration = makeIntegration()
         SessionLifecycleURLProtocol.responses = [
-            .init(status: 200, body: #"[{"id":"a","provider":"youtube","channel_id":"uca","channel_title":"A","reconnect_required":false},{"id":"b","provider":"youtube","channel_id":"ucb","channel_title":"B","reconnect_required":false}]"#),
+            .init(status: 200, json: #"[{"id":"a","provider":"youtube","channel_id":"uca","channel_title":"A","reconnect_required":false},{"id":"b","provider":"youtube","channel_id":"ucb","channel_title":"B","reconnect_required":false}]"#),
             .empty(204)
         ]
         await integration.refreshConnection(accessToken: token)
@@ -119,7 +117,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
     func testAccountRefreshBlocksOnDeviceSwitch() async throws {
         let integration = makeIntegration()
         try await seedExhaustedPlan(integration)
-        SessionLifecycleURLProtocol.responses = [.init(status: 200, body: "[]")]
+        SessionLifecycleURLProtocol.responses = [.init(status: 200, json: "[]")]
         SessionLifecycleURLProtocol.beforeResponse = { _ in
             XCTAssertTrue(integration.isYouTubeConnectionOperationInProgress)
             let switched = await integration.switchPreparationToOnDevice(accessToken: self.token)
@@ -194,7 +192,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
 
     func testMissingSessionAllowsCreation() async throws {
         try store.save(old, scope: scope())
-        SessionLifecycleURLProtocol.responses = [.init(status: 404, body: "{\"error\":{\"code\":\"not_found\"}}"), .created("new")]
+        SessionLifecycleURLProtocol.responses = [.init(status: 404, json: "{\"error\":{\"code\":\"not_found\"}}"), .created("new")]
         let result = await makeIntegration().prepareSession(accessToken: token)
         XCTAssertTrue(result)
         XCTAssertEqual(methods, ["DELETE", "POST"])
@@ -322,7 +320,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         try store.save(old, scope: scope())
         store.failRemove = true
         SessionLifecycleURLProtocol.responses = [
-            .empty(204), .init(status: 404, body: "{\"error\":{\"code\":\"not_found\"}}"), .created("new")
+            .empty(204), .init(status: 404, json: "{\"error\":{\"code\":\"not_found\"}}"), .created("new")
         ]
         let integration = makeIntegration()
         let failed = await integration.prepareSession(accessToken: token)
@@ -692,7 +690,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertEqual(config, BroadcastMosaicConfig(blurRadius: 40, pixelSize: nil, maskMargin: 16))
         XCTAssertEqual(BroadcastMosaicConfig().effectiveBlurRadius, 24)
         XCTAssertEqual(BroadcastMosaicConfig().effectiveMaskMargin, 8)
-        let legacy = try JSONDecoder().decode(YouTubeSessionResponse.self, from: Data(SessionLifecycleURLProtocol.Response.blur(false).body.utf8))
+        let legacy = try JSONDecoder().decode(YouTubeSessionResponse.self, from: SessionLifecycleURLProtocol.Response.blur(false).body)
         XCTAssertNil(legacy.media.mosaicConfig)
     }
 
@@ -869,50 +867,26 @@ private final class MemoryBroadcastSessionStore: BroadcastSessionStoring {
     }
 }
 
-private final class SessionLifecycleURLProtocol: URLProtocol {
-    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
-    nonisolated deinit {}
+private final class SessionLifecycleURLProtocol: StubURLProtocol {
+    override class var fallbackResponse: Response { .failure(.badServerResponse) }
+    override class var defaultHeaders: [String: String] { [:] }
+}
 
-    struct Response {
-        let status: Int
-        let body: String
-        static func snapshot(enabled: Bool?) -> Self {
-            let flag = enabled.map { String($0) } ?? "null"
-            return .init(status: 200, body: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"anonymization_enabled\":\(flag)}}")
-        }
-        static func blur(_ enabled: Bool) -> Self {
-            .init(status: 200, body: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"screen_blur_enabled\":\(enabled)}}")
-        }
-        static func mosaic(_ config: String) -> Self {
-            .init(status: 200, body: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"mosaic_config\":\(config)}}")
-        }
-        static func empty(_ status: Int) -> Self { .init(status: status, body: "") }
-        static let planResolutionRejected = Self(status: 403, body: "{\"error\":{\"code\":\"plan_resolution_not_allowed\"}}")
-        static func created(_ id: String, mode: String? = nil) -> Self {
-            let extra = mode.map { "\"ai_processing\":\"\($0)\"," } ?? ""
-            return .init(status: 201, body: "{\(extra)\"session_id\":\"\(id)\",\"owner_token\":\"owner\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0}}")
-        }
+private extension StubURLProtocol.Response {
+    static func snapshot(enabled: Bool?) -> Self {
+        let flag = enabled.map { String($0) } ?? "null"
+        return .init(status: 200, json: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"anonymization_enabled\":\(flag)}}")
     }
-    @MainActor static var responses: [Response] = []
-    @MainActor static var requests: [URLRequest] = []
-    @MainActor static var beforeResponse: ((URLRequest) async -> Void)?
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        Task { @MainActor in
-            Self.requests.append(request)
-            guard !Self.responses.isEmpty else {
-                client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
-                return
-            }
-            let response = Self.responses.removeFirst()
-            await Self.beforeResponse?(request)
-            let http = HTTPURLResponse(url: request.url!, statusCode: response.status, httpVersion: nil, headerFields: nil)!
-            client?.urlProtocol(self, didReceive: http, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: Data(response.body.utf8))
-            client?.urlProtocolDidFinishLoading(self)
-        }
+    static func blur(_ enabled: Bool) -> Self {
+        .init(status: 200, json: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"screen_blur_enabled\":\(enabled)}}")
     }
-    override func stopLoading() {}
+    static func mosaic(_ config: String) -> Self {
+        .init(status: 200, json: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"mosaic_config\":\(config)}}")
+    }
+    static func empty(_ status: Int) -> Self { .init(status: status) }
+    static let planResolutionRejected = Self(status: 403, json: "{\"error\":{\"code\":\"plan_resolution_not_allowed\"}}")
+    static func created(_ id: String, mode: String? = nil) -> Self {
+        let extra = mode.map { "\"ai_processing\":\"\($0)\"," } ?? ""
+        return .init(status: 201, json: "{\(extra)\"session_id\":\"\(id)\",\"owner_token\":\"owner\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0}}")
+    }
 }

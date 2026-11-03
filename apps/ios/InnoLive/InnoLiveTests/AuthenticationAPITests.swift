@@ -5,9 +5,7 @@ import XCTest
 
 final class AuthenticationAPITests: XCTestCase {
     override func tearDown() {
-        AccountDeletionURLProtocol.lastRequest = nil
-        AccountDeletionURLProtocol.statusCode = 204
-        AccountDeletionURLProtocol.responseData = Data()
+        AccountDeletionURLProtocol.reset()
         super.tearDown()
     }
 
@@ -16,21 +14,21 @@ final class AuthenticationAPITests: XCTestCase {
 
         try await api.deleteAccount(accessToken: "access-token")
 
-        XCTAssertEqual(AccountDeletionURLProtocol.lastRequest?.url?.path, "/auth/me")
-        XCTAssertEqual(AccountDeletionURLProtocol.lastRequest?.httpMethod, "DELETE")
+        XCTAssertEqual(AccountDeletionURLProtocol.requests.last?.url?.path, "/auth/me")
+        XCTAssertEqual(AccountDeletionURLProtocol.requests.last?.httpMethod, "DELETE")
         XCTAssertEqual(
-            AccountDeletionURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization"),
+            AccountDeletionURLProtocol.requests.last?.value(forHTTPHeaderField: "Authorization"),
             "Bearer access-token"
         )
         XCTAssertEqual(
-            AccountDeletionURLProtocol.lastRequest?.value(forHTTPHeaderField: "Accept"),
+            AccountDeletionURLProtocol.requests.last?.value(forHTTPHeaderField: "Accept"),
             "application/json"
         )
-        XCTAssertNil(AccountDeletionURLProtocol.lastRequest?.httpBody)
+        XCTAssertNil(AccountDeletionURLProtocol.requests.last?.httpBody)
     }
 
     func testDeleteAccountRejectsSuccessfulStatusOtherThanNoContent() async {
-        AccountDeletionURLProtocol.statusCode = 202
+        AccountDeletionURLProtocol.responses = [.init(status: 202)]
         let api = makeAPI()
 
         do {
@@ -44,10 +42,9 @@ final class AuthenticationAPITests: XCTestCase {
     }
 
     func testAPIErrorPreservesServerCodeOnUnauthorizedResponse() async {
-        AccountDeletionURLProtocol.statusCode = 401
-        AccountDeletionURLProtocol.responseData = Data(
-            "{\"error\":{\"code\":\"invalid_refresh_token\",\"message\":\"expired\"}}".utf8
-        )
+        AccountDeletionURLProtocol.responses = [
+            .init(status: 401, json: "{\"error\":{\"code\":\"invalid_refresh_token\",\"message\":\"expired\"}}")
+        ]
         let api = makeAPI()
 
         do {
@@ -71,32 +68,6 @@ final class AuthenticationAPITests: XCTestCase {
     }
 }
 
-private final class AccountDeletionURLProtocol: URLProtocol {
-    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
-    nonisolated deinit {}
-
-    nonisolated(unsafe) static var lastRequest: URLRequest?
-    nonisolated(unsafe) static var statusCode = 204
-    nonisolated(unsafe) static var responseData = Data()
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        Self.lastRequest = request
-        let response = HTTPURLResponse(
-            url: request.url!,
-            statusCode: Self.statusCode,
-            httpVersion: nil,
-            headerFields: ["Content-Type": "application/json"]
-        )!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        if !Self.responseData.isEmpty {
-            client?.urlProtocol(self, didLoad: Self.responseData)
-        }
-        client?.urlProtocolDidFinishLoading(self)
-    }
-
-    override func stopLoading() {}
+private final class AccountDeletionURLProtocol: StubURLProtocol {
+    override class var fallbackResponse: Response { Response(status: 204) }
 }

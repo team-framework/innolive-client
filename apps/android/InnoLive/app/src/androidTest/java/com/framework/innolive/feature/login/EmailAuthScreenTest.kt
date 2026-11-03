@@ -233,7 +233,7 @@ class EmailAuthScreenTest {
     fun decorativeWordmarkDoesNotRequireExtraScrolling() {
         var acceptances = 0
         showPolicyWithFooter(onAccept = { acceptances++ })
-        // Policy and contact details fit; only the decorative image is excessively tall.
+        // 정책과 연락처는 화면에 들어가고, 장식용 이미지만 지나치게 깁니다.
         composeRule.onNodeWithText(string(R.string.account_consent_scroll_hint)).assertIsDisplayed()
         composeRule.onNodeWithText(string(R.string.account_consent_accept)).assertIsEnabled().performClick()
         composeRule.runOnIdle { assertEquals(1, acceptances) }
@@ -242,7 +242,7 @@ class EmailAuthScreenTest {
     @Test
     fun footerContactInformationRemainsInTheScrollDocument() {
         showPolicyWithFooter(contactHeight = 5000)
-        // Hiding the entire footer would incorrectly enable consent without reading its details.
+        // 푸터 전체를 숨기면 세부 내용을 읽지 않아도 동의가 잘못 활성화됩니다.
         composeRule.onNodeWithText(string(R.string.account_consent_accept)).assertIsNotEnabled()
     }
 
@@ -322,7 +322,7 @@ class EmailAuthScreenTest {
         }
         waitForDocument("https://innolive.studio/ko/privacy")
         composeRule.onNodeWithText(string(R.string.account_consent_accept)).assertIsEnabled()
-        // Real taps exercise WebView navigation. The fixed header would cover these links.
+        // 실제 탭으로 WebView 이동을 확인합니다. 고정 헤더가 있으면 이 링크를 가립니다.
         composeRule.onNodeWithTag("accountConsent.policy").performTouchInput {
             click(Offset(50f * density, 40f * density))
         }

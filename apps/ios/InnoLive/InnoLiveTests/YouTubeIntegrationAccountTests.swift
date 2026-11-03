@@ -12,15 +12,11 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         super.setUp()
         suiteName = "com.framework.innolive.tests.youtube-integration-account.\(UUID().uuidString)"
         userDefaults = UserDefaults(suiteName: suiteName)
-        YouTubeIntegrationAccountURLProtocol.responses = []
-        YouTubeIntegrationAccountURLProtocol.requests = []
-        YouTubeIntegrationAccountURLProtocol.onRequest = nil
+        YouTubeIntegrationAccountURLProtocol.reset()
     }
 
     override func tearDown() {
-        YouTubeIntegrationAccountURLProtocol.responses = []
-        YouTubeIntegrationAccountURLProtocol.requests = []
-        YouTubeIntegrationAccountURLProtocol.onRequest = nil
+        YouTubeIntegrationAccountURLProtocol.reset()
         if let suiteName {
             userDefaults.removePersistentDomain(forName: suiteName)
         }
@@ -38,7 +34,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         store.saveConnection(knownConnection)
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
-            .init(statusCode: 503, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8))
+            .init(status: 503, json: "{\"error\":{\"message\":\"unavailable\"}}")
         ]
 
         await integration.refreshConnection(accessToken: "access-token")
@@ -57,7 +53,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         store.saveConnection(knownConnection)
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
-            .init(statusCode: 200, data: Data("[]".utf8))
+            .init(status: 200, json: "[]")
         ]
 
         await integration.refreshConnection(accessToken: "access-token")
@@ -75,7 +71,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         store.saveConnection(knownConnection)
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
-            .init(statusCode: 503, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8))
+            .init(status: 503, json: "{\"error\":{\"message\":\"unavailable\"}}")
         ]
 
         await integration.disconnectYouTubeAccount(accessToken: "access-token")
@@ -94,7 +90,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         store.saveConnection(knownConnection)
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
-            .init(statusCode: 204, data: Data())
+            .init(status: 204)
         ]
 
         await integration.disconnectYouTubeAccount(accessToken: "access-token")
@@ -113,10 +109,10 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         )
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
-            .init(statusCode: 204, data: Data(), delay: .milliseconds(200))
+            .init(status: 204, body: Data(), delay: .milliseconds(200))
         ]
         let requestStarted = expectation(description: "disconnect request started")
-        YouTubeIntegrationAccountURLProtocol.onRequest = {
+        YouTubeIntegrationAccountURLProtocol.onNextRequest = { _ in
             requestStarted.fulfill()
         }
 
@@ -139,15 +135,13 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
             .init(
-                statusCode: 200,
-                data: Data(
-                    "[{\"provider\":\"youtube\",\"channel_id\":\"stale-channel\",\"channel_title\":\"Stale Channel\",\"reconnect_required\":false}]".utf8
-                ),
+                status: 200,
+                json: "[{\"provider\":\"youtube\",\"channel_id\":\"stale-channel\",\"channel_title\":\"Stale Channel\",\"reconnect_required\":false}]",
                 delay: .milliseconds(200)
             )
         ]
         let requestStarted = expectation(description: "account refresh request started")
-        YouTubeIntegrationAccountURLProtocol.onRequest = {
+        YouTubeIntegrationAccountURLProtocol.onNextRequest = { _ in
             requestStarted.fulfill()
         }
 
@@ -164,7 +158,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
 
     func testChannelSelectionSurvivesRefreshAndDisconnectOnlyRemovesChosenChannel() async throws {
         let body = Data("[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false},{\"id\":\"b\",\"provider\":\"youtube\",\"channel_id\":\"ucb\",\"channel_title\":\"B\",\"reconnect_required\":false}]".utf8)
-        YouTubeIntegrationAccountURLProtocol.responses = [.init(statusCode: 200, data: body), .init(statusCode: 200, data: body), .init(statusCode: 204, data: Data())]
+        YouTubeIntegrationAccountURLProtocol.responses = [.init(status: 200, body: body), .init(status: 200, body: body), .init(status: 204)]
         let integration = makeIntegration(store: YouTubePreferencesStore(userDefaults: userDefaults))
         await integration.refreshConnection(accessToken: "access")
         XCTAssertEqual(integration.youtubeAccounts.count, 2)
@@ -187,9 +181,9 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         let store = YouTubePreferencesStore(userDefaults: userDefaults)
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
-            .init(statusCode: 200, data: Data("[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false}]".utf8)),
-            .init(statusCode: 200, data: Data("{\"connected\":true,\"provider\":\"youtube\",\"channel\":{\"id\":\"ucb\",\"title\":\"B\"}}".utf8)),
-            .init(statusCode: 503, data: Data("{}".utf8))
+            .init(status: 200, json: "[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false}]"),
+            .init(status: 200, json: "{\"connected\":true,\"provider\":\"youtube\",\"channel\":{\"id\":\"ucb\",\"title\":\"B\"}}"),
+            .init(status: 503, json: "{}")
         ]
         await integration.refreshConnection(accessToken: "access")
         do {
@@ -207,7 +201,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
             ["id": "account-\(index)", "provider": "youtube", "channel_id": "uc-\(index)",
              "channel_title": "Channel \(index)", "reconnect_required": true] as [String: Any]
         }
-        YouTubeIntegrationAccountURLProtocol.responses = [.init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: accounts))]
+        YouTubeIntegrationAccountURLProtocol.responses = [.init(status: 200, body: try JSONSerialization.data(withJSONObject: accounts))]
         let integration = makeIntegration(store: YouTubePreferencesStore(userDefaults: userDefaults))
         await integration.refreshConnection(accessToken: "access")
         XCTAssertEqual(integration.youtubeAccounts.count, 5)
@@ -227,59 +221,4 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
     }
 }
 
-private final class YouTubeIntegrationAccountURLProtocol: URLProtocol {
-    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
-    nonisolated deinit {}
-
-    struct Response {
-        let statusCode: Int
-        let data: Data
-        var delay: Duration = .zero
-    }
-
-    nonisolated(unsafe) static var responses: [Response] = []
-    nonisolated(unsafe) static var requests: [URLRequest] = []
-    nonisolated(unsafe) static var onRequest: (() -> Void)?
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        Self.requests.append(request)
-        Self.onRequest?()
-        let response = Self.responses.isEmpty
-            ? Response(statusCode: 500, data: Data())
-            : Self.responses.removeFirst()
-        let deliver: @Sendable () -> Void = { [weak self] in
-            guard let self,
-                  let url = self.request.url,
-                  let httpResponse = HTTPURLResponse(
-                      url: url,
-                      statusCode: response.statusCode,
-                      httpVersion: nil,
-                      headerFields: ["Content-Type": "application/json"]
-                  ) else { return }
-            self.client?.urlProtocol(self, didReceive: httpResponse, cacheStoragePolicy: .notAllowed)
-            if !response.data.isEmpty {
-                self.client?.urlProtocol(self, didLoad: response.data)
-            }
-            self.client?.urlProtocolDidFinishLoading(self)
-        }
-
-        if response.delay == .zero {
-            deliver()
-        } else {
-            DispatchQueue.global().asyncAfter(deadline: .now() + response.delay.timeInterval, execute: deliver)
-        }
-    }
-
-    override func stopLoading() {}
-}
-
-private extension Duration {
-    var timeInterval: TimeInterval {
-        let components = self.components
-        return TimeInterval(components.seconds) + TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000
-    }
-}
+private final class YouTubeIntegrationAccountURLProtocol: StubURLProtocol {}

@@ -25,7 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Uses the production CameraPreview and FaceCaptureCamera, with real CameraX frames. */
+/** 운영 코드의 CameraPreview·FaceCaptureCamera와 실제 CameraX 프레임을 사용합니다. */
 @RunWith(AndroidJUnit4::class)
 class FaceCameraHandoffTest {
     @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
@@ -42,7 +42,7 @@ class FaceCameraHandoffTest {
             instrumentation.targetContext.packageName, Manifest.permission.CAMERA,
         )
         val provider = ProcessCameraProvider.getInstance(instrumentation.targetContext).get(10, TimeUnit.SECONDS)
-        // Isolation only; production disposal must release its own binding before every transition.
+        // 테스트 격리용입니다. 운영 코드의 해제 과정은 매 전환 전에 자체 바인딩을 직접 해제해야 합니다.
         composeRule.runOnUiThread { provider.unbindAll() }
         val registering = mutableStateOf(false)
         val visible = mutableStateOf(true)
@@ -81,7 +81,7 @@ class FaceCameraHandoffTest {
                 if (exerciseLifecycle && round == 0) {
                     composeRule.runOnIdle { facing.value = CameraLensFacing.BACK }
                     observeFrames(frames, errors, "lens-switch BACK")
-                    // Actual Activity pause/stop destroys the capture effect, then resume recreates it.
+                    // 실제 Activity 일시정지·정지로 캡처 effect가 해제되고, 재개하면 다시 생성됩니다.
                     composeRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
                     composeRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
                     observeFrames(frames, errors, "background-return BACK")
@@ -114,8 +114,8 @@ class FaceCameraHandoffTest {
         assertEquals("$label: capture initialization failed", 0, errors.get())
         val start = android.os.SystemClock.elapsedRealtime()
         val startFrames = frames.get()
-        // Count delivered registration Bitmaps, not Compose text or mocks. Emulated back cameras
-        // deliver well under 1 fps, so allow a longer window before treating frames as stopped.
+        // Compose 텍스트나 목이 아니라 실제로 전달된 등록용 Bitmap 수를 셉니다. 에뮬레이터 후면 카메라는
+        // 1fps에 한참 못 미치게 프레임을 전달하므로, 프레임 중단으로 판단하기 전 대기 시간을 길게 둡니다.
         try {
             composeRule.waitUntil(10_000) { frames.get() - startFrames >= 3 || errors.get() > 0 }
         } catch (_: ComposeTimeoutException) {

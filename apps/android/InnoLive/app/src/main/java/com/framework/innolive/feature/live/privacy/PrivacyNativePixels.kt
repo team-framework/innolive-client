@@ -6,7 +6,7 @@ import org.webrtc.VideoFrame
 import org.webrtc.YuvHelper
 import com.framework.innolive.feature.live.PrivacyCameraBufferPool
 
-/** Serially owned scratch buffer; native conversion never retains a camera buffer. */
+/** 직렬로 소유하는 임시 버퍼입니다. 네이티브 변환은 카메라 버퍼를 보관하지 않습니다. */
 internal class PrivacyPixelConverter : AutoCloseable {
     private var rgba: ByteBuffer? = null
     private val outputPool=PrivacyCameraBufferPool()
@@ -34,7 +34,7 @@ internal class PrivacyPixelConverter : AutoCloseable {
         buffer.rewind()
         val output = outputPool.acquire(bitmap.width, bitmap.height)
         try {
-            // Android RGBA byte order corresponds to libyuv ABGR on little-endian Android.
+            // 리틀 엔디언 Android에서 Android RGBA 바이트 순서는 libyuv ABGR에 해당합니다.
             YuvHelper.ABGRToI420(buffer, bitmap.rowBytes, output.dataY, output.strideY,
                 output.dataU, output.strideU, output.dataV, output.strideV, bitmap.width, bitmap.height)
             return output
