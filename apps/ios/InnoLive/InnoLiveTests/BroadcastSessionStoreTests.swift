@@ -26,7 +26,7 @@ final class BroadcastSessionStoreTests: XCTestCase {
 
     func testMalformedOrMissingSubjectIsRejected() throws {
         let server = try XCTUnwrap(URL(string: "https://example.invalid"))
-        for token in ["", "opaque-token", "a.bad.c", "a.e30.c", "a.eyJzdWIiOiIifQ.c"] {
+        for token in ["", "opaque-token", "a.bad.c", "a.e30.c", "a.eyJzdWIiOiIifQ.c", "a.eyJzdWIiOjF9.c"] {
             XCTAssertThrowsError(try BroadcastSessionScope(server: server, accessToken: token))
         }
     }
