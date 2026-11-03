@@ -7,17 +7,11 @@ struct BroadcastSessionScope: Codable, Equatable {
 
     // 로컬 기록을 구분하는 용도이며, 인증과 소유권 검증은 서버가 수행한다.
     init(server: URL, accessToken: String) throws {
-        let parts = accessToken.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 3 else { throw YouTubeAPIError.unauthorized }
-        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
-        struct Claims: Decodable { let sub: String }
-        guard let data = Data(base64Encoded: payload),
-              let claims = try? JSONDecoder().decode(Claims.self, from: data),
-              !claims.sub.isEmpty else { throw YouTubeAPIError.unauthorized }
+        guard let user = OfflineGrant.accountID(fromAccessToken: accessToken) else {
+            throw YouTubeAPIError.unauthorized
+        }
         self.server = server.absoluteString
-        user = claims.sub
+        self.user = user
     }
 
     var storageKey: String {

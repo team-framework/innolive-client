@@ -88,6 +88,12 @@ final class OfflineGrantTests: XCTestCase {
         XCTAssertNil(OfflineGrant.accountID(fromAccessToken: nil))
     }
 
+    func testRejectsMalformedOrMissingSubject() {
+        for token in ["", "a.bad.c", "a.e30.c", "a.eyJzdWIiOiIifQ.c", "a.eyJzdWIiOjF9.c"] {
+            XCTAssertNil(OfflineGrant.accountID(fromAccessToken: token), token)
+        }
+    }
+
     func testExpiredGrantStillAllowsLocalTake() {
         let afterExpiry = issuedAt.addingTimeInterval(30 * day)
         XCTAssertEqual(grant().status(at: afterExpiry, accountID: account), .expired)
