@@ -389,17 +389,7 @@ final class UpgradeOfferTests: XCTestCase {
     }
 
     private func payload(_ request: URLRequest) throws -> [String: Any] {
-        if let data = request.httpBody { return try JSONSerialization.jsonObject(with: data) as! [String: Any] }
-        let input = try XCTUnwrap(request.httpBodyStream)
-        input.open()
-        defer { input.close() }
-        var data = Data(), buffer = [UInt8](repeating: 0, count: 2048)
-        while input.hasBytesAvailable {
-            let count = input.read(&buffer, maxLength: buffer.count)
-            if count <= 0 { break }
-            data.append(buffer, count: count)
-        }
-        return try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        try JSONSerialization.jsonObject(with: XCTUnwrap(request.bodyData)) as! [String: Any]
     }
 }
 

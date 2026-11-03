@@ -187,14 +187,7 @@ final class YouTubeAccountAPITests: XCTestCase {
             if operation == 0 { _ = try? await api.prepareStream(session: session, accessToken: "access", accountID: "account-b") }
             else { _ = try? await api.changeBroadcastMode(session: session, accessToken: "access", resolution: "fhd", targets: [.youtube], accountID: operation == 1 ? "account-b" : nil) }
             let request = try XCTUnwrap(AccountManagementURLProtocol.requests.last)
-            var data = request.httpBody
-            if data == nil, let stream = request.httpBodyStream {
-                stream.open(); defer { stream.close() }
-                var bytes = [UInt8](repeating: 0, count: 4096)
-                let count = stream.read(&bytes, maxLength: bytes.count)
-                data = Data(bytes.prefix(max(0, count)))
-            }
-            let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(data)) as? [String: Any])
+            let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(request.bodyData)) as? [String: Any])
             XCTAssertEqual(body["account_id"] as? String, operation == 2 ? nil : "account-b")
         }
     }

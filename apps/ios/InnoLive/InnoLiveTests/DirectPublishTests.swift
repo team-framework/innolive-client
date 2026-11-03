@@ -708,7 +708,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
         let heartbeat = try XCTUnwrap(DirectPublishURLProtocol.requests.first { $0.url?.path.hasSuffix("/heartbeat") == true })
         XCTAssertEqual(heartbeat.httpMethod, "POST")
         XCTAssertEqual(heartbeat.value(forHTTPHeaderField: "X-Session-Owner-Token"), "owner")
-        let body = try XCTUnwrap(DirectPublishURLProtocol.body(heartbeat))
+        let body = try XCTUnwrap(heartbeat.bodyData)
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
         XCTAssertEqual(json["platform"] as? String, "ios")
         XCTAssertNotNil(json["sent_at"] as? String)
@@ -881,21 +881,6 @@ private final class FakeDirectPublisher: DirectBroadcastPublishing {
 
 private final class DirectPublishURLProtocol: StubURLProtocol {
     static var paths: [String] { requests.compactMap { $0.url?.path } }
-
-    static func body(_ request: URLRequest) -> Data? {
-        if let data = request.httpBody { return data }
-        guard let stream = request.httpBodyStream else { return nil }
-        stream.open()
-        defer { stream.close() }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 1_024)
-        while stream.hasBytesAvailable {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            guard count > 0 else { break }
-            data.append(buffer, count: count)
-        }
-        return data
-    }
 }
 
 @MainActor
