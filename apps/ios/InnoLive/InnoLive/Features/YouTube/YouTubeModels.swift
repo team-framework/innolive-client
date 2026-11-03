@@ -287,19 +287,11 @@ struct YouTubeStreamState: Decodable, Equatable {
     }
 
     var startedAtDate: Date? {
-        date(from: startedAt)
+        startedAt.flatMap(ISO8601Timestamp.date(from:))
     }
 
     var pausedAtDate: Date? {
-        date(from: pausedAt)
-    }
-
-    private func date(from value: String?) -> Date? {
-        guard let value else { return nil }
-        let fractionalFormatter = ISO8601DateFormatter()
-        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return fractionalFormatter.date(from: value)
-            ?? ISO8601DateFormatter().date(from: value)
+        pausedAt.flatMap(ISO8601Timestamp.date(from:))
     }
 
     func markedStoppedByUser() -> Self {

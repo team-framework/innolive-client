@@ -125,12 +125,7 @@ struct UsageBroadcast: Codable, Equatable, Identifiable {
     let broadcastSeconds: Int
     let chargedSeconds: Int
     var id: String { sessionID }
-    var startDate: Date? {
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: startedAt) { return date }
-        formatter.formatOptions.insert(.withFractionalSeconds)
-        return formatter.date(from: startedAt)
-    }
+    var startDate: Date? { ISO8601Timestamp.date(from: startedAt) }
     var processingTitle: String {
         switch aiProcessing {
         case "server": String(localized: "서버")
