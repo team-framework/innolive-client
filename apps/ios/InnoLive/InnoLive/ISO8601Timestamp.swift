@@ -10,12 +10,30 @@ enum ISO8601Timestamp {
         return formatter
     }()
 
-    private static let standardFormatter = ISO8601DateFormatter()
+    private static let standardFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
 
     static func date(from value: String) -> Date? {
         lock.lock()
         defer { lock.unlock() }
         return fractionalSecondsFormatter.date(from: value)
             ?? standardFormatter.date(from: value)
+    }
+
+    /// 소수점 없는 인터넷 시각. 직접 송출 하트비트 `sentAt`이 이 형식을 쓴다.
+    static func string(from date: Date) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return standardFormatter.string(from: date)
+    }
+
+    /// 소수점 초를 붙인 인터넷 시각. 업링크 진단 로그가 이 형식을 쓴다.
+    static func stringWithFractionalSeconds(from date: Date) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return fractionalSecondsFormatter.string(from: date)
     }
 }
