@@ -63,14 +63,6 @@ final class UplinkDiagnosticsMonitor {
         tracker = UplinkQualityTracker()
     }
 
-    func stopObserving() {
-        let center = NotificationCenter.default
-        for token in observers {
-            center.removeObserver(token)
-        }
-        observers.removeAll()
-    }
-
     deinit {
         let center = NotificationCenter.default
         for token in observers {

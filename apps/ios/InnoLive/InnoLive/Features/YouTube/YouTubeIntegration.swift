@@ -419,13 +419,9 @@ final class YouTubeIntegration: ObservableObject {
     // 이 구간은 실제 송출 전 준비 상태이므로 버튼의 방송 중 UI와 분리한다.
     var hasStartedYouTubeBroadcast: Bool { statePolicy.hasStartedBroadcast }
 
-    var isWaitingForYouTubeBroadcastStart: Bool { statePolicy.isWaitingForBroadcastStart }
-
     var isYouTubeBroadcastPaused: Bool { statePolicy.isBroadcastPaused }
 
     var canPauseYouTubeBroadcast: Bool { !isChangingBroadcastMode && !isHandlingUpgradeOffer && statePolicy.canPauseBroadcast }
-
-    var canResumeYouTubeBroadcast: Bool { !isChangingBroadcastMode && !isHandlingUpgradeOffer && statePolicy.canResumeBroadcast }
 
     var canChangeYouTubePauseState: Bool { !isChangingBroadcastMode && !isHandlingUpgradeOffer && statePolicy.canChangePauseState }
 

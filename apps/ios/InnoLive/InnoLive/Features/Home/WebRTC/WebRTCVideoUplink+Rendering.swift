@@ -1,16 +1,6 @@
 @preconcurrency import LiveKitWebRTC
 
 extension WebRTCVideoUplink {
-    func attachRenderers(local: LKRTCMTLVideoView, remote: LKRTCMTLVideoView) {
-        attachLocalRenderer(local)
-        attachRemoteRenderer(remote)
-    }
-
-    func detachRenderers(local: LKRTCMTLVideoView, remote: LKRTCMTLVideoView) {
-        detachLocalRenderer(local)
-        detachRemoteRenderer(remote)
-    }
-
     func attachLocalRenderer(_ renderer: LKRTCMTLVideoView) {
         if localRenderer !== renderer {
             if let localRenderer {
