@@ -87,6 +87,17 @@ final class OfflineLocalModeTests: XCTestCase {
         XCTAssertTrue(youtube.startsPrivacyOnlyLocally)
     }
 
+    func testLocalModeStartNeedsNoMediaTransmissionConsent() {
+        let youtube = makeIntegration(grant: nil)
+        XCTAssertTrue(youtube.transmitsMedia(to: [.youtube]))
+        youtube.operatingMode.setAlwaysLocal(true)
+        youtube.operatingMode.start { nil }
+        defer { youtube.operatingMode.stop() }
+
+        XCTAssertFalse(youtube.transmitsMedia(to: []), "a local take records on this device only")
+        XCTAssertFalse(youtube.transmitsMedia(to: [.youtube, .chzzk]), "local mode ignores selected platforms")
+    }
+
     func testLocalModePrivacyStartNeverCreatesSession() async {
         let youtube = makeIntegration(grant: nil)
         youtube.operatingMode.setAlwaysLocal(true)
