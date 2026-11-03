@@ -316,10 +316,6 @@ final class YouTubeAPI: PlanAPIClient {
         guard response.statusCode == 204 else { throw YouTubeAPIError.response }
     }
 
-    func webrtcConfiguration(accessToken: String) async throws -> [WebRTCIceServer] {
-        try await webrtcSessionConfiguration(accessToken: accessToken).iceServers
-    }
-
     /// ICE 서버와 영상 재연결 정책을 함께 읽는다.
     func webrtcSessionConfiguration(accessToken: String) async throws -> WebRTCConfiguration {
         let response: WebRTCConfigurationResponse = try await request(
@@ -437,14 +433,6 @@ final class YouTubeAPI: PlanAPIClient {
 
     func stopStream(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeStreamState {
         try await streamAction(.stop, session: session, accessToken: accessToken).stream
-    }
-
-    func pauseStream(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeStreamState {
-        try await streamAction(.pause, session: session, accessToken: accessToken).stream
-    }
-
-    func resumeStream(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeStreamState {
-        try await streamAction(.resume, session: session, accessToken: accessToken).stream
     }
 
     enum StreamAction: String {

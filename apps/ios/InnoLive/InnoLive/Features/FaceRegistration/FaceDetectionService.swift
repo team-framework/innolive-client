@@ -144,11 +144,6 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         )
     }
 
-    /// The frozen frame shown while the selected face registers.
-    func previewImage(from frame: FaceSelectionFrame) -> CGImage? {
-        context.createCGImage(frame.image, from: frame.image.extent)
-    }
-
     /// A 500 x 500 JPEG around the selected face with every other face blacked out.
     /// Server and on-device enrollment both reject images with more than one face.
     func registrationJPEG(from frame: FaceSelectionFrame, faceIndex: Int) -> Data? {
