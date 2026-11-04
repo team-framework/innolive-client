@@ -273,7 +273,7 @@ final class YouTubeIntegration: ObservableObject {
     let operatingMode = OperatingModeMonitor()
     let modelReadiness: ModelReadinessStore
     @Published var isRemainingTimeStale = false
-    /// The offline grant is past its length or saw the clock go back. Local takes continue until the next online check.
+    /// 오프라인 이용 기간이 지났거나 시계가 되돌려진 것을 감지했다. 로컬 촬영은 다음 온라인 확인까지 계속된다.
     @Published var isOfflineGrantStale = false
 
     var currentPlanMode: BroadcastPlanMode {
@@ -281,7 +281,7 @@ final class YouTubeIntegration: ObservableObject {
                  ? selectedBroadcastProviders.count : visibleBroadcastTargets.count)
     }
 
-    /// Each saved local take joins the ledger. The ledger drains on save, and again whenever uploading becomes possible.
+    /// 저장된 로컬 촬영은 모두 장부에 쌓인다. 장부는 저장할 때 모두 올려 비우고, 업로드할 수 있게 될 때마다 다시 비운다.
     private func wireLocalTakeUsage() {
         recordingStore.onSaved = { [weak self] recording in
             guard let self else { return }
@@ -298,7 +298,7 @@ final class YouTubeIntegration: ObservableObject {
             }
             .removeDuplicates()
             .dropFirst()
-            // stop() resets the state to server mode; that reset is not a server recovery.
+            // stop()은 상태를 서버 모드로 초기화한다. 이 초기화는 서버 복구가 아니다.
             .filter { [weak self] recovered in recovered && self?.operatingMode.isMonitoring == true }
             .sink { [weak self] _ in
                 guard let self else { return }
@@ -338,7 +338,7 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
-    /// The administrator answer from this account's stored grant, without any network request.
+    /// 네트워크 요청 없이 이 계정에 저장된 이용 권한으로 관리자 여부를 답한다.
     func storedAdministrator(accessToken: String?) -> Bool {
         let accountID = OfflineGrant.accountID(fromAccessToken: accessToken)
         guard let accountID, let grant = offlineGrantStore.load(), grant.accountID == accountID else { return false }
@@ -347,7 +347,7 @@ final class YouTubeIntegration: ObservableObject {
         return grant.isAdministrator
     }
 
-    /// Admin-only local mode: the operating mode monitor and the model warm-up. Safe to call again.
+    /// 관리자 전용 로컬 모드를 준비한다. 운영 모드 모니터를 켜고 모델을 미리 불러 둔다. 다시 호출해도 안전하다.
     func startLocalModeSupport(accessToken: @escaping () -> String?) {
         operatingMode.start(accessToken: accessToken)
         Task { await modelReadiness.warm() }

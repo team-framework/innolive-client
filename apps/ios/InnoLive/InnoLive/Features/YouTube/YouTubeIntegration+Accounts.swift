@@ -228,7 +228,7 @@ extension YouTubeIntegration {
         }
     }
 
-    /// `quietWhenUnreachable` keeps an offline launch free of a connection error banner.
+    /// `quietWhenUnreachable`이면 오프라인으로 실행할 때 연결 오류 배너를 띄우지 않는다.
     func refreshConnection(accessToken: String?, quietWhenUnreachable: Bool = false) async {
         guard !isYouTubeConnectionOperationInProgress,
               let accessToken,
@@ -251,7 +251,7 @@ extension YouTubeIntegration {
             applyStreamingAccounts(accounts)
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
-            // Keep the last known connection when the refresh is unavailable.
+            // 새로 고칠 수 없으면 마지막으로 알던 연결을 유지한다.
             if quietWhenUnreachable, error as? YouTubeAPIError == .transport { return }
             handle(error)
         }
@@ -287,7 +287,7 @@ extension YouTubeIntegration {
         }
     }
 
-    // Keep the previous selection until the full account list confirms its connection ID.
+    // 전체 계정 목록으로 연결 ID가 확인될 때까지 이전 선택을 유지한다.
     func connectAuthorizedYouTubeAccount(serverAuthCode: String, accessToken: String) async throws {
         let generation = connectionOperationGeneration
         _ = try await api.connect(serverAuthCode: serverAuthCode, accessToken: accessToken)
@@ -321,7 +321,7 @@ extension YouTubeIntegration {
             applyStreamingAccounts(streamingAccounts.filter { $0.provider != "youtube" || $0.accountID != account?.accountID })
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
-            // A failed DELETE does not prove that the server removed the link.
+            // DELETE가 실패했다면 서버에서 연결이 지워졌다고 볼 수 없다.
             handle(error)
         }
     }

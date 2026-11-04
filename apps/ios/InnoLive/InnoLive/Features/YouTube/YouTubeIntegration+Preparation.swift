@@ -23,7 +23,7 @@ extension YouTubeIntegration {
         return true
     }
 
-    /// Billing follows the server session, including legacy sessions using local AI over server egress.
+    /// 과금은 서버 세션을 따른다. 서버 egress로 송출하며 로컬 AI를 쓰는 이전 방식 세션도 마찬가지다.
     var planProcessingMode: AIProcessingMode {
         guard let session else { return requestedSessionMode }
         return AIProcessingMode(rawValue: session.aiProcessing ?? "server") ?? .server
@@ -75,7 +75,7 @@ extension YouTubeIntegration {
             && planStore.snapshot?.preparationBlockMessage(preparationPlanMode, processing: .onDevice) == nil
     }
 
-    /// End the old session before preparing a new one; the caller reuses the normal consent/camera flow.
+    /// 새 세션을 준비하기 전에 이전 세션을 끝낸다. 호출자는 평소의 동의·카메라 흐름을 그대로 다시 쓴다.
     func switchPreparationToOnDevice(accessToken: String?) async -> Bool {
         guard offersOnDevicePreparation, !isSwitchingToOnDevice, !isYouTubeConnectionOperationInProgress, !isChangingStreamState,
               !isChangingAIProcessing, !isPreparingSession, !isConnectingVideo, !isEndingSession,

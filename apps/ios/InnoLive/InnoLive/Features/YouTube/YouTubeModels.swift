@@ -213,7 +213,7 @@ struct YouTubeConnection: Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         provider = try container.decode(String.self, forKey: .provider)
         channel = try container.decode(YouTubeChannel.self, forKey: .channel)
-        // Older installs persisted only provider and channel.
+        // 이전 설치본은 provider와 channel만 저장했다.
         requiresReconnection = try container.decodeIfPresent(Bool.self, forKey: .requiresReconnection) ?? false
     }
 }
@@ -225,7 +225,7 @@ struct YouTubeChannel: Codable, Equatable {
 
 struct YouTubeBroadcastSession: Decodable, Equatable {
     var aiProcessing: String? = nil
-    // Server capability stays fixed; the client can move inference without replacing this session.
+    // 서버 처리 능력은 고정이다. 클라이언트는 이 세션을 바꾸지 않고도 추론 위치를 옮길 수 있다.
     var clientProcessingMode: AIProcessingMode? = nil
     var processingMode: AIProcessingMode { clientProcessingMode ?? AIProcessingMode(rawValue: aiProcessing ?? "server") ?? .server }
     let sessionID: String

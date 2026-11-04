@@ -10,7 +10,7 @@ extension YouTubeIntegration {
 
     var isLocalTakeRecording: Bool { localCaptureID != nil && lifecycle.phase == .live }
 
-    /// Admin local mode has no server to create a session on, so 비식별화 시작 records on this device instead.
+    /// 관리자 로컬 모드에는 세션을 만들 서버가 없어서, 비식별화 시작을 누르면 대신 이 기기에서 녹화한다.
     var startsPrivacyOnlyLocally: Bool { operatingMode.broadcastUnavailableReason != nil }
 
     func startPrivacyOnlyLocally(
@@ -63,7 +63,7 @@ extension YouTubeIntegration {
         }
     }
 
-    /// Throws when this account has no administrator grant. An expired grant only marks itself stale.
+    /// 이 계정에 관리자 이용 권한이 없으면 오류를 던진다. 기간이 지난 이용 권한은 오래된 권한으로 표시만 한다.
     func startLocalTake() throws {
         let now = Date.now
         let accountID = OfflineGrant.accountID(fromAccessToken: api.currentAccessToken(fallback: ""))
@@ -98,7 +98,7 @@ extension YouTubeIntegration {
         recordingCoordinator.endLocally()
     }
 
-    /// `keepsResult` leaves the finished take on the home end screen instead of clearing it.
+    /// `keepsResult`면 끝난 촬영을 지우지 않고 홈 종료 화면에 남긴다.
     func closeLocalCapture(keepsResult: Bool = false) async {
         guard localCaptureID != nil else { return }
         stopLocalTake()

@@ -22,7 +22,7 @@ protocol DirectBroadcastPublishing: AnyObject {
     func heartbeatStatus() async -> DirectPublishStatus
 }
 
-// Existing test doubles can opt out until recording-specific assertions are added.
+// 녹화 전용 검증을 추가하기 전까지 기존 test double은 이 기본 구현을 써서 따로 구현하지 않아도 된다.
 extension DirectBroadcastPublishing {
     func setRecordingSink(_ recorder: LocalBroadcastRecorder?) {}
 }
@@ -183,7 +183,7 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
                 recorder.appendAudio(buffer, when: when)
             } else if let silence = DirectMediaFanout.silence(format: buffer.format,
                 duration: Double(buffer.frameLength) / buffer.format.sampleRate) {
-                // When every target is paused, do not store the microphone they do not receive.
+                // 모든 대상이 일시 정지되면 대상이 받지 않는 마이크 음성은 저장하지 않는다.
                 recorder.appendAudio(silence, when: when)
             }
         }
