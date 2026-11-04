@@ -44,7 +44,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
     @Published private(set) var recordings: [SavedBroadcastRecording] = []
     @Published private(set) var libraryError: String?
     @Published private(set) var preservedRecordings: [PreservedBroadcastRecording] = []
-    /// Called once per newly committed file, from a normal save or from crash recovery.
+    /// 새로 커밋된 파일마다 한 번 불린다. 일반 저장과 크래시 복구 양쪽에서 부른다.
     var onSaved: (SavedBroadcastRecording) -> Void = { _ in }
     private static var ownedPaths: Set<String> = []
     private var isReloadingLibrary = false
@@ -75,7 +75,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
     private var pendingCommits: [UUID: PendingCommit] = [:]
     private var retryID: UUID?
 
-    /// The injected location/capacity reader allow filesystem tests without touching the real library.
+    /// 저장 위치와 용량 조회 함수를 주입하면 실제 라이브러리를 건드리지 않고 파일 시스템 테스트를 할 수 있다.
     init(directory: URL? = nil, minimumFreeBytes: Int64 = 256 * 1_024 * 1_024,
          availableCapacity: @escaping @Sendable (URL) throws -> Int64 = RecordingSessionStore.readAvailableCapacity,
          backgroundLeaseFactory: @escaping RecordingBackgroundLeaseFactory = { RecordingBackgroundTaskLease(name: $0, onExpiration: $1) }) {
@@ -90,8 +90,8 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         directory.appendingPathComponent(recording.fileName)
     }
 
-    /// Call before the actual go-live request; attach the returned recorder to video/audio sinks.
-    /// A previous session may still be finalizing. Its completion cannot overwrite this session's state.
+    /// 실제 go-live 요청 전에 호출하고, 반환된 recorder를 영상·음성 sink에 연결한다.
+    /// 이전 세션이 아직 마무리 저장 중일 수 있다. 그 세션이 끝나도 이 세션의 상태를 덮어쓰지 못한다.
     @discardableResult
     func begin(sessionID: String, source: RecordingSource = .raw, mosaic: OnDeviceMosaicSettings? = nil,
                onFailure: @escaping @Sendable (String) -> Void = { _ in }) throws -> LocalBroadcastRecorder {
@@ -115,7 +115,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         return recorder
     }
 
-    /// Only confirmed live targets belong here. A second target shares the same recorder.
+    /// 라이브가 확정된 대상만 여기에 넣는다. 두 번째 대상은 같은 recorder를 함께 쓴다.
     func targetDidStart(_ targetID: String, sessionID: String) throws {
         guard active?.sessionID == sessionID else { throw RecordingSessionStoreError.wrongSession }
         if let session = active, !session.hasConfirmedLive {
@@ -125,7 +125,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         active?.liveTargets.insert(targetID)
     }
 
-    /// Atomic snapshot update. The owner detaches capture before beginning finalization.
+    /// 대상 스냅샷을 원자적으로 갱신한다. 소유자는 마무리 저장을 시작하기 전에 캡처를 떼어 낸다.
     func reconcileTargets(_ targets: Set<String>, sessionID: String) throws {
         guard active?.sessionID == sessionID else { throw RecordingSessionStoreError.wrongSession }
         if !targets.isEmpty, let session = active, !session.hasConfirmedLive {
@@ -135,7 +135,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         active?.liveTargets = targets
     }
 
-    /// Returns nil while another target is live. Call only after confirmed target termination.
+    /// 다른 대상이 아직 라이브 중이면 nil을 반환한다. 대상 종료가 확정된 뒤에만 호출한다.
     @discardableResult
     func targetDidEnd(_ targetID: String, sessionID: String) async throws -> SavedBroadcastRecording? {
         guard var session = active, session.sessionID == sessionID else { throw RecordingSessionStoreError.wrongSession }
@@ -145,16 +145,16 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         return try await finish(sessionID: sessionID)
     }
 
-    /// For confirmed whole-session termination. remainingTargetCount must come from the integration's
-    /// actual provider state, including any provider started before this store was notified.
+    /// 세션 전체 종료가 확정됐을 때 쓴다. remainingTargetCount는 연동 쪽의 실제 provider 상태에서 가져와야 하고,
+    /// 이 store가 알림을 받기 전에 시작된 provider도 포함해야 한다.
     @discardableResult
     func finish(sessionID: String, remainingTargetCount: Int = 0) async throws -> SavedBroadcastRecording? {
         guard let task = try beginFinalization(sessionID: sessionID, remainingTargetCount: remainingTargetCount) else { return nil }
         return try await task.value
     }
 
-    /// Release active ownership synchronously so a following broadcast can start while disk I/O finishes.
-    /// `forceLocalEnd` is only for a stopped local capture path, regardless of remote acknowledgement.
+    /// 진행 중 소유권을 동기로 놓아서 디스크 I/O가 끝나는 동안에도 다음 방송을 시작할 수 있게 한다.
+    /// `forceLocalEnd`는 원격 확인 여부와 상관없이 로컬 캡처가 멈춘 경로에서만 쓴다.
     func beginFinalization(sessionID: String, remainingTargetCount: Int = 0,
                            forceLocalEnd: Bool = false) throws -> Task<SavedBroadcastRecording, Error>? {
         guard let session = active, session.sessionID == sessionID else { throw RecordingSessionStoreError.wrongSession }
@@ -173,7 +173,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
             let result: LocalBroadcastRecordingResult
             do { result = try await session.recorder.stop() }
             catch {
-                // Failed writers cannot be restarted; preserve their file without auto-recovery.
+                // 실패한 writer는 다시 시작할 수 없다. 파일은 보관하되 자동 복구는 하지 않는다.
                 try? self.writeJournal(session, status: .failed)
                 if self.generation == session.generation { self.state = .failed(message: error.localizedDescription, canRetry: false) }
                 throw error
@@ -192,7 +192,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         }
     }
 
-    /// Only for total go-live failure, before any target became live. It never removes library files.
+    /// 어떤 대상도 라이브가 되기 전에 go-live가 전부 실패했을 때만 쓴다. 라이브러리 파일은 절대 지우지 않는다.
     func abortFailedStart(sessionID: String) async throws {
         guard let task = try beginAbortFailedStart(sessionID: sessionID) else { return }
         try await task.value
@@ -233,7 +233,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         }
     }
 
-    /// Delete only a completed library entry; active and unfinished recordings are excluded.
+    /// 완료된 라이브러리 항목만 지운다. 진행 중이거나 아직 마무리되지 않은 녹화는 제외한다.
     func delete(_ recording: SavedBroadcastRecording) throws {
         guard recordings.contains(where: { $0.id == recording.id }),
               recording.fileName == "\(recording.id.uuidString).mp4",
@@ -244,17 +244,17 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         if FileManager.default.fileExists(atPath: url.path) {
             try FileManager.default.removeItem(at: url)
         }
-        // A reload can be suspended in asset validation. Do not let it restore this entry.
+        // reload가 asset 검증 도중 suspend돼 있을 수 있다. 그 reload가 이 항목을 되살리지 못하게 한다.
         deletedRecordingIDs.insert(recording.id)
         recordings.removeAll { $0.id == recording.id }
         if case .saved(let saved) = state, saved.id == recording.id { state = .idle }
-        // Metadata alone cannot restore a deleted video. File deletion errors above remain visible.
+        // 메타데이터만으로는 지운 영상을 되살릴 수 없다. 위의 파일 삭제 오류는 그대로 드러낸다.
         try? FileManager.default.removeItem(at: directory.appendingPathComponent("\(recording.id.uuidString).json"))
         try? FileManager.default.removeItem(at: journalURL(recording.id))
     }
 
-    /// Validate durable MP4s on startup. A crash after rename but before metadata write is recoverable.
-    /// Partial files are retained but never listed as saved recordings.
+    /// 시작할 때 최종 저장된 MP4를 검증한다. 이름을 바꾼 뒤 메타데이터를 쓰기 전에 앱이 죽어도 복구할 수 있다.
+    /// 부분 파일은 보관하지만 저장된 녹화 목록에는 절대 넣지 않는다.
     func reloadLibrary() async {
         guard !isReloadingLibrary else { return }
         isReloadingLibrary = true
@@ -292,7 +292,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
                     recovered.append(entry)
                 } catch { if !deletedRecordingIDs.contains(id) { rejected += 1 } }
             }
-            // Preserve entries finalized while asynchronous validation was running.
+            // 비동기 검증이 도는 동안 마무리 저장된 항목도 그대로 둔다.
             let completedDuringReload = recordings.filter { !existingIDs.contains($0.id) }
             let merged = Dictionary((recovered + completedDuringReload).map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
             recordings = merged.values.filter { !deletedRecordingIDs.contains($0.id) }.sorted { $0.createdAt > $1.createdAt }
@@ -310,7 +310,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         let candidate = existsFinal ? session.finalURL : session.partialURL
         let duration = try await validate(candidate)
         if !existsFinal {
-            // Same-directory rename makes a verified file visible under its final name atomically.
+            // 같은 폴더 안에서 이름을 바꾸므로 검증된 파일이 최종 이름으로 원자적으로 나타난다.
             try FileManager.default.moveItem(at: session.partialURL, to: session.finalURL)
         }
         let values = try session.finalURL.resourceValues(forKeys: [.fileSizeKey])
@@ -331,7 +331,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         return metadata
     }
 
-    /// The writer completing is insufficient: require a playable asset with video and audio samples.
+    /// writer가 완료됐다는 것만으로는 부족하다. 재생할 수 있고 영상·음성 샘플이 들어 있는 asset이어야 한다.
     private func validate(_ url: URL) async throws -> TimeInterval {
         let asset = AVURLAsset(url: url)
         guard try await asset.load(.isPlayable) else { throw RecordingSessionStoreError.invalidFile }
@@ -360,14 +360,14 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
     private func makeLease(for session: Session) -> any RecordingBackgroundLease {
         backgroundLeaseFactory("Finish broadcast recording") { [weak self] in
             guard let self, self.generation == session.generation else { return }
-            // stop()/finishWriting may still be running. Do not enable retry on the same writer.
-            // If real validation later succeeds, commit is allowed to report that actual success.
+            // stop()/finishWriting이 아직 돌고 있을 수 있다. 같은 writer로는 재시도하지 못하게 한다.
+            // 나중에 실제 검증이 성공하면 commit이 그 실제 성공을 알려도 된다.
             self.state = .failed(message: RecordingSessionStoreError.backgroundTimeExpired.localizedDescription, canRetry: false)
         }
     }
 
-    /// iOS may enumerate /private/var while the writer received /var (or a
-    /// caller-supplied directory symlink). Resolve the parent even before the MP4 exists.
+    /// writer는 /var(또는 호출부가 넘긴 폴더 심볼릭 링크) 경로를 받았는데 iOS는
+    /// /private/var로 나열할 수 있다. MP4가 아직 없어도 상위 폴더 경로를 풀어서 맞춘다.
     private static func ownershipKey(_ url: URL) -> String {
         url.deletingLastPathComponent().resolvingSymlinksInPath()
             .appendingPathComponent(url.lastPathComponent).standardizedFileURL.path
@@ -391,8 +391,8 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         return journal
     }
 
-    /// Only abandoned, confirmed sessions with a fully readable MP4 can become saved recordings.
-    /// Missing journals, failed writers, corrupt media, and duplicate names stay untouched.
+    /// 중단됐지만 라이브가 확정됐고 MP4를 끝까지 읽을 수 있는 세션만 저장된 녹화가 될 수 있다.
+    /// 저널이 없거나, writer가 실패했거나, 미디어가 손상됐거나, 이름이 겹치는 경우는 건드리지 않는다.
     private func recoverCompletedPartials() async {
         guard let urls = try? FileManager.default.contentsOfDirectory(at: directory,
             includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey]) else {
@@ -413,7 +413,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
                     Self.ownedPaths.insert(key)
                     let lease = backgroundLeaseFactory("Recover broadcast recording", {})
                     do {
-                        // Decode on a utility task: a long file must not block main-actor UI work.
+                        // utility 작업에서 디코딩한다. 긴 파일이 main actor의 UI 작업을 막으면 안 된다.
                         let duration = try await Task.detached(priority: .utility) {
                             try await Self.validateEntireRecoveryFile(url)
                         }.value
@@ -436,8 +436,8 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
                         reason = String(localized: "완료 여부를 확인하지 못한 원본을 보관하고 있습니다.")
                         lease.end()
                         Self.ownedPaths.remove(key)
-                        // Rename may have succeeded before metadata write failed. The final-file
-                        // scan below will validate and rebuild metadata; never remove that MP4.
+                        // 메타데이터 쓰기가 실패하기 전에 이름 바꾸기는 성공했을 수 있다. 아래 최종 파일
+                        // 검사에서 검증하고 메타데이터를 다시 만들므로 그 MP4는 절대 지우지 않는다.
                         if !FileManager.default.fileExists(atPath: url.path) { continue }
                     }
                 } else {
