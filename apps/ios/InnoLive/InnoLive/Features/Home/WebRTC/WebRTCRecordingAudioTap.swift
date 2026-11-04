@@ -1,7 +1,7 @@
 import AVFoundation
 @preconcurrency import LiveKitWebRTC
 
-/// Copies the post-processing samples used by the WebRTC sender; never retains RTCAudioBuffer.
+/// WebRTC sender가 쓰는 후처리 샘플을 복사한다. RTCAudioBuffer는 붙잡아 두지 않는다.
 nonisolated final class WebRTCRecordingAudioTap: NSObject, LKRTCAudioCustomProcessingDelegate, @unchecked Sendable {
     private let lock = NSLock()
     private var binding: Binding?
@@ -10,7 +10,7 @@ nonisolated final class WebRTCRecordingAudioTap: NSObject, LKRTCAudioCustomProce
 
     func setRecordingSink(_ recorder: LocalBroadcastRecorder?) {
         lock.withLock {
-            // New recorder => new timeline/converter. Queued callbacks retain their old binding.
+            // recorder가 바뀌면 타임라인·변환기도 새로 만든다. 이미 큐에 들어간 콜백은 이전 binding을 그대로 쓴다.
             binding = recorder.map(Binding.init)
         }
     }
@@ -48,7 +48,7 @@ nonisolated final class WebRTCRecordingAudioTap: NSObject, LKRTCAudioCustomProce
                   let input = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(source.frames)),
                   let channels = input.floatChannelData else { return }
             input.frameLength = AVAudioFrameCount(source.frames)
-            // WebRTC AudioBuffer::channels() uses FloatS16, not normalized [-1, 1] floats.
+            // WebRTC AudioBuffer::channels()는 [-1, 1]로 정규화한 float가 아니라 FloatS16을 쓴다.
             for channel in 0..<source.channels {
                 let raw = source.rawBuffer(forChannel: channel)
                 for frame in 0..<source.frames {
@@ -56,7 +56,7 @@ nonisolated final class WebRTCRecordingAudioTap: NSObject, LKRTCAudioCustomProce
                     channels[channel][frame] = muted ? 0 : (value.isFinite ? max(-1, min(1, value)) : 0)
                 }
             }
-            // Processing is serialized only for this binding; sink switching never waits on copying.
+            // 처리는 이 binding 안에서만 직렬화한다. sink 교체는 복사가 끝나기를 기다리지 않는다.
             lock.lock()
             defer { lock.unlock() }
             let previousEnd = anchor.map { $0 + Double(outputFrames) / 48_000 }
@@ -68,7 +68,7 @@ nonisolated final class WebRTCRecordingAudioTap: NSObject, LKRTCAudioCustomProce
             }
             let output: AVAudioPCMBuffer?
             if sampleRate == 48_000 {
-                // No rate converter, no collapse of stereo channels for the common WebRTC format.
+                // 흔히 쓰는 WebRTC 형식은 샘플레이트 변환기를 거치지 않고 스테레오 채널도 하나로 합치지 않는다.
                 output = Self.stereoCopy(input)
             } else {
                 output = resampler.convert(input)
@@ -77,7 +77,7 @@ nonisolated final class WebRTCRecordingAudioTap: NSObject, LKRTCAudioCustomProce
             let now = Self.now()
             if anchor == nil { anchor = now }
             var time = anchor! + Double(outputFrames) / 48_000
-            // A capture interruption is a real timeline gap, not delayed audio to catch up later.
+            // 캡처 중단은 나중에 따라잡을 지연 음성이 아니라 실제 타임라인 공백이다.
             if now - time > 0.25 {
                 anchor = max(now, time)
                 outputFrames = 0
@@ -99,7 +99,7 @@ nonisolated final class WebRTCRecordingAudioTap: NSObject, LKRTCAudioCustomProce
     }
 }
 
-/// A synchronized reference slot. Snapshot once at callback admission, before any asynchronous work.
+/// 동기화된 참조 슬롯이다. 콜백이 들어올 때 비동기 작업을 시작하기 전에 한 번만 스냅숏을 뜬다.
 nonisolated final class BroadcastRecordingSinkSlot: @unchecked Sendable {
     private let lock = NSLock()
     private var recorder: LocalBroadcastRecorder?

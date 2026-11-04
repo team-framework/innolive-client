@@ -84,14 +84,14 @@ struct HomeView: View {
 
     private var studioContent: some View {
         ZStack {
-            // Face selection swaps the views: the original takes the main area and the broadcast the corner.
+            // 얼굴 선택 중에는 화면을 맞바꾼다. 원본이 큰 영역을, 송출 화면이 모서리를 차지한다.
             if isSelectingFace {
                 FaceSelectionLayer(
                     videoUplink: youtube.videoUplink,
                     usesUplinkCamera: localPreviewPresentation == .webrtcLocal,
                     bottomInset: bottomReservedHeight + 24
                 ) { frame, faceIndex in
-                    // Register in the background and go straight back to the broadcast view.
+                    // 등록은 백그라운드에서 하고 바로 송출 화면으로 돌아간다.
                     guestRegistrar.register(
                         frame: frame,
                         faceIndex: faceIndex,

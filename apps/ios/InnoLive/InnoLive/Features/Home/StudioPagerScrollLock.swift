@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Locks only the enclosing native page scroll view, leaving buttons and inner settings scrolls active.
+/// 바깥쪽 네이티브 페이지 스크롤 뷰만 잠근다. 버튼과 안쪽 설정 스크롤은 그대로 동작한다.
 struct StudioPagerScrollLock: UIViewRepresentable {
     let isLocked: Bool
 
@@ -32,7 +32,7 @@ struct StudioPagerScrollLock: UIViewRepresentable {
 
         private static func isHorizontalPager(_ scrollView: UIScrollView) -> Bool {
             if scrollView.isPagingEnabled { return true }
-            // Newer SwiftUI page containers use a horizontal collection layout without isPagingEnabled.
+            // 최신 SwiftUI 페이지 컨테이너는 isPagingEnabled 없이 가로 컬렉션 레이아웃을 쓴다.
             guard let collection = scrollView as? UICollectionView else { return false }
             if let layout = collection.collectionViewLayout as? UICollectionViewFlowLayout {
                 return layout.scrollDirection == .horizontal

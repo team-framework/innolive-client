@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Studio destinations are presented above the persistent camera and broadcast session.
+/// 스튜디오 상세 화면은 계속 유지되는 카메라·방송 세션 위에 띄운다.
 struct StudioDetailsView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
@@ -86,7 +86,7 @@ struct StudioDetailsView: View {
         }
         .sheet(item: $destination) { destination in
             if destination == .video {
-                // This existing editor owns its navigation stack and compact detent.
+                // 기존 편집 화면이 자체 navigation stack과 compact detent를 직접 관리한다.
                 BroadcastVideoControlsView(uplink: youtube.videoUplink, youtube: youtube,
                                            accessToken: { authentication.currentAccessToken() })
             } else {
@@ -201,7 +201,7 @@ private struct StudioRecordingNotice: View {
     }
 }
 
-/// Target actions use the same integration policies as the common broadcast controls.
+/// 대상별 동작은 공통 방송 컨트롤과 같은 연동 정책을 따른다.
 struct StudioTargetControls: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration

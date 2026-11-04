@@ -85,8 +85,8 @@ struct RemoteStreamView: View {
     }
 }
 
-/// The broadcast output shrunk into the corner while face selection takes the main area.
-/// It replaces `RemoteStreamView` instead of copying it; during the swap both may briefly render.
+/// 얼굴 선택이 큰 영역을 차지하는 동안 모서리로 줄여 보여 주는 송출 화면이다.
+/// `RemoteStreamView`를 복제해 하나 더 띄우지 않고 그 자리를 대신한다. 맞바꾸는 동안에는 둘이 잠깐 함께 그려질 수 있다.
 struct CompactRemoteStreamView: View {
     @ObservedObject var uplink: WebRTCVideoUplink
 

@@ -1,7 +1,7 @@
 #if DEBUG
 import SwiftUI
 
-/// Local UI inspection without signing in or starting capture and broadcast lifecycle.
+/// 로그인하지 않고, 캡처와 방송 수명 주기도 시작하지 않은 채 로컬에서 UI를 확인한다.
 struct StudioValidationView: View {
     @StateObject private var authentication = AuthSession(api: AuthenticationAPI(serverURLProvider: { _ in nil }))
     @StateObject private var youtube: YouTubeIntegration

@@ -50,8 +50,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     var activeVideoQuality: CameraQualityPreset?
     var isAudioSessionActivated = false
     weak var localRenderer: LKRTCMTLVideoView?
-    // Every view still on screen keeps rendering. With a single slot, a late update from the
-    // view being removed took the slot back and left the broadcast view black after face selection.
+    // 화면에 남아 있는 뷰는 모두 계속 렌더링한다. 슬롯이 하나일 때는 사라지는 뷰의 늦은 갱신이
+    // 슬롯을 다시 가져가 얼굴 선택 뒤 송출 화면이 검게 남았다.
     let remoteRenderers = NSHashTable<LKRTCMTLVideoView>.weakObjects()
     weak var faceRegistrationRenderer: LKRTCMTLVideoView?
 
@@ -97,7 +97,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         recordingAudioTap = tap
         let module = LKRTCDefaultAudioProcessingModule(config: nil,
             capturePostProcessingDelegate: nil, renderPreProcessingDelegate: nil)
-        // The upstream adapter initializer ignores its delegate argument; the setter binds it.
+        // upstream adapter 초기화 함수는 delegate 인자를 무시한다. setter로 넣어야 연결된다.
         module.capturePostProcessingDelegate = tap
         recordingAudioProcessingModule = module
         peerConnectionFactory = LKRTCPeerConnectionFactory(
@@ -364,7 +364,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
                 try await prepareLocalProcessing()
                 try ensureCurrentCameraOperation(operationGeneration)
                 guard let localVideoTrack else { throw WebRTCVideoUplinkError.cancelled }
-                // This track receives the protected output; rawPreviewTrack is for face registration.
+                // 이 트랙은 보호 처리된 출력을 받는다. rawPreviewTrack은 얼굴 등록용이다.
                 setRemoteVideoTrack(localVideoTrack)
                 shouldReconnectAutomatically = false
                 updateState(.connected, String(localized: "카메라 영상이 준비되었습니다."))

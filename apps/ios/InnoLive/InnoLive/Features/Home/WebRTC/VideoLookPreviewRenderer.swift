@@ -3,8 +3,8 @@ import CoreVideo
 import Darwin
 import ImageIO
 
-/// Makes small upright stills from an unprocessed camera buffer.
-/// Capture callbacks must finish using the source buffer before returning.
+/// 처리 전 카메라 버퍼에서 방향을 바로잡은 작은 정지 이미지를 만든다.
+/// 캡처 콜백은 반환하기 전에 원본 버퍼 사용을 끝내야 한다.
 nonisolated final class VideoLookPreviewRenderer: @unchecked Sendable {
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpaceCreateDeviceRGB()

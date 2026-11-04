@@ -2,7 +2,7 @@
 @preconcurrency import AVFoundation
 @preconcurrency import LiveKitWebRTC
 
-/// Opt-in, constant-30-fps fixture input. Deadlines do not accumulate decoder/delegate time.
+/// 직접 켤 때만 쓰는 고정 30fps fixture 입력이다. 프레임 기한은 디코더·delegate 처리 시간만큼 밀리지 않는다.
 nonisolated final class DebugPerformanceVideoCapturer: LKRTCFileVideoCapturer, @unchecked Sendable {
     private let frameQueue = DispatchQueue(label: "com.innolive.performance-video", qos: .userInitiated)
     private var timer: DispatchSourceTimer?
