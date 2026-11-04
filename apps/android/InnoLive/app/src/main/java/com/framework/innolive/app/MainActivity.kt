@@ -4,9 +4,11 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.media.AudioDeviceInfo
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -201,6 +203,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // 화면 안의 뒤로 가기 처리가 모두 꺼진 루트 화면에서만 받도록 Compose 화면보다 먼저 등록합니다.
+        onBackPressedDispatcher.addCallback(
+            object : OnBackPressedCallback(movesTaskToBackOnRootBack(Build.VERSION.SDK_INT)) {
+                override fun handleOnBackPressed() {
+                    moveTaskToBack(true)
+                }
+            },
+        )
         val webRtcSession = ViewModelProvider(this)[WebRtcSessionViewModel::class.java]
         val authenticationSession =
             ViewModelProvider(this)[AuthenticationSessionViewModel::class.java]
@@ -794,6 +804,10 @@ fun AppNavigation(
             (context as? Activity)?.finish()
         }
     }
+    // 화면 안의 뒤로 버튼은 그 화면이 아직 맨 위일 때만 처리해, 연타가 아래 화면까지 닫지 않게 합니다.
+    val onBackFrom: (AppRoute) -> Unit = { route ->
+        if (backStack.acceptsBackFrom(route)) onBack()
+    }
     // 설정 페이지를 벗어나면 그 위에 열린 하위 설정까지 모두 닫고 방송 화면으로 돌아옵니다.
     val closeSettings: () -> Unit = closeSettings@{
         if (isDeletingAccount || isAccountDeletionPending || LiveRoute !in backStack) return@closeSettings
@@ -946,32 +960,32 @@ fun AppNavigation(
         SettingsScreenProps(
             onBack = closeSettings,
             onOpenBroadcastSettings = {
-                backStack.add(BroadcastSettingRoute)
+                backStack.pushIfNotTop(BroadcastSettingRoute)
             },
             onOpenAccountSettings = {
-                if (backStack.lastOrNull() != AccountSettingsRoute) backStack.add(AccountSettingsRoute)
+                backStack.pushIfNotTop(AccountSettingsRoute)
             },
-            onOpenCameraAudioSettings = { backStack.add(CameraAudioSettingsRoute) },
+            onOpenCameraAudioSettings = { backStack.pushIfNotTop(CameraAudioSettingsRoute) },
             onOpenVideoControls = {
                 closeSettings()
                 isVideoControlsOpen = true
             },
-            onOpenAISettings = { backStack.add(AISettingsRoute) },
-            onOpenPlanUsage = { backStack.add(PlanUsageRoute) },
+            onOpenAISettings = { backStack.pushIfNotTop(AISettingsRoute) },
+            onOpenPlanUsage = { backStack.pushIfNotTop(PlanUsageRoute) },
             onOpenAppInfo = {
-                if (backStack.lastOrNull() != AppInfoSettingsRoute) backStack.add(AppInfoSettingsRoute)
+                backStack.pushIfNotTop(AppInfoSettingsRoute)
             },
             selectedResolution = selectedResolution?.displayName.orEmpty(),
             selectedCameraDevice = selectedCameraLensFacing.settingDisplayText().asString(),
             selectedAudioDevice = selectedAudioDevice?.settingDisplayText()?.asString().orEmpty(),
             onOpenResolutionOptions = {
-                backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
+                backStack.pushIfNotTop(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
             },
             onOpenCameraDeviceOptions = {
-                backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_DEVICE))
+                backStack.pushIfNotTop(SettingOptionRoute(SettingOptionType.CAMERA_DEVICE))
             },
             onOpenAudioDeviceOptions = {
-                backStack.add(SettingOptionRoute(SettingOptionType.AUDIO_DEVICE))
+                backStack.pushIfNotTop(SettingOptionRoute(SettingOptionType.AUDIO_DEVICE))
             },
             videoQualitySettings = videoQualitySettings,
             onVideoQualitySettingsChanged = updateVideoQualitySettings,
@@ -1028,7 +1042,7 @@ fun AppNavigation(
                 broadcastTutorial.restart()
                 closeSettings()
             },
-            onOpenRecordings = { if (canOpenRecordings) backStack.add(RecordingsRoute) },
+            onOpenRecordings = { if (canOpenRecordings) backStack.pushIfNotTop(RecordingsRoute) },
             canOpenRecordings = canOpenRecordings,
         )
     }
@@ -1079,30 +1093,30 @@ fun AppNavigation(
                 }
 
                 AccountSettingsRoute -> {
-                    NavEntry(route) { AccountSettingsScreen(settingsProps(), onBack = onBack) }
+                    NavEntry(route) { AccountSettingsScreen(settingsProps(), onBack = { onBackFrom(route) }) }
                 }
 
                 CameraAudioSettingsRoute -> {
-                    NavEntry(route) { CameraAudioSettingsScreen(settingsProps(), onBack = onBack) }
+                    NavEntry(route) { CameraAudioSettingsScreen(settingsProps(), onBack = { onBackFrom(route) }) }
                 }
 
                 AISettingsRoute -> {
-                    NavEntry(route) { AISettingsScreen(settingsProps(), onBack = onBack) }
+                    NavEntry(route) { AISettingsScreen(settingsProps(), onBack = { onBackFrom(route) }) }
                 }
 
                 PlanUsageRoute -> {
-                    NavEntry(route) { PlanUsageScreen(settingsProps(), onBack = onBack) }
+                    NavEntry(route) { PlanUsageScreen(settingsProps(), onBack = { onBackFrom(route) }) }
                 }
 
                 AppInfoSettingsRoute -> {
-                    NavEntry(route) { AppInfoSettingsScreen(settingsProps(), onBack = onBack) }
+                    NavEntry(route) { AppInfoSettingsScreen(settingsProps(), onBack = { onBackFrom(route) }) }
                 }
 
                 RecordingsRoute -> {
                     NavEntry(route) {
                         BroadcastRecordingLibraryScreen(
                             isSaving = webRtcSession.recordingState.status == BroadcastRecordingStatus.SAVING,
-                            onBack = onBack,
+                            onBack = { onBackFrom(route) },
                         )
                     }
                 }
@@ -1125,10 +1139,10 @@ fun AppNavigation(
                         }
                         BroadcastSetting(
                             props = BroadcastSettingProps(
-                                onBack = onBack,
+                                onBack = { onBackFrom(route) },
                                 selectedPlatform = selectedBroadcastPlatform,
                                 onOpenPlatformOptions = {
-                                    backStack.add(
+                                    backStack.pushIfNotTop(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_PLATFORM),
                                     )
                                 },
@@ -1151,7 +1165,7 @@ fun AppNavigation(
                                     .label
                                     .asString(),
                                 onOpenPrivacyOptions = {
-                                    backStack.add(
+                                    backStack.pushIfNotTop(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_PRIVACY),
                                     )
                                 },
@@ -1160,7 +1174,7 @@ fun AppNavigation(
                                     .label
                                     .asString(),
                                 onOpenAudienceOptions = {
-                                    backStack.add(
+                                    backStack.pushIfNotTop(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_AUDIENCE),
                                     )
                                 },
@@ -1281,7 +1295,7 @@ fun AppNavigation(
                             options = config.options,
                             selectedKey = config.selectedKey,
                             onOptionSelected = config.onOptionSelected,
-                            onBack = onBack,
+                            onBack = { onBackFrom(route) },
                         )
                     }
                 }
