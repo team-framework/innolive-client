@@ -204,7 +204,7 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
                     onClick = { animalPreferences.edit().putString("selected", value).apply(); animal = value }),
                     verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(selected = animal == value, onClick = null, enabled = enabled)
-                    Text(stringResource(title))
+                    Text(stringResource(title), modifier = Modifier.padding(start = 8.dp))
                 }
             }
             Text(stringResource(R.string.lab_face_effect_description), style = MaterialTheme.typography.bodySmall)
