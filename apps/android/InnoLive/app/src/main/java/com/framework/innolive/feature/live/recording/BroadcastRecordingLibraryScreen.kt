@@ -194,7 +194,6 @@ fun BroadcastRecordingLibraryScreen(
                             message = null
                             context.startActivity(exporter.chooserIntent(share, chooserTitle))
                         }
-                        exportTarget = null
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: RecordingExportException) {
@@ -207,6 +206,8 @@ fun BroadcastRecordingLibraryScreen(
                         message = UiText.Resource(R.string.recording_export_failed)
                     } finally {
                         busy = false
+                        // 실패 안내는 목록 위에 그리므로, 실패해도 창을 닫아 흐림 처리 뒤에 가려지지 않게 합니다.
+                        exportTarget = null
                     }
                 }
             },
