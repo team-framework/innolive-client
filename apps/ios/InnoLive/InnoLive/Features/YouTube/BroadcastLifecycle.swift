@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-/// Client presentation state. Server broadcast phases remain unchanged.
+/// 클라이언트 화면 표시용 상태다. 서버 방송 단계는 바꾸지 않는다.
 enum BroadcastLifecyclePhase: Equatable {
     case idle
     case preparing
@@ -29,8 +29,8 @@ struct BroadcastLifecycleResult: Equatable {
     var duration: TimeInterval { max(0, endedAt.timeIntervalSince(startedAt)) }
 }
 
-/// Owns presentation transitions; callers own timers, API requests and media writing.
-/// A generation must accompany delayed work so cancellation cannot start an old session.
+/// 화면 표시 전환만 맡는다. 타이머, API 요청, 미디어 쓰기는 호출자가 맡는다.
+/// 지연 작업에는 generation을 함께 넘겨, 취소한 뒤에 이전 세션이 시작되지 않게 한다.
 @MainActor
 final class BroadcastLifecycle: ObservableObject {
     // iOS 18 객체 해제 호환성: docs/ios-version-support.md 참고.
@@ -56,8 +56,8 @@ final class BroadcastLifecycle: ObservableObject {
         resultDismissed = true
     }
 
-    /// Local teardown can finish capture while remote stop acknowledgement is unavailable.
-    /// Preserve generation so the pending writer can still finish after this screen closes.
+    /// 원격 종료 확인을 받을 수 없어도 로컬 정리로 캡처를 끝낼 수 있다.
+    /// generation을 유지해 이 화면이 닫힌 뒤에도 대기 중인 writer가 마무리할 수 있게 한다.
     func finishLocalSession(warning: String?, at date: Date = Date()) {
         if phase == .result {
             if let warning { result?.terminationWarning = warning }
@@ -106,8 +106,8 @@ final class BroadcastLifecycle: ObservableObject {
         phase = .prepared
     }
 
-    /// Called after the final countdown interval, immediately before the go-live request.
-    /// Arm the writer here; a total start failure must discard its provisional output.
+    /// 마지막 카운트다운 간격이 지난 뒤, 라이브 전환 요청 바로 전에 호출한다.
+    /// 여기서 writer를 준비 상태로 둔다. 시작이 모두 실패하면 writer의 임시 출력을 버려야 한다.
     @discardableResult
     func beginStarting(generation: UInt, at date: Date = Date()) -> Bool {
         guard isCurrent(generation), phase == .countdown(1) else { return false }
@@ -129,7 +129,7 @@ final class BroadcastLifecycle: ObservableObject {
 
     func startFailed(generation: UInt, message: String) {
         guard isCurrent(generation), phase == .starting, activeTargets.isEmpty else { return }
-        // Invalidate callbacks from a provisional writer which the caller discards.
+        // 호출자가 버리는 임시 writer의 콜백을 무효화한다.
         self.generation &+= 1
         startedAt = nil
         recording = .idle
@@ -137,8 +137,8 @@ final class BroadcastLifecycle: ObservableObject {
         phase = .prepared
     }
 
-    /// Include live, paused and reconnecting live targets. Prepared targets are excluded.
-    /// Invoke only after applying an authoritative response, never on a failed status fetch.
+    /// 라이브, 일시 정지, 재연결 중인 라이브 대상을 넣는다. 준비만 된 대상은 뺀다.
+    /// 확정 응답을 반영한 뒤에만 호출한다. 상태 조회가 실패했을 때는 호출하지 않는다.
     func reconcileTargets(_ targets: Set<String>, generation: UInt, at date: Date = Date()) {
         guard isCurrent(generation) else { return }
         guard phase == .starting || phase == .live || phase == .ending else { return }
@@ -161,8 +161,8 @@ final class BroadcastLifecycle: ObservableObject {
         return true
     }
 
-    /// Complete a stop operation with its latest confirmed remaining targets.
-    /// Partial failures return to live; an empty confirmed set ends the recording.
+    /// 종료 작업을 마지막으로 확인된 남은 대상으로 마무리한다.
+    /// 일부만 실패하면 라이브로 돌아가고, 확인된 대상이 없으면 녹화를 끝낸다.
     func finishEnding(remainingTargets: Set<String>, generation: UInt, at date: Date = Date(), error: String? = nil) {
         guard isCurrent(generation), phase == .ending else { return }
         errorMessage = error
@@ -181,7 +181,7 @@ final class BroadcastLifecycle: ObservableObject {
         recording = .finalizing
     }
 
-    /// The writer calls this only after closing and verifying the playable file.
+    /// writer는 재생 가능한 파일을 닫고 검증한 뒤에만 이 함수를 호출한다.
     func recordingSaved(_ url: URL, generation: UInt) {
         guard isCurrent(generation), recording == .finalizing else { return }
         recording = .saved(url)

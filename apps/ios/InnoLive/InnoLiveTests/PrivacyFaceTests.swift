@@ -208,7 +208,7 @@ final class PrivacyFaceTests: XCTestCase {
         tracker.accept(trackID: id, match: nil, capturedAt: 1, now: 1.1)
         tracker.accept(trackID: id, match: nil, capturedAt: 1, now: 1.2, sampleAvailable: false)
         XCTAssertEqual(tracker.allowed(at: 20), [0])
-        XCTAssertNil(tracker.next(at: 1.3)) // The unknown overlapping crop stays protected.
+        XCTAssertNil(tracker.next(at: 1.3)) // 겹쳐 있는 미확인 crop은 계속 보호된다.
     }
 
     func testLostApprovalFollowsTrackerLifetimeAndDoesNotLeakDetectionIndex() throws {

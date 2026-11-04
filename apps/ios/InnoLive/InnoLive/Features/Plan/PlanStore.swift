@@ -35,7 +35,7 @@ final class PlanStore: ObservableObject {
             .appendingPathComponent("PlanSnapshot.json")
     }
 
-    /// Shows this account's last server answer until a refresh replaces it, so usage reads the same offline.
+    /// 새로 고침으로 바뀌기 전까지 이 계정의 마지막 서버 응답을 보여 준다. 그래서 오프라인에서도 사용량이 똑같이 보인다.
     func restore(accountID: String?) {
         guard serverSnapshot == nil, let accountID, let cacheURL,
               let data = try? Data(contentsOf: cacheURL),

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A single modal layer keeps the live preview visible while preparation runs.
+/// 모달 레이어 하나로 띄워 준비하는 동안에도 라이브 미리보기가 보이게 한다.
 struct BroadcastPreparationOverlay: View {
     let status: BroadcastPreparationStatus
     let onRetry: () async -> Void

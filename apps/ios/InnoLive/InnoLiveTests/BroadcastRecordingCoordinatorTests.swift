@@ -31,7 +31,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         defer { fixture.removeFiles() }
         fixture.start()
         let recorder = try XCTUnwrap(fixture.sink.recorder)
-        fixture.update([]) // prepared/going_live response before any live confirmation
+        fixture.update([]) // 라이브 확인 전에 받은 prepared/going_live 응답
         XCTAssertTrue(fixture.sink.recorder === recorder)
         XCTAssertEqual(fixture.lifecycle.phase, .starting)
         fixture.update(["youtube"])
@@ -40,7 +40,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         XCTAssertEqual(fixture.sink.attachments, 1)
         fixture.update([])
         await fixture.coordinator.waitForPendingWork()
-        // No synthetic media is inserted to make a mocked session look saved.
+        // 모의 세션을 저장된 것처럼 보이게 하려고 합성 미디어를 넣지 않는다.
         XCTAssertTrue(fixture.store.recordings.isEmpty)
         guard case .failed = fixture.lifecycle.recording else { return XCTFail("No-media writer must fail") }
         XCTAssertEqual(fixture.lifecycle.phase, .result)
@@ -86,7 +86,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         try await feed(try XCTUnwrap(fixture.sink.recorder))
         fixture.update(["youtube"])
         fixture.update([])
-        // Store releases active ownership synchronously before awaiting file I/O.
+        // store는 파일 I/O를 기다리기 전에 활성 소유권을 동기적으로 놓는다.
         fixture.start()
         let newRecorder = try XCTUnwrap(fixture.sink.recorder)
         let generation = fixture.lifecycle.generation
@@ -169,7 +169,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         XCTAssertEqual(fixture.lifecycle.recording, .idle)
     }
 
-    /// Deterministic media fixtures prove file/store coordination, not microphone hardware capture.
+    /// 고정된 미디어 fixture로 파일·store 연동을 검증한다. 마이크 하드웨어 캡처는 검증하지 않는다.
     private func feed(_ recorder: LocalBroadcastRecorder) async throws {
         let base = CMClockGetTime(CMClockGetHostTimeClock())
         let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000, channels: 2, interleaved: false))

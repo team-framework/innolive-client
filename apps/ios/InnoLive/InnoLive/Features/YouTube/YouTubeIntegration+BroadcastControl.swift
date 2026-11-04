@@ -38,7 +38,7 @@ extension YouTubeIntegration {
         forceReleaseBroadcastOrientationLock()
     }
 
-    /// The first start counts down; retrying a prepared simulcast target keeps the live UI.
+    /// 첫 시작은 카운트다운을 거친다. 준비된 동시 송출 대상을 다시 시도할 때는 라이브 화면을 유지한다.
     func startBroadcastCountdown(accessToken: String?) async {
         if hasStartedYouTubeBroadcast {
             await goLiveYouTubeStream(accessToken: accessToken)
@@ -58,7 +58,7 @@ extension YouTubeIntegration {
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
             defer {
-                // Polling or a context change can invalidate a prepared broadcast mid-countdown.
+                // 카운트다운 중에 폴링이나 상황 변화로 준비된 방송이 무효가 될 수 있다.
                 if self.lifecycle.isCurrent(generation), case .countdown = self.lifecycle.phase {
                     self.lifecycle.cancelCountdown()
                     if let lock { self.releaseBroadcastOrientationLock(generation: lock) }
@@ -105,7 +105,7 @@ extension YouTubeIntegration {
     }
 
     func invalidateBroadcastLifecycle() {
-        // Confirmed recordings finish in the library; an unconfirmed start discards its provisional file.
+        // 확정된 녹화는 보관함에 저장을 마치고, 확정되지 않은 시작은 임시 파일을 버린다.
         recordingCoordinator.reset()
         countdownTask?.cancel()
         countdownTask = nil
@@ -128,8 +128,8 @@ extension YouTubeIntegration {
             cancelBroadcastCountdown()
             return
         }
-        // Only explicit terminal evidence after the request finishes can fail a pending start.
-        // A stale prepared snapshot, empty partial response or failed fetch is not termination.
+        // 요청이 끝난 뒤 종료를 분명히 보여 주는 근거가 있을 때만 대기 중인 시작을 실패로 처리한다.
+        // 오래된 준비 스냅숏, 비어 있는 부분 응답, 실패한 조회는 종료가 아니다.
         if lifecycle.phase == .starting, targets.isEmpty, !isChangingStreamState {
             let snapshot = responseState.details.targets
             let pending = snapshot?.contains {
@@ -157,7 +157,7 @@ extension YouTubeIntegration {
                 return
             }
         }
-        // A pending platform must not make a still-starting operation look terminated.
+        // 대기 중인 플랫폼 때문에 아직 시작 중인 작업이 종료된 것처럼 보이면 안 된다.
         if targets.isEmpty && broadcastPhase == "going_live" { return }
         lifecycle.reconcileTargets(targets, generation: lifecycle.generation)
         if let sessionID = session?.sessionID { recordingCoordinator.reconcile(targets: targets, sessionID: .server(sessionID)) }
@@ -251,7 +251,7 @@ extension YouTubeIntegration {
         }
     }
 
-    /// Matches the stop-specific request gate without blocking an accepted server mode switch.
+    /// 종료 전용 요청 조건과 맞추되, 이미 받아들여진 서버 모드 전환은 막지 않는다.
     var canStopBroadcastTargets: Bool {
         !isChangingStreamState && !broadcastModeRequestInFlight && backgroundPauseTask == nil
     }

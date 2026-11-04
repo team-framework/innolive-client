@@ -68,7 +68,7 @@ final class BroadcastStartOverlayRenderingTests: XCTestCase {
         XCTAssertGreaterThan(viewportWidth, 0)
         XCTAssertGreaterThan(viewportHeight, 0)
         XCTAssertLessThanOrEqual(scroll.contentSize.width, viewportWidth + 1, "Text must wrap without horizontal clipping")
-        // Reach the end of large content and ensure the last region stays in the viewport.
+        // 큰 콘텐츠의 끝까지 스크롤해 마지막 영역이 뷰포트 안에 남는지 확인한다.
         let maximumY = max(-scroll.adjustedContentInset.top,
                            scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
         scroll.setContentOffset(CGPoint(x: -scroll.adjustedContentInset.left, y: maximumY), animated: false)

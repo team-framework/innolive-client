@@ -84,7 +84,7 @@ extension WebRTCVideoUplink {
             adapt(source, to: preferredVideoQuality)
             let frameRelay = makeFrameRelay(target: source, cameraPosition: .back)
             if SimulatorVideoInput.isPerformanceFixture {
-                // Fixture stores a portrait scene in landscape sensor coordinates.
+                // fixture는 세로 장면을 가로 센서 좌표로 저장한다.
                 frameRelay.setLockedInterfaceOrientation(.portrait)
             }
             let capturer: LKRTCFileVideoCapturer = SimulatorVideoInput.isPerformanceFixture
@@ -160,8 +160,8 @@ extension WebRTCVideoUplink {
         if let lockedBroadcastOrientation {
             frameRelay.setLockedInterfaceOrientation(lockedBroadcastOrientation)
         }
-        // InnoLive captures one camera at a time. The SDK's default shared MultiCam
-        // session rejects otherwise valid single-camera formats on devices such as iPhone XR.
+        // InnoLive는 한 번에 카메라 하나만 캡처한다. SDK 기본값인 공유 MultiCam 세션은
+        // iPhone XR 같은 기기에서 단일 카메라로는 문제없는 포맷도 거부한다.
         let captureSession = AVCaptureSession()
         captureSession.automaticallyConfiguresApplicationAudioSession = false
         let capturer = LKRTCCameraVideoCapturer(delegate: frameRelay, captureSession: captureSession)
@@ -328,7 +328,7 @@ extension WebRTCVideoUplink {
                 }
             }
         }
-        // The SDK can complete with nil even when AVCaptureSession rejected the format.
+        // AVCaptureSession이 포맷을 거부해도 SDK는 nil로 완료할 수 있다.
         guard capturer.captureSession.isRunning else {
             await stopCapture(capturer)
             throw WebRTCVideoUplinkError.failed(String(localized: "카메라 영상을 준비하지 못했습니다. 다시 시도해 주세요."))
@@ -594,9 +594,9 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
             lockedOrientation: lockedOrientation,
             cameraPosition: currentCameraPosition
         )
-        // A raw recorder takes camera input before color correction or either AI processing route.
-        // A protected recorder takes only anonymized processor output below, never this frame.
-        // The session coordinator owns attachment and detaches before finalization.
+        // raw recorder는 색 보정이나 어느 AI 처리 경로도 거치기 전의 카메라 입력을 받는다.
+        // protected recorder는 아래의 비식별화된 processor 출력만 받고 이 프레임은 받지 않는다.
+        // 연결은 세션 coordinator가 맡고, 마무리 전에 분리한다.
         if recorder?.source == .raw, let buffer = (outgoing.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
             #if DEBUG
             deliveryObserver?(buffer, Int(outgoing.rotation.rawValue), outgoing.timeStampNs)
@@ -701,7 +701,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     func setLocalAnonymizationEnabled(_ enabled: Bool) { processor.setEnabled(enabled) }
     func prepareLocalProcessing() async throws { try await processor.prepare() }
     func setProcessingMode(_ mode: AIProcessingMode) {
-        // Start protected before publishing the new route. Invalidate previous local work first.
+        // 새 경로를 반영하기 전에 보호 처리부터 켠다. 이전 로컬 작업은 먼저 무효화한다.
         processor.setEnabled(true)
         route.change(to: mode)
     }

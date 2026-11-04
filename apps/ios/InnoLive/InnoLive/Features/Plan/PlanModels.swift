@@ -61,7 +61,7 @@ struct UserUsage: Codable, Equatable {
     let deviceLimitSeconds: Int?
     fileprivate(set) var deviceUsedSeconds: Int?
     fileprivate(set) var deviceRemainingSeconds: Int?
-    /// Local take seconds already inside `deviceUsedSeconds`. Nil from servers before the local take endpoint.
+    /// `deviceUsedSeconds`에 이미 포함된 로컬 촬영 시간(초)이다. 로컬 촬영 엔드포인트가 없던 서버에서는 nil이다.
     let deviceLocalSeconds: Int?
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -85,7 +85,7 @@ struct UserUsage: Codable, Equatable {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid device usage"))
         }
     }
-    /// Writes the server's shape back, keeping which optional keys were present so a cached copy decodes the same.
+    /// 서버 응답 형태 그대로 다시 쓴다. 어떤 선택 키가 있었는지도 유지해 캐시 사본이 똑같이 디코딩되게 한다.
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(plan, forKey: .plan)
@@ -166,10 +166,10 @@ struct ModeAvailability: Codable, Equatable {
 struct PlanSnapshot: Equatable {
     let plan: UserPlan
     let usage: UserUsage
-    /// Local take seconds on this device that the server has not counted yet. Already inside `usage`.
+    /// 서버가 아직 집계하지 않은 이 기기의 로컬 촬영 시간(초)이다. 이미 `usage`에 들어 있다.
     private(set) var pendingLocalSeconds = 0
 
-    /// Counts pending takes that started in the usage month (KST), so device numbers match the server after upload.
+    /// 사용량 기준 월(KST)에 시작한 대기 중 촬영만 세어, 업로드 뒤에도 기기 수치가 서버와 맞게 한다.
     func addingPendingLocalTakes(_ takes: [LocalTakeUsage]) -> PlanSnapshot {
         let seconds = takes.filter { usage.month == nil || Self.ledgerMonth($0.startedAt) == usage.month }
             .reduce(0) { $0 + $1.durationSeconds }
@@ -226,7 +226,7 @@ struct PlanSnapshot: Equatable {
         isAllowed(mode, processing: processing)
             && availability(for: mode, processing: processing).map { $0.seconds == nil || $0.seconds! > 0 } == true
     }
-    // Missing additive fields are unknown: let the server validate instead of reporting exhaustion.
+    // 나중에 추가된 필드가 없으면 알 수 없는 값으로 본다. 소진으로 안내하지 않고 서버가 검증하게 둔다.
     func preparationBlockMessage(_ mode: BroadcastPlanMode, processing: AIProcessingMode) -> String? {
         if processing == .server && !supportsServerBroadcast {
             return String(localized: "이 요금제는 서버 송출을 지원하지 않습니다. 방송 준비를 취소한 뒤 온디바이스 방식을 선택해 주세요.")
@@ -270,7 +270,7 @@ enum PlanTimeText {
     }
 }
 
-// The same notices arrive through session polling and direct-publish heartbeat.
+// 같은 알림이 세션 폴링과 직접 송출 하트비트 양쪽으로 들어온다.
 extension BroadcastNotice {
     var planMessage: String? {
         switch code {

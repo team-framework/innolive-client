@@ -70,8 +70,8 @@ extension YouTubeIntegration {
                     throw WebRTCVideoUplinkError.failed(String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다."))
                 }
                 if requestedMode == .onDevice && !createdOnDevice {
-                    // Legacy servers expose a per-session AI switch. Verify it is off before
-                    // starting capture; an echoed request metadata field alone is not an acknowledgement.
+                    // 이전 서버는 세션마다 AI 스위치를 둔다. 캡처를 시작하기 전에 꺼졌는지 확인한다.
+                    // 요청 메타데이터 필드가 응답에 그대로 돌아온 것만으로는 확인으로 보지 않는다.
                     do {
                         let confirmed = try await api.toggleAnonymization(session: created, accessToken: accessToken, enabled: false)
                         guard confirmed.media.anonymizationEnabled == false else { throw YouTubeAPIError.response }

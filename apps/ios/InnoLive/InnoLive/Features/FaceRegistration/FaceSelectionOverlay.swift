@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Face-shaped outline: the Vision jawline, closed with a curve over the forehead.
+/// 얼굴 모양 윤곽선이다. Vision 턱선에 이마 위를 지나는 곡선을 이어 닫는다.
 enum FaceOutline {
-    /// Keeps the line just outside the face edge instead of cutting through the cheeks.
+    /// 선이 볼을 가로지르지 않고 얼굴 가장자리 바로 바깥에 놓이게 한다.
     private static let margin: CGFloat = 1.1
 
     static func path(for face: FaceSelectionCandidate, imageSize: CGSize, in viewSize: CGSize) -> Path {
@@ -21,14 +21,14 @@ enum FaceOutline {
 
         var path = Path()
         path.move(to: first)
-        // Smooth the jaw by curving through the midpoints between Vision's points.
+        // Vision 점들 사이의 중점을 지나는 곡선으로 턱선을 부드럽게 만든다.
         for index in 1..<(jaw.count - 1) {
             let next = jaw[index + 1]
             let mid = CGPoint(x: (jaw[index].x + next.x) / 2, y: (jaw[index].y + next.y) / 2)
             path.addQuadCurve(to: mid, control: jaw[index])
         }
         path.addLine(to: last)
-        // The jaw ends near the eyes; a cubic dome reaches roughly the hairline.
+        // 턱선은 눈 높이 근처에서 끝난다. 3차 곡선 돔으로 대략 머리선까지 덮는다.
         let top = min(first.y, last.y) - box.height * 0.6
         path.addCurve(
             to: first,
@@ -40,7 +40,7 @@ enum FaceOutline {
     }
 }
 
-/// Live outlines over the original camera. Only faces large enough to register are drawn.
+/// 원본 카메라 위에 실시간 윤곽선을 그린다. 등록할 수 있을 만큼 큰 얼굴만 그린다.
 struct FaceSelectionOverlay: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let faces: [FaceSelectionCandidate]
@@ -51,7 +51,7 @@ struct FaceSelectionOverlay: View {
         GeometryReader { proxy in
             TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
                 let opacity = outlineOpacity(at: context.date)
-                // Every outline is positioned in the full preview, so stack them, not list them.
+                // 윤곽선마다 미리보기 전체를 기준으로 위치를 잡으므로 나열하지 않고 겹쳐 쌓는다.
                 ZStack {
                     ForEach(Array(faces.enumerated()), id: \.offset) { index, face in
                         if face.isSelectable {

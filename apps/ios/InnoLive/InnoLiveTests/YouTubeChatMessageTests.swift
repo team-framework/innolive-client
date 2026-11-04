@@ -26,7 +26,7 @@ final class YouTubeChatMessageTests: XCTestCase {
         let coordinator = YouTubeViewerChatWebView.Coordinator(document: url, state: state)
         let configuration = WKWebViewConfiguration()
         let webView = YouTubeViewerChatWebView.makeWebView(coordinator: coordinator, configuration: configuration)
-        // Render local HTML through the real production script bridge, without a network request.
+        // 네트워크 요청 없이 실제 프로덕션 script bridge로 로컬 HTML을 렌더링한다.
         webView.navigationDelegate = nil
         webView.frame = CGRect(x: 0, y: 0, width: 340, height: 240)
         let window = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first?.windows.first)

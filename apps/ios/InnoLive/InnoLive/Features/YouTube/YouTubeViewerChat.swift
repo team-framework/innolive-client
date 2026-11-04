@@ -2,9 +2,9 @@ import Combine
 import SwiftUI
 import WebKit
 
-/// A chat document is scoped to one live YouTube video, never to an account token.
+/// 채팅 문서는 YouTube 라이브 영상 하나에만 묶인다. 계정 토큰에는 묶지 않는다.
 enum YouTubeViewerChatPolicy {
-    /// Home recreates the overlay for each started broadcast, so every broadcast opens with chat collapsed.
+    /// 홈은 방송을 시작할 때마다 오버레이를 새로 만든다. 그래서 모든 방송은 채팅이 접힌 상태로 열린다.
     static let startsHidden = true
 
     static func url(videoID: String?) -> URL? {
@@ -128,7 +128,7 @@ struct YouTubeViewerChatContent: View {
 
     var body: some View {
         ZStack {
-            // Keep the receiver running at a normal page size, behind native message rows.
+            // 수신용 웹뷰는 보통 페이지 크기로 네이티브 메시지 행 뒤에서 계속 돌린다.
             YouTubeViewerChatWebView(url: url, state: state)
                 .opacity(0)
                 .allowsHitTesting(false)
@@ -180,8 +180,8 @@ struct YouTubeViewerChatWebView: UIViewRepresentable {
         configuration.allowsInlineMediaPlayback = false
         configuration.mediaTypesRequiringUserActionForPlayback = .all
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        // Desktop content mode alone leaves out Safari's browser/version tokens.
-        // YouTube rejects that default WKWebView identity as an outdated browser.
+        // 데스크톱 콘텐츠 모드만으로는 Safari의 browser·version 토큰이 빠진다.
+        // YouTube는 이 기본 WKWebView 식별값을 오래된 브라우저로 보고 거부한다.
         let version = ProcessInfo.processInfo.operatingSystemVersion
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             + "AppleWebKit/605.1.15 (KHTML, like Gecko) "
@@ -282,7 +282,7 @@ struct YouTubeViewerChatWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            // Keep login, links, new windows and custom schemes out of this viewing surface.
+            // 로그인, 링크, 새 창, 커스텀 scheme은 이 보기 화면에서 열지 않는다.
             let allowed = navigationAction.targetFrame?.isMainFrame == true
                 && navigationAction.navigationType != .linkActivated
                 && navigationAction.navigationType != .formSubmitted

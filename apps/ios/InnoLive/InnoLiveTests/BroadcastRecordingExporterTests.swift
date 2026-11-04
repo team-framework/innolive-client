@@ -174,8 +174,8 @@ final class BroadcastRecordingExporterTests: XCTestCase {
     }
 }
 
-/// Generates a real H.264/AAC file through the recorder, without account, network or mic access.
-/// SimulatorFixture.mp4 has video only and cannot cover the combined export contract.
+/// 계정·네트워크·마이크 접근 없이 recorder로 실제 H.264/AAC 파일을 만든다.
+/// SimulatorFixture.mp4는 영상만 있어 영상과 음성을 합친 내보내기 계약을 검증할 수 없다.
 @MainActor
 enum ExportToneFixture {
     static func write(to url: URL, videoUntil: Double = .infinity) async throws {

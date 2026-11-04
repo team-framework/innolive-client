@@ -56,7 +56,7 @@ extension YouTubeAPI {
                           body: Optional<YouTubeEmptyRequest>.none)
     }
 
-    /// Returns the take IDs the server stored or already had.
+    /// 서버가 저장했거나 이미 가지고 있던 촬영 ID를 돌려준다.
     func uploadLocalTakes(_ takes: [LocalTakeUsage], accessToken: String) async throws -> [UUID] {
         guard let url = serverURLProvider("/users/me/usage/local-takes") else { throw YouTubeAPIError.configuration }
         var request = URLRequest(url: url)

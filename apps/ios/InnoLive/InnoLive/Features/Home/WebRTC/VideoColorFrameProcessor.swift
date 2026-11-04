@@ -2,7 +2,7 @@ import CoreImage
 import CoreVideo
 @preconcurrency import LiveKitWebRTC
 
-/// Processes one frame at a time on the caller's serial video-processing queue.
+/// 호출자의 직렬 영상 처리 큐에서 한 번에 한 프레임씩 처리한다.
 nonisolated final class VideoColorFrameProcessor: @unchecked Sendable {
     enum ProcessingError: Error {
         case invalidAdjustment

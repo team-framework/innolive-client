@@ -108,10 +108,10 @@ struct BroadcastRecordingExportSheet: View {
                     exporter.release(output)
                     return
                 }
-                // Keep previous shared exports alive: ShareLink does not expose completion.
+                // ShareLink는 공유 완료를 알려 주지 않으므로 앞서 공유한 내보내기 파일을 지우지 않고 둔다.
                 package = output
             } catch is CancellationError {
-                // Source remains available and the next format selection retries the operation.
+                // 원본은 그대로 남아 있고, 다음에 형식을 고르면 작업을 다시 시도한다.
             } catch {
                 errorMessage = error.localizedDescription
             }

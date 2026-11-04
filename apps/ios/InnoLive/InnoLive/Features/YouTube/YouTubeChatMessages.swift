@@ -67,8 +67,8 @@ struct YouTubeChatMessageList: View {
     }
 }
 
-/// Extract text in an isolated JavaScript world; page HTML is never rendered by SwiftUI.
-/// YouTube owns these DOM selectors, so live reception must be rechecked when its page changes.
+/// 격리된 JavaScript world에서 텍스트만 뽑는다. 페이지 HTML은 SwiftUI로 렌더링하지 않는다.
+/// 이 DOM 선택자는 YouTube가 정하므로 페이지가 바뀌면 실시간 수신을 다시 확인해야 한다.
 enum YouTubeChatBridge {
     static let name = "viewerChatMessages"
     static let script = #"""

@@ -11,7 +11,7 @@ struct BroadcastRecordingLibraryView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var recordingToDelete: SavedBroadcastRecording?
     @State private var deletionError: String?
-    // Export is added in the next feature; callers can supply the verified file URL.
+    // 내보내기는 다음 기능에서 추가한다. 호출부가 검증된 파일 URL을 넘겨받을 수 있다.
     var onExport: ((URL) -> Void)?
 
     var body: some View {

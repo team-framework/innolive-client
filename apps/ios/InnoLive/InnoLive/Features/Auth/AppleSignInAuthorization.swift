@@ -2,7 +2,7 @@ import AuthenticationServices
 import Combine
 import SwiftUI
 
-/// Uses Apple's native button without starting authorization before consent.
+/// Apple 기본 버튼을 쓰되 동의 전에는 인증을 시작하지 않는다.
 struct ConsentAppleSignInButton: UIViewRepresentable {
     let style: ASAuthorizationAppleIDButton.Style
     let action: () -> Void
@@ -55,7 +55,7 @@ final class AppleSignInAuthorization: NSObject, ObservableObject,
     }
 
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        // The window is retained for the lifetime of this authorization request.
+        // 이 인증 요청이 끝날 때까지 창을 붙잡아 둔다.
         guard let anchor else {
             preconditionFailure("Apple authorization requires a presentation window")
         }

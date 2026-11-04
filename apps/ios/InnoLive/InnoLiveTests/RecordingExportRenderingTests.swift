@@ -84,7 +84,7 @@ final class RecordingExportRenderingTests: XCTestCase {
                 scroll.setContentOffset(CGPoint(x: -scroll.adjustedContentInset.left, y: bottom), animated: false)
                 scroll.layoutIfNeeded()
                 XCTAssertEqual(scroll.contentOffset.y, bottom, accuracy: 1, "The last action must remain reachable")
-                // Capture the action area for accessibility sizes; default captures the full result.
+                // 접근성 글자 크기에서는 동작 영역을 캡처하고, 기본 크기에서는 결과 전체를 캡처한다.
                 if textSize == .large { scroll.setContentOffset(CGPoint(x: 0, y: -scroll.adjustedContentInset.top), animated: false) }
             }
         }
@@ -117,8 +117,8 @@ final class RecordingExportRenderingTests: XCTestCase {
         return try XCTUnwrap(saved)
     }
 
-    /// Deterministic 0.3-second media, including real encoded silent audio samples.
-    /// This fixture verifies saved-file UI and is not hardware capture evidence.
+    /// 실제로 인코딩한 무음 오디오 샘플을 포함한 0.3초짜리 고정 미디어다.
+    /// 저장된 파일 UI를 확인하는 fixture이며 하드웨어 캡처 근거가 아니다.
     func feed(_ recorder: LocalBroadcastRecorder) async throws {
         let base = CMClockGetTime(CMClockGetHostTimeClock())
         let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000, channels: 2, interleaved: false))

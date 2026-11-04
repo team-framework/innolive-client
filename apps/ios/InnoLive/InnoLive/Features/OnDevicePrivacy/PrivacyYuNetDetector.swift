@@ -2,12 +2,12 @@ import Foundation
 import CoreML
 import CoreImage
 
-/// Port of OpenCV FaceDetectorYN's stride decoding and integer-box NMS.
+/// OpenCV FaceDetectorYN의 stride 디코딩과 정수 박스 NMS를 옮긴 코드다.
 /// Source: opencv/modules/objdetect/src/face_detect.cpp (Apache-2.0).
 nonisolated enum PrivacyYuNetDecoding {
     struct Face {
-        let box: CGRect // top-left pixel coordinates
-        let landmarks: [CGPoint] // right eye, left eye, nose, right mouth, left mouth
+        let box: CGRect // 좌상단 원점 픽셀 좌표
+        let landmarks: [CGPoint] // 오른쪽 눈, 왼쪽 눈, 코, 오른쪽 입꼬리, 왼쪽 입꼬리
         let score: Float
     }
 
@@ -19,8 +19,8 @@ nonisolated enum PrivacyYuNetDecoding {
 
         init(size: CGSize, enrollment: Bool) {
             original = size
-            // Camera ROIs can contain faces much larger than YuNet's training range.
-            // Keep registration's existing 500px capture path; bound live query work.
+            // 카메라 ROI에는 YuNet 학습 범위보다 훨씬 큰 얼굴이 들어올 수 있다.
+            // 등록은 기존 500px 캡처 경로를 그대로 두고, 실시간 조회만 작업량을 제한한다.
             let scale = enrollment ? 1 : min(1, 320 / max(size.width, size.height))
             resized = CGSize(width: max(1, (size.width * scale).rounded()),
                              height: max(1, (size.height * scale).rounded()))
@@ -66,7 +66,7 @@ nonisolated enum PrivacyYuNetDecoding {
                                                width: CGFloat(w), height: CGFloat(h)), landmarks: points, score: score))
             }
         }
-        // OpenCV NMS uses Rect2i, score order and top_k=5000 before suppression.
+        // OpenCV NMS는 Rect2i를 쓰고, 억제 전에 점수 순으로 정렬해 top_k=5000개만 남긴다.
         func integerBox(_ box: CGRect) -> CGRect {
             CGRect(x: Int(box.minX), y: Int(box.minY), width: Int(box.width), height: Int(box.height))
         }
@@ -103,7 +103,7 @@ nonisolated final class PrivacyYuNetDetector {
             throw PrivacyFaceError.message(String(localized: "YuNet 모델이 없습니다. 모델을 포함해 빌드해 주세요."))
         }
         let config = MLModelConfiguration()
-        // Small, variable-size YuNet stays on CPU to avoid growing GPU shape caches.
+        // 작고 입력 크기가 바뀌는 YuNet은 GPU shape 캐시가 계속 커지지 않도록 CPU에서만 돌린다.
         config.computeUnits = .cpuOnly
         model = try MLModel(contentsOf: url, configuration: config)
         let metadata = model.modelDescription.metadata[.creatorDefinedKey] as? [String: String]
@@ -142,7 +142,7 @@ nonisolated final class PrivacyYuNetDetector {
                 values[key] = (0..<array.count).map { array[$0].floatValue }
             }
         }
-        // Server runs NMS at 0.6, then applies the higher enrollment score threshold.
+        // 서버는 점수 0.6 기준으로 NMS를 거친 뒤, 등록에는 더 높은 점수 임계값을 적용한다.
         let faces = try PrivacyYuNetDecoding.decode(outputs: values, width: width, height: height)
             .filter { $0.score >= (enrollment ? 0.9 : 0.6) }
         guard faces.count <= 1 else { throw PrivacyFaceSampleError.multipleFaces }

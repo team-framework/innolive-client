@@ -36,7 +36,7 @@ final class BroadcastFeedbackTests: XCTestCase {
     func testUplinkFailureAppearsOnlyAfterRecoveryAndStaysDismissed() async {
         youtube.videoUplink.fail("Connection lost")
 
-        // A transient uplink error must not appear before recovery publishes it again.
+        // 일시적인 업링크 오류는 복구 처리에서 다시 게시하기 전까지 보이면 안 된다.
         XCTAssertNil(controls().feedback)
 
         await youtube.recoverFromVideoUplinkFailure(accessToken: nil)

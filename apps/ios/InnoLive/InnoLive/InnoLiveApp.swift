@@ -32,7 +32,7 @@ struct InnoLiveApp: App {
     private var rootView: some View {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--privacy-performance-test-host") {
-            // The device benchmark owns capture. Do not start a second home-preview camera.
+            // 기기 벤치마크가 캡처를 맡는다. 홈 미리보기 카메라를 하나 더 켜지 않는다.
             Color.black
         } else if ProcessInfo.processInfo.arguments.contains("--studio-preview") {
             StudioValidationView()

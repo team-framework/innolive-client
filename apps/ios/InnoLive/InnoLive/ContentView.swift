@@ -38,14 +38,14 @@ struct ContentView: View {
                 youtube.dismissError()
                 let accessToken = authentication.currentAccessToken()
                 youtube.planStore.restore(accountID: OfflineGrant.accountID(fromAccessToken: accessToken))
-                // Local mode starts from the stored grant, so an offline launch never waits on the network.
+                // 로컬 모드는 저장된 이용 권한으로 시작하므로 오프라인으로 실행해도 네트워크를 기다리지 않는다.
                 if youtube.storedAdministrator(accessToken: accessToken) {
                     youtube.startLocalModeSupport { authentication.currentAccessToken() }
                 }
                 Task {
                     await youtube.refreshConnection(accessToken: accessToken, quietWhenUnreachable: true)
                     youtube.localTakeUploader.drain()
-                    // Renews the offline grant while the server is reachable. Local mode is admin-only.
+                    // 서버에 닿는 동안 오프라인 이용 권한을 갱신한다. 로컬 모드는 관리자 전용이다.
                     if await youtube.isAdministrator(accessToken: accessToken) {
                         youtube.startLocalModeSupport { authentication.currentAccessToken() }
                     }

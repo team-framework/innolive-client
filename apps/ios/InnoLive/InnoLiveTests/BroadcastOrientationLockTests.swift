@@ -148,8 +148,8 @@ final class BroadcastOrientationLockTests: XCTestCase {
 
     private func applicationSupportedMask(for window: UIWindow) -> UIInterfaceOrientationMask {
         let application = UIApplication.shared
-        // UIKit uses the delegate override first. UIApplication's method returns
-        // the Info.plist default and is only the fallback when no override exists.
+        // UIKit은 delegate 재정의를 먼저 쓴다. UIApplication의 메서드는 Info.plist 기본값을
+        // 돌려주므로 재정의가 없을 때만 대체값으로 쓴다.
         return application.delegate?.application?(
             application,
             supportedInterfaceOrientationsFor: window

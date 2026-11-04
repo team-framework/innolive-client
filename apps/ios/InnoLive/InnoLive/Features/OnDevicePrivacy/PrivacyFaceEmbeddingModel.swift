@@ -27,8 +27,8 @@ nonisolated final class PrivacyFaceEmbeddingModel {
     let recognizerLoadMilliseconds: Double
     let detectorLoadMilliseconds: Double
 
-    // iPhone 16 measurements: CPU/GPU loads and predicts faster for this ViT graph.
-    // Keep YuNet's separate CPU-only setting.
+    // iPhone 16에서 측정해 보니 이 ViT 그래프는 CPU/GPU 설정에서 로드와 예측이 더 빨랐다.
+    // YuNet은 따로 둔 CPU 전용 설정을 유지한다.
     init(computeUnits: MLComputeUnits = .cpuAndGPU) throws {
         let start = ProcessInfo.processInfo.systemUptime
         guard let url = Bundle.main.url(forResource: "PrivacyFaceRecognizer", withExtension: "mlmodelc") else {
@@ -85,7 +85,7 @@ nonisolated final class PrivacyFaceEmbeddingModel {
         return embedding
     }
 
-    /// Synthetic smoke test: exercises the real weights and runtime without capturing a person's image.
+    /// 합성 이미지로 하는 스모크 테스트다. 사람 이미지를 찍지 않고 실제 가중치와 런타임을 돌려 본다.
     @discardableResult
     func benchmarkPrediction(sample: Int = 0) throws -> [Float] {
         let bounds = CGRect(x: 0, y: 0, width: 112, height: 112)
@@ -121,7 +121,7 @@ nonisolated final class PrivacyFaceEmbeddingModel {
     }
 }
 
-/// One in-flight job and one result slot; no growing image queue.
+/// 진행 중인 작업 하나와 결과 슬롯 하나만 둔다. 이미지 큐가 계속 쌓이지 않는다.
 nonisolated final class PrivacyFaceWorker: @unchecked Sendable {
     struct Job: @unchecked Sendable {
         let id: UUID

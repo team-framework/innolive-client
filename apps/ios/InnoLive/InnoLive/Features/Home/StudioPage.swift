@@ -1,6 +1,6 @@
 import Foundation
 
-/// UI navigation only. Selecting a page never changes the broadcast lifecycle.
+/// 화면 이동 전용이다. 페이지를 골라도 방송 수명 주기는 바뀌지 않는다.
 enum StudioPage: Int, CaseIterable, Identifiable {
     case preview, basic, details
 

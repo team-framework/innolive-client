@@ -6,7 +6,7 @@ struct BroadcastEndOverlay: View {
     let phase: BroadcastLifecyclePhase
     let result: BroadcastLifecycleResult?
     var recording: BroadcastRecordingState = .idle
-    // Step 4 does not have a writer. Only its actual integration enables save status.
+    // 4단계에는 writer가 없다. 실제 연동 코드에서만 저장 상태를 켠다.
     var isRecordingEnabled = false
     let onClose: () -> Void
     var onPlay: ((URL) -> Void)?
@@ -184,12 +184,12 @@ struct BroadcastEndOverlay: View {
             guard !Task.isCancelled, savedURL == url else { return }
             thumbnail = UIImage(cgImage: image.image)
         } catch {
-            // A thumbnail failure must not hide a verified recording's export actions.
+            // 썸네일을 만들지 못해도 검증된 녹화의 내보내기 동작은 가리지 않는다.
         }
     }
 }
 
-/// Observe the nested lifecycle directly. Dismissal never cancels file finalization.
+/// 중첩된 lifecycle을 직접 관찰한다. 화면을 닫아도 파일 마무리는 취소되지 않는다.
 struct BroadcastEndPresentation: View {
     @ObservedObject var lifecycle: BroadcastLifecycle
     var isRecordingEnabled = false

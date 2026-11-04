@@ -7,8 +7,8 @@ import UIKit
 @preconcurrency import LiveKitWebRTC
 @testable import InnoLive
 
-/// Physical-device load test: production frame gate, render pool, rotation and two H.264 encoders.
-/// Input is a fixed public fixture; this does not measure camera capture or network delivery.
+/// 실기기 부하 테스트로 프로덕션 frame gate, render pool, 회전, H.264 인코더 2개를 검사한다.
+/// 입력은 고정된 공개 fixture라 카메라 캡처나 네트워크 전송은 측정하지 않는다.
 final class PrivacySustainedPerformanceTests: XCTestCase {
     @MainActor func testDirectPublishUsesProtectedLocalPreviewWithoutSignaling() async throws {
         #if targetEnvironment(simulator)
@@ -175,7 +175,7 @@ final class PrivacySustainedPerformanceTests: XCTestCase {
                 }
             }
         }
-        // Drain the single processing slot and asynchronous VideoToolbox callbacks.
+        // 하나뿐인 처리 슬롯과 비동기 VideoToolbox 콜백을 모두 비운다.
         try await processor.prepare()
         first.finish(); second.finish()
         let elapsed = ProcessInfo.processInfo.systemUptime - start

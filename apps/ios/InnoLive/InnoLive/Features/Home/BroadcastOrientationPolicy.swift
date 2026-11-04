@@ -98,9 +98,9 @@ nonisolated enum BroadcastOrientationPolicy {
         lockedOrientation != nil
     }
 
-    /// WebRTC `RTCCameraVideoCapturer` maps `UIDeviceOrientation`. Interface landscape
-    /// left/right is the inverse of device landscape left/right. Front and back cameras
-    /// differ for landscape because of the sensor mount.
+    /// WebRTC `RTCCameraVideoCapturer`는 `UIDeviceOrientation`을 기준으로 회전을 정한다. 인터페이스의
+    /// 가로 왼쪽·오른쪽은 기기의 가로 왼쪽·오른쪽과 반대다. 센서 장착 방향 때문에 가로에서는
+    /// 전면·후면 카메라 값이 다르다.
     static func videoRotation(
         interfaceOrientation: BroadcastInterfaceOrientation,
         cameraPosition: AVCaptureDevice.Position
@@ -130,7 +130,7 @@ nonisolated enum BroadcastOrientationPolicy {
         )
     }
 
-    /// Display-only horizontal flip for front-camera previews. Capture frames stay unmirrored.
+    /// 전면 카메라 미리보기에만 쓰는 화면 표시용 좌우 반전이다. 캡처 프레임은 반전하지 않는다.
     static func previewDisplayTransform(isUsingFrontCamera: Bool) -> CGAffineTransform {
         isUsingFrontCamera ? CGAffineTransform(scaleX: -1, y: 1) : .identity
     }

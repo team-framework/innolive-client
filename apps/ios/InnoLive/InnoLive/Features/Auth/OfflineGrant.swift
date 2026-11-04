@@ -1,18 +1,18 @@
 import Foundation
 import Security
 
-/// The last online confirmation of the account, used to keep admin-only local mode usable offline.
-/// Time is kept as estimated server time: the device clock plus the offset measured from the
-/// server's `Date` header, so a wrong device clock at sign-in cannot stretch the grant.
+/// 계정을 마지막으로 온라인에서 확인한 결과다. 관리자 전용 로컬 모드를 오프라인에서도 쓸 수 있게 한다.
+/// 시각은 추정 서버 시각으로 둔다. 기기 시계에 서버 `Date` 헤더로 잰 차이를 더한 값이라,
+/// 로그인할 때 기기 시계가 틀려도 이용 기간이 늘어나지 않는다.
 nonisolated struct OfflineGrant: Codable, Equatable, Sendable {
     static let length: TimeInterval = 14 * 24 * 60 * 60
 
     enum Status: Equatable, Sendable {
         case valid
         case expired
-        /// The device clock is earlier than a time this grant already observed.
+        /// 기기 시계가 이 이용 권한이 이미 확인한 시각보다 이르다.
         case clockRolledBack
-        /// The signed-in account is not the one the server confirmed.
+        /// 로그인한 계정이 서버가 확인한 계정과 다르다.
         case otherAccount
     }
 
@@ -23,7 +23,7 @@ nonisolated struct OfflineGrant: Codable, Equatable, Sendable {
     let serverClockOffset: TimeInterval
     private(set) var lastSeenServerTime: Date
 
-    /// `serverDate` is the response's `Date` header. Without it the device clock is used as is.
+    /// `serverDate`는 응답의 `Date` 헤더다. 없으면 기기 시계를 그대로 쓴다.
     init(accountID: String, isAdministrator: Bool, serverDate: Date?, receivedAt: Date) {
         self.accountID = accountID
         self.isAdministrator = isAdministrator
@@ -42,15 +42,15 @@ nonisolated struct OfflineGrant: Codable, Equatable, Sendable {
         return now < validUntil ? .valid : .expired
     }
 
-    /// The observed clock only moves forward, so setting it back later is detectable.
+    /// 확인한 시각은 앞으로만 움직이므로 나중에 시계를 되돌리면 알아챌 수 있다.
     func observing(_ deviceNow: Date) -> OfflineGrant {
         var next = self
         next.lastSeenServerTime = max(lastSeenServerTime, serverTime(at: deviceNow))
         return next
     }
 
-    /// The access token's `sub` claim, which the server sets to the account's user ID.
-    /// Read without verifying the signature: it only decides whether a grant on this device applies.
+    /// access token의 `sub` claim이다. 서버는 여기에 계정의 사용자 ID를 넣는다.
+    /// 서명은 검증하지 않고 읽는다. 이 값은 이 기기의 이용 권한을 적용할지만 정한다.
     static func accountID(fromAccessToken token: String?) -> String? {
         let parts = token?.split(separator: ".", omittingEmptySubsequences: false) ?? []
         guard parts.count == 3 else { return nil }
@@ -62,7 +62,7 @@ nonisolated struct OfflineGrant: Codable, Equatable, Sendable {
         return subject
     }
 
-    /// Parses an HTTP `Date` header (IMF-fixdate).
+    /// HTTP `Date` 헤더(IMF-fixdate)를 파싱한다.
     static func serverDate(fromHTTPDate value: String?) -> Date? {
         guard let value else { return nil }
         let formatter = DateFormatter()
@@ -72,8 +72,8 @@ nonisolated struct OfflineGrant: Codable, Equatable, Sendable {
         return formatter.date(from: value)
     }
 
-    /// A new local take needs only an administrator grant for this account. An expired or
-    /// clock-rolled-back grant keeps local recording working and is renewed by the next online check.
+    /// 새 로컬 촬영에는 이 계정의 관리자 이용 권한만 있으면 된다. 기간이 지났거나 시계가 되돌려진
+    /// 이용 권한이어도 로컬 녹화는 계속되고, 다음 온라인 확인 때 갱신된다.
     func allowsLocalTake(at deviceNow: Date, accountID: String?) -> Bool {
         isAdministrator && status(at: deviceNow, accountID: accountID) != .otherAccount
     }

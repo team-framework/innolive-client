@@ -27,7 +27,7 @@ nonisolated struct LocalBroadcastRecordingResult: Sendable {
     let duration: TimeInterval
 }
 
-/// A recorder instance belongs to one broadcast. All writer state lives on its queue.
+/// recorder 인스턴스 하나는 방송 하나에만 쓴다. writer 상태는 모두 이 인스턴스의 큐에서 다룬다.
 nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
     private enum Phase { case idle, recording, finishing, finished }
     private struct AudioPacket: @unchecked Sendable { let buffer: AVAudioPCMBuffer; let time: CMTime }
@@ -81,7 +81,7 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
     private var lastAudioEnd = CMTime.invalid
     private var lastMediaEnd = CMTime.zero
 
-    /// A supplied epoch is useful for deterministic tests. Production uses the host clock.
+    /// epoch를 직접 넘기면 결정적인 테스트를 만들 수 있다. 실제 앱은 호스트 시계를 쓴다.
     func start(url: URL, epoch: CMTime = CMClockGetTime(CMClockGetHostTimeClock())) throws {
         try lock.withLock {
             guard phase == .idle else { throw LocalBroadcastRecordingError.alreadyStarted }
@@ -114,8 +114,8 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
         }
     }
 
-    /// Input must be normalized Float32, non-interleaved, 48 kHz stereo.
-    /// Copy before returning because capture engines reuse their memory.
+    /// 입력은 정규화된 Float32, non-interleaved, 48 kHz 스테레오여야 한다.
+    /// 캡처 엔진이 버퍼 메모리를 재사용하므로 반환하기 전에 복사한다.
     func appendAudio(_ buffer: AVAudioPCMBuffer, when: AVAudioTime) {
         let accepted = lock.withLock { () -> Bool in
             guard phase == .recording, admissionFailure == nil else { return false }
@@ -185,7 +185,7 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
         timer.resume()
     }
 
-    /// Drain a bounded batch. Not-ready is temporary backpressure, not a capture failure.
+    /// 정해진 개수만큼만 꺼내 기록한다. 입력이 준비되지 않은 것은 일시적인 backpressure이지 캡처 실패가 아니다.
     private func pumpAudio() {
         if failure == nil, let admissionFailure = lock.withLock({ admissionFailure }) { failRecording(admissionFailure) }
         guard failure == nil else {
@@ -203,8 +203,8 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
                 let rawTime = CMTimeMaximum(.zero, CMTimeSubtract(packet.time, epoch))
                 let covered = lastAudioEnd.isValid ? lastAudioEnd : CMTime.zero
                 let delta = CMTimeGetSeconds(CMTimeSubtract(rawTime, covered))
-                // Suppress small host timestamp jitter without repeatedly inserting tiny silences.
-                // Real route interruptions larger than 3 ms retain their wall-clock duration.
+                // 호스트 타임스탬프의 작은 흔들림은 짧은 무음을 거듭 끼워 넣지 않고 흡수한다.
+                // 3 ms보다 긴 실제 오디오 경로 끊김은 실제 경과 시간만큼 길이를 유지한다.
                 if delta > 0.003 {
                     let count = AVAudioFrameCount(min(4_800, max(1, Int64((delta * 48_000).rounded()))))
                     guard let silence = AVAudioPCMBuffer(pcmFormat: packet.buffer.format, frameCapacity: count),
@@ -226,7 +226,7 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
         }
     }
 
-    /// Admission may run on the real-time capture thread. Only enqueue one failure report.
+    /// 입력 수락은 실시간 캡처 스레드에서 돌 수 있다. 실패 보고는 한 번만 큐에 넣는다.
     private func scheduleAdmissionFailureIfNeeded() {
         let error = lock.withLock { () -> LocalBroadcastRecordingError? in
             guard !admissionFailureScheduled, let admissionFailure else { return nil }
@@ -377,8 +377,8 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
     }
 
     private func fitted(_ buffer: CVPixelBuffer, width: Int, height: Int) throws -> CVPixelBuffer {
-        // The writer's output dimensions stay fixed for this recorder's lifetime.
-        // The pool reuses buffers only after their previous writer references are released.
+        // writer의 출력 크기는 이 recorder가 살아 있는 동안 바뀌지 않는다.
+        // pool은 앞서 writer가 잡고 있던 참조가 풀린 버퍼만 다시 쓴다.
         if fittedBufferPool == nil {
             let attributes: [CFString: Any] = [
                 kCVPixelBufferWidthKey: width,

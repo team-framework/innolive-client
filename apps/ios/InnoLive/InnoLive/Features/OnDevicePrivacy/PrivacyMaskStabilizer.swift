@@ -1,8 +1,8 @@
 import Foundation
 import CoreGraphics
 
-/// Server policy: current detector masks plus a predicted mask for one lost frame.
-/// Cache by BoT-SORT ID, never by detection-array position or a second IoU match.
+/// 서버 정책을 따른다. 현재 검출기 마스크에, 한 프레임 놓친 트랙의 예측 마스크를 더한다.
+/// 캐시 키는 BoT-SORT ID만 쓰고, 검출 배열 위치나 별도 IoU 매칭으로 캐시하지 않는다.
 nonisolated final class PrivacyMaskStabilizer {
     private struct Cached {
         let box: CGRect
@@ -28,7 +28,7 @@ nonisolated final class PrivacyMaskStabilizer {
                   !(cached.classID == 0 && approvedTrackIDs.contains(lost.trackID)),
                   !currentBoxes.contains(where: { PrivacySegmentation.iou($0, lost.box) >= 0.5 }) else { continue }
             let held = Self.warp(cached.bytes, from: cached.box, to: lost.box)
-            // Server decays the confidence metadata by 0.90, not mask opacity.
+            // 서버는 마스크 불투명도가 아니라 신뢰도 메타데이터를 0.90배로 줄인다.
             for index in bytes.indices { bytes[index] = max(bytes[index], held[index]) }
         }
         let liveIDs = Set(frame.observations.map(\.trackID) + frame.lost.filter { $0.gap <= 30 }.map(\.trackID))

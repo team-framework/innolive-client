@@ -166,7 +166,7 @@ final class YouTubeAPI: PlanAPIClient {
         guard !(200..<300).contains(response.statusCode) else { return }
         let envelope = try? JSONDecoder().decode(YouTubeAPIErrorEnvelope.self, from: data)
         #if DEBUG
-        // Record only known public error identifiers, never response bodies or request credentials.
+        // 알려진 공개 오류 식별자만 기록한다. 응답 본문이나 요청 자격 증명은 기록하지 않는다.
         let probeCodes: Set<String> = ["streaming_rate_limited", "streaming_quota_exceeded",
             "broadcast_prepared", "broadcast_live", "streaming_reconnect_required", "streaming_prepare_failed"]
         let probeCode = envelope?.error.code ?? "unknown"

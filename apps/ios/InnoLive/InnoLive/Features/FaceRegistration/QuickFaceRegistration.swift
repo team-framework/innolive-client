@@ -2,7 +2,7 @@ import AVFoundation
 import SwiftUI
 
 extension WebRTCVideoUplink {
-    /// Face registration waits until the uplink camera can hand over its frames.
+    /// 업링크 카메라가 프레임을 넘겨줄 수 있을 때까지 얼굴 등록을 기다리게 한다.
     var isFaceRegistrationCameraTransitioning: Bool {
         isSwitchingCamera
             || isReleasingCamera
@@ -10,7 +10,7 @@ extension WebRTCVideoUplink {
     }
 }
 
-/// The name one-tap registration gives a new person, such as "10월 17일 오후 3시 - 게스트".
+/// 원탭 등록이 새 사람에게 붙이는 이름이다. 예: "10월 17일 오후 3시 - 게스트".
 enum GuestFaceName {
     static func make(
         at date: Date = .now,
@@ -25,7 +25,7 @@ enum GuestFaceName {
     }
 }
 
-/// Home-screen toggle for face selection. Selecting swaps the original and broadcast views.
+/// 홈 화면의 얼굴 선택 토글이다. 선택하는 동안 원본 화면과 송출 화면을 맞바꾼다.
 struct QuickFaceRegistrationButton: View {
     @Environment(CameraManager.self) private var cameraManager
     @ObservedObject var videoUplink: WebRTCVideoUplink
@@ -68,8 +68,8 @@ struct QuickFaceRegistrationButton: View {
     }
 }
 
-/// Takes the home screen's main area while selecting: the original camera with face outlines.
-/// A tap hands the face to `onSelect` and selection ends; registration continues elsewhere.
+/// 선택하는 동안 홈 화면의 메인 영역을 차지하고 원본 카메라 위에 얼굴 윤곽선을 보여 준다.
+/// 얼굴을 탭하면 `onSelect`로 넘기고 선택을 끝낸다. 등록은 다른 곳에서 이어서 진행한다.
 struct FaceSelectionLayer: View {
     @Environment(CameraManager.self) private var cameraManager
     @StateObject private var model = QuickFaceRegistrationViewModel()
@@ -84,7 +84,7 @@ struct FaceSelectionLayer: View {
             ZStack {
                 Color.black
 
-                // Both show the camera before anonymization; the broadcast output is unchanged.
+                // 둘 다 비식별화 전 카메라 화면을 보여 준다. 송출 영상은 바뀌지 않는다.
                 if usesUplinkCamera {
                     WebRTCFaceRegistrationPreview(videoUplink: videoUplink)
                 } else {
@@ -200,7 +200,7 @@ struct FaceSelectionLayer: View {
     }
 }
 
-/// Background registration progress on the home screen after a face was tapped.
+/// 얼굴을 탭한 뒤 홈 화면에 백그라운드 등록 진행 상황을 보여 준다.
 struct GuestRegistrationToast: View {
     @ObservedObject var registrar: GuestFaceRegistrar
     let onReselect: () -> Void

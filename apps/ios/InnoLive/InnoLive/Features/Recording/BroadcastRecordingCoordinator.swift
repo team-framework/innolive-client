@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-/// Couples confirmed broadcast lifetime to one local writer, without making recording errors stop live video.
+/// 확정된 방송의 수명을 로컬 writer 하나에 묶는다. 녹화 오류가 나도 라이브 영상은 멈추지 않는다.
 @MainActor
 final class BroadcastRecordingCoordinator: ObservableObject {
     nonisolated deinit {}
@@ -26,8 +26,8 @@ final class BroadcastRecordingCoordinator: ObservableObject {
         self.attachSink = attachSink
     }
 
-    /// Only call immediately before the initial go-live request, after the countdown has completed.
-    /// Additional platforms share the active recorder.
+    /// 카운트다운이 끝난 뒤 첫 go-live 요청 바로 직전에만 호출한다.
+    /// 나중에 추가한 플랫폼은 진행 중인 recorder를 함께 쓴다.
     func arm(sessionID: CaptureSessionID, source: RecordingSource = .raw, mosaic: OnDeviceMosaicSettings? = nil) {
         guard active == nil, lifecycle.phase == .starting else { return }
         notice = nil
@@ -46,13 +46,13 @@ final class BroadcastRecordingCoordinator: ObservableObject {
             attachSink(recorder)
             lifecycle.recordingStarted(generation: generation)
         } catch {
-            // Keep an attempted binding so a second platform cannot start a different file mid-broadcast.
+            // 시도한 바인딩을 남겨 두어 방송 도중 두 번째 플랫폼이 다른 파일을 시작하지 못하게 한다.
             active = Active(sessionID: sessionID, generation: generation, recorder: nil)
             reportFailure(error, generation: generation)
         }
     }
 
-    /// Call after authoritative response application and after filtering transient mode/reconnect states.
+    /// 서버의 확정 응답을 반영하고 일시적인 모드 전환·재연결 상태를 걸러 낸 뒤에 호출한다.
     func reconcile(targets: Set<String>, sessionID: CaptureSessionID) {
         guard var binding = active, binding.sessionID == sessionID else { return }
         if !targets.isEmpty {
@@ -65,7 +65,7 @@ final class BroadcastRecordingCoordinator: ObservableObject {
         }
         do { try store.reconcileTargets(targets, sessionID: sessionID.recordingKey) }
         catch { reportFailure(error, generation: binding.generation); return }
-        // Empty while starting is not evidence of a finished broadcast.
+        // 시작 중에 대상이 비어 있다고 해서 방송이 끝났다고 볼 수는 없다.
         if targets.isEmpty && binding.confirmedLive { finalize(binding, forceLocalEnd: false) }
     }
 
@@ -83,8 +83,8 @@ final class BroadcastRecordingCoordinator: ObservableObject {
         } catch { reportFailure(error, generation: binding.generation) }
     }
 
-    /// Call after local capture is stopped, or synchronously at reset before replacing its media bindings.
-    /// A locally stopped file can be saved even when the remote stop acknowledgement failed.
+    /// 로컬 캡처를 멈춘 뒤에 호출하거나, reset에서 미디어 바인딩을 교체하기 전에 동기로 호출한다.
+    /// 원격 종료 확인이 실패해도 로컬에서 멈춘 파일은 저장할 수 있다.
     func endLocally() {
         guard let binding = active else { return }
         guard binding.confirmedLive else {
@@ -94,7 +94,7 @@ final class BroadcastRecordingCoordinator: ObservableObject {
         finalize(binding, forceLocalEnd: true)
     }
 
-    /// Reset presentation immediately; already-confirmed files may still finish in the library.
+    /// 화면 표시는 바로 초기화한다. 이미 확정된 파일은 그 뒤에도 라이브러리에 저장을 마칠 수 있다.
     func reset() {
         endLocally()
         notice = nil
@@ -114,14 +114,14 @@ final class BroadcastRecordingCoordinator: ObservableObject {
         defer { observation.cancel() }
         do {
             let saved = try await store.retryFinalization()
-            // A finite background lease may expire before the verified commit finishes.
+            // 시간이 정해진 백그라운드 lease는 검증된 커밋이 끝나기 전에 만료될 수 있다.
             lifecycle.recordingFinalizing(generation: generation)
             lifecycle.recordingSaved(store.fileURL(for: saved), generation: generation)
             if lifecycle.isCurrent(generation) { notice = nil }
         } catch { reportFailure(error, generation: generation) }
     }
 
-    /// Test and shutdown diagnostics can wait for work without changing the UI lifetime.
+    /// 테스트와 종료 진단에서 UI 수명을 바꾸지 않고 남은 작업을 기다릴 수 있다.
     func waitForPendingWork() async {
         while !pending.isEmpty {
             let tasks = Array(pending.values)
@@ -145,7 +145,7 @@ final class BroadcastRecordingCoordinator: ObservableObject {
                 defer { observation.cancel() }
                 do {
                     let saved = try await task.value
-                    // The store has decoded actual audio and video samples before reporting saved.
+                    // store는 저장 완료를 알리기 전에 실제 음성·영상 샘플을 디코딩해 확인했다.
                     self.lifecycle.recordingFinalizing(generation: binding.generation)
                     self.lifecycle.recordingSaved(self.store.fileURL(for: saved), generation: binding.generation)
                     if self.lifecycle.isCurrent(binding.generation) { self.notice = nil }
@@ -160,8 +160,8 @@ final class BroadcastRecordingCoordinator: ObservableObject {
         }
     }
 
-    /// Store state is published synchronously on MainActor. Observe only this operation's
-    /// new values, so an earlier failed session cannot leak into a new finalization.
+    /// store 상태는 MainActor에서 동기로 발행된다. 이 작업 이후의 새 값만 관찰해서
+    /// 앞서 실패한 세션의 상태가 새 마무리 저장에 섞이지 않게 한다.
     private func observeFinalizationFailure(generation: UInt) -> AnyCancellable {
         store.$state.dropFirst().sink { [weak self] state in
             guard let self, self.lifecycle.isCurrent(generation),

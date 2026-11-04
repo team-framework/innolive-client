@@ -6,9 +6,9 @@ import XCTest
 
 @testable import InnoLive
 
-/// Hosted tests exercise the real SwiftUI views on the selected device and keep
-/// their rendered images in the xcresult. They never activate account actions or
-/// start a broadcast. Network-backed models use an empty, isolated session.
+/// 호스트 앱에서 도는 테스트로, 선택한 기기에서 실제 SwiftUI 뷰를 그리고 렌더링한 이미지를
+/// xcresult에 남긴다. 계정 동작을 실행하거나 방송을 시작하지 않는다.
+/// 네트워크를 쓰는 모델은 비어 있는 격리 세션을 쓴다.
 @MainActor
 final class IOSCompatibilityRenderingTests: XCTestCase {
     func testSignInRendersInLightAndDarkAppearance() async throws {
@@ -247,8 +247,8 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         defer { fixture.removePreferences() }
 
         for appearance in appearances {
-            // The empty token store stops ReferenceFaceAPI before any network request.
-            // This covers the registration form and signed-out error, not stored faces.
+            // 토큰 저장소가 비어 있어 ReferenceFaceAPI는 네트워크 요청 전에 멈춘다.
+            // 등록 폼과 로그아웃 상태 오류만 확인하고, 저장된 얼굴은 확인하지 않는다.
             try await render("face-management-signed-out", appearance: appearance,
                              title: String(localized: "얼굴 관리")) {
                 FaceManagementView(authentication: fixture.authentication,
@@ -270,7 +270,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         XCTAssertFalse(fixture.youtube.videoUplink.isFaceRegistrationCameraTransitioning)
 
         for appearance in appearances {
-            // Mirrors the home screen's top-trailing column without starting the camera.
+            // 카메라를 켜지 않고 홈 화면 오른쪽 위(top-trailing) 열을 그대로 재현한다.
             try await render("quick-face-registration-button", appearance: appearance) {
                 ScrollView {
                     ZStack(alignment: .topTrailing) {
@@ -305,7 +305,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         let faces = [
             FaceSelectionCandidate(rect: CGRect(x: 0.12, y: 0.42, width: 0.26, height: 0.15), isSelectable: true,
                                    contour: (0...16).map { index in
-                                       // A jaw-shaped arc from ear to ear under the face box.
+                                       // 얼굴 박스 아래로 양쪽 귀를 잇는 턱 모양 호
                                        let angle = Double.pi * Double(index) / 16
                                        return CGPoint(x: 0.25 - 0.13 * cos(angle), y: 0.47 + 0.095 * sin(angle))
                                    }),
@@ -392,7 +392,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
             previousKeyWindow?.makeKeyAndVisible()
         }
 
-        // Yield to SwiftUI's first render, navigation layout, and onAppear tasks.
+        // SwiftUI의 첫 렌더링, 내비게이션 레이아웃, onAppear 작업이 돌도록 양보한다.
         try await Task.sleep(for: .milliseconds(350))
         controller.view.layoutIfNeeded()
         window.layoutIfNeeded()
@@ -426,7 +426,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
 
-        // Capture before assertions so an unexpected control layout is reviewable.
+        // 컨트롤 배치가 예상과 달라도 확인할 수 있도록 assert하기 전에 캡처한다.
         try inspect(window)
     }
 

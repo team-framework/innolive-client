@@ -48,8 +48,8 @@ extension YouTubeIntegration {
             if mode == .onDevice {
                 try await videoUplink.prepareLocalProcessing()
                 guard generation == sessionOperationGeneration, session?.sessionID == current.sessionID else { return false }
-                // Protect all subsequent camera frames before disabling the server's AI.
-                // On an ambiguous HTTP failure this path remains protected and retryable.
+                // 서버 AI를 끄기 전에 이후의 모든 카메라 프레임을 보호한다.
+                // HTTP 실패로 결과가 불분명해도 이 경로는 보호된 상태로 남고 다시 시도할 수 있다.
                 videoUplink.setAIProcessingMode(.onDevice, anonymizationEnabled: true)
                 session?.clientProcessingMode = .onDevice
                 isAnonymizationEnabled = true

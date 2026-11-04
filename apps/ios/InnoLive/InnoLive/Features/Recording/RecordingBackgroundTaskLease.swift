@@ -10,7 +10,7 @@ import UIKit
 
 typealias RecordingBackgroundLeaseFactory = @MainActor (String, @escaping @MainActor () -> Void) -> any RecordingBackgroundLease
 
-/// A finite UIKit assertion, not a promise that iOS will permit arbitrary background recording.
+/// 시간이 정해진 UIKit 백그라운드 작업 요청일 뿐, iOS가 백그라운드 녹화를 제한 없이 허용한다는 보장은 아니다.
 @MainActor final class RecordingBackgroundTaskLease: RecordingBackgroundLease {
     nonisolated deinit {}
     private(set) var isExpired = false
@@ -24,12 +24,12 @@ typealias RecordingBackgroundLeaseFactory = @MainActor (String, @escaping @MainA
         self.onExpiration = onExpiration
         #if canImport(UIKit)
         identifier = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
-            // UIKit delivers expiry on main; explicitly hop to the actor for Swift concurrency.
+            // UIKit은 만료를 main에서 알려 주지만 Swift 동시성을 위해 actor로 명시적으로 넘어간다.
             Task { @MainActor [weak self] in self?.expire() }
         }
         if identifier == .invalid {
-            // No background time was granted. Foreground work may still finish normally.
-            // Expiry is not fabricated here; actual completion must still pass file validation.
+            // 백그라운드 시간을 받지 못했다. 포그라운드 작업은 그래도 정상적으로 끝날 수 있다.
+            // 여기서 만료를 꾸며 내지 않는다. 실제로 끝난 작업도 파일 검증은 통과해야 한다.
         }
         #endif
     }

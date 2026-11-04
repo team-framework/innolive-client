@@ -19,7 +19,7 @@ enum BroadcastRecordingExportError: LocalizedError {
     }
 }
 
-/// Owns only its UUID export folders. Never removes the app's recording source.
+/// 자기가 만든 UUID 내보내기 폴더만 관리한다. 앱의 녹화 원본은 절대 지우지 않는다.
 @MainActor
 final class BroadcastRecordingExporter {
     nonisolated deinit {}
@@ -27,7 +27,7 @@ final class BroadcastRecordingExporter {
     private static let ownershipMarker = ".innolive-export-v1"
     private static let ownershipContents = "InnoLive broadcast export v1"
     private let root: URL
-    /// Injection permits deterministic partial-write/cancellation tests; normal callers use native export.
+    /// 주입하면 부분 쓰기·취소 테스트를 결정적으로 돌릴 수 있다. 일반 호출부는 기본 내보내기를 쓴다.
     private let exportOperation: (@MainActor (AVAsset, URL, AVFileType) async throws -> Void)?
     private var ownedDirectories: Set<URL> = []
 
@@ -37,8 +37,8 @@ final class BroadcastRecordingExporter {
         self.exportOperation = exportOperation
     }
 
-    /// Call once at cold startup, before any sharing/export UI exists. Never during active sharing.
-    /// Touches only old UUID directories with our marker; skips symlinks and unrecognized entries.
+    /// 콜드 스타트 때 공유·내보내기 UI가 생기기 전에 한 번만 호출한다. 공유가 진행 중일 때는 절대 호출하지 않는다.
+    /// 우리 표식 파일이 있는 오래된 UUID 폴더만 건드리고 심볼릭 링크와 알 수 없는 항목은 건너뛴다.
     @discardableResult
     static func cleanupStaleExportsOnColdStart(root: URL = defaultRoot,
                                                now: Date = Date(), retention: TimeInterval = 24 * 3600) throws -> Int {
@@ -96,7 +96,7 @@ final class BroadcastRecordingExporter {
             try await verify(videoURL, videos: source.video.count, audios: 0, duration: videoDuration)
             try await verify(audioURL, videos: 0, audios: source.audio.count, duration: audioDuration)
             try Task.checkCancellation()
-            // Age successful exports from completion, not from an unusually long export start.
+            // 성공한 내보내기의 경과 시간은 완료 시점부터 센다. 유난히 오래 걸린 내보내기의 시작 시점을 기준으로 삼지 않는다.
             try FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: marker.path)
             return .init(urls: [videoURL, audioURL], ownedDirectory: directory)
         } catch {
@@ -121,7 +121,7 @@ final class BroadcastRecordingExporter {
             throw BroadcastRecordingExportError.photosDenied
         }
         try Task.checkCancellation()
-        // A successful return is the sole source of the UI's photo-save confirmation.
+        // UI는 이 호출이 성공해 반환됐을 때만 사진 저장 완료를 표시한다.
         try await PHPhotoLibrary.shared().performChanges {
             PHAssetCreationRequest.forAsset().addResource(with: .video, fileURL: url, options: nil)
         }
@@ -151,7 +151,7 @@ final class BroadcastRecordingExporter {
                 throw BroadcastRecordingExportError.unsupportedFormat
             }
             let range = try await source.load(.timeRange)
-            // Keep offsets and internal gaps: neither stream is independently shifted to zero.
+            // 시작 오프셋과 중간 공백을 그대로 둔다. 어느 스트림도 따로 0으로 당기지 않는다.
             try target.insertTimeRange(range, of: source, at: range.start)
             if source.mediaType == .video { target.preferredTransform = try await source.load(.preferredTransform) }
         }
@@ -168,14 +168,14 @@ final class BroadcastRecordingExporter {
             throw BroadcastRecordingExportError.unsupportedFormat
         }
         if !session.supportedFileTypes.contains(type), type == .m4a {
-            // Only fall back to AAC encoding when the container cannot pass through this source.
+            // 컨테이너가 이 소스를 passthrough로 담지 못할 때만 AAC 인코딩으로 대체한다.
             guard let fallback = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
                 throw BroadcastRecordingExportError.unsupportedFormat
             }
             session = fallback
         }
         guard session.supportedFileTypes.contains(type) else { throw BroadcastRecordingExportError.unsupportedFormat }
-        // SDK implementation propagates task cancellation to cancelExport().
+        // SDK 구현이 작업 취소를 cancelExport()로 전달한다.
         do {
             try await session.export(to: url, as: type)
         } catch {
@@ -186,8 +186,8 @@ final class BroadcastRecordingExporter {
             guard type == .m4a, session.presetName == AVAssetExportPresetPassthrough,
                   incompatibleMedia else { throw error }
             try Task.checkCancellation()
-            // M4A passthrough rejects some valid AAC edit lists (for example a delayed start).
-            // Retry only this supported-media failure, never disk/cancellation/unknown failures.
+            // M4A passthrough는 정상적인 AAC edit list 일부(예: 늦게 시작하는 경우)를 거부한다.
+            // 지원하는 미디어에서 난 이 실패만 다시 시도하고 디스크·취소·알 수 없는 실패는 다시 시도하지 않는다.
             try? FileManager.default.removeItem(at: url)
             guard let fallback = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A),
                   fallback.supportedFileTypes.contains(type) else { throw error }

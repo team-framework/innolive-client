@@ -78,7 +78,7 @@ nonisolated final class PrivacyModel {
         }
     }
 
-    /// Render directly into reusable output without a full-frame CGImage round trip.
+    /// 전체 프레임을 CGImage로 바꿨다가 되돌리지 않고, 재사용하는 출력 버퍼에 바로 렌더링한다.
     func process(_ original: CIImage, into output: CVPixelBuffer,
                  restoring orientation: CGImagePropertyOrientation,
                  mosaic: OnDeviceMosaicSettings = OnDeviceMosaicSettings()) throws -> (Int, PrivacyTimings, PrivacyFaceSnapshot) {
@@ -126,8 +126,8 @@ nonisolated final class PrivacyModel {
         let allowed = PrivacyPipelineProbe.measure("recognition_schedule") {
             faces.process(image: original, objects: objects, layout: layout, timestamp: start, trackIDs: trackIDs, liveTrackIDs: tracked.liveTrackIDs)
         }
-        // High-confidence discoveries are protected on their first frame, including
-        // tentative tracks. Low-confidence detections need an existing track.
+        // 신뢰도가 높은 새 검출은 tentative 트랙이어도 첫 프레임부터 보호한다.
+        // 신뢰도가 낮은 검출은 기존 트랙이 있어야 보호한다.
         let continued = Set(tracked.observations.map(\.detectionIndex))
         let protectedIndices = objects.indices.filter { objects[$0].score >= PrivacyBoTSORT.highThreshold || continued.contains($0) }
         let instances = try PrivacySegmentation.instanceMasks(detections: protectedIndices.map { objects[$0] },
@@ -155,8 +155,8 @@ nonisolated final class PrivacyModel {
             }
             result = animalSprite.composite(result, boxes: animalBoxes)
         }
-        // Frame only after all original-coordinate AI work and mask composition. Both
-        // local CGImage preview and direct CVPixelBuffer uplink share this same output.
+        // 원본 좌표 기준의 AI 처리와 마스크 합성을 모두 마친 뒤에만 프레이밍한다.
+        // 로컬 CGImage 미리보기와 CVPixelBuffer 직접 업링크가 이 출력을 함께 쓴다.
         let rendered = try render(PrivacyOutputFraming.apply(to: result.cropped(to: original.extent)))
         let completed = ProcessInfo.processInfo.systemUptime
         return (rendered, protectedIndices.count, PrivacyTimings(prepare: (prepared - start) * 1000,
@@ -165,17 +165,16 @@ nonisolated final class PrivacyModel {
                                                        render: (completed - masked) * 1000), faces.snapshot)
     }
 
-    /// CIGaussianBlur's radius is the Gaussian sigma. The AI server's nominal mosaic
-    /// is sigma 24 at full resolution (pixel_size 2, then sigma 12). On a 1080p
-    /// on-device preview that still leaves eyes, glasses, and the mouth. The broadcast
-    /// screen shows a smooth blur that removes those features, which matches about
-    /// sigma 72 on a 1080-short-side frame. Scale with the short side so 720p and
-    /// 1080p keep the same strength relative to the picture.
-    // Match Android's quarter-resolution blur while keeping the full-resolution sigma.
+    /// CIGaussianBlur의 radius는 가우시안 sigma다. AI 서버의 명목상 모자이크는 원본 해상도 기준
+    /// sigma 24다(pixel_size 2로 줄인 뒤 sigma 12). 1080p 온디바이스 미리보기에서는 이 정도로는
+    /// 눈, 안경, 입이 남는다. 방송 화면에는 이런 특징이 사라지는 부드러운 블러가 보이는데,
+    /// 짧은 변이 1080인 프레임에서 sigma 72 정도에 해당한다. 짧은 변에 비례해 키워서 720p와
+    /// 1080p가 화면 대비 같은 강도를 유지하게 한다.
+    // Android처럼 1/4 해상도에서 블러를 적용하되, sigma는 원본 해상도 기준을 유지한다.
     static let blurReduction: CGFloat = 4
     static let broadcastBlurSigmaPerShortSide: CGFloat = 1.0 / 15
 
-    /// Snap to the nearest of {24,30,36,42,48}, matching Android's discrete strength steps.
+    /// Android의 단계별 강도에 맞춰 {24,30,36,42,48} 중 가장 가까운 값으로 맞춘다.
     static func strengthLevel(_ strength: Int) -> Int {
         let clamped = min(max(strength, OnDeviceMosaicSettings.defaultBlurStrength), OnDeviceMosaicSettings.maxBlurStrength)
         let steps = ((Double(clamped - OnDeviceMosaicSettings.defaultBlurStrength) / Double(OnDeviceMosaicSettings.blurStrengthStep)).rounded())
