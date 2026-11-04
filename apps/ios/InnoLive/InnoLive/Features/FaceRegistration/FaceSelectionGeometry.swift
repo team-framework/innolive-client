@@ -1,22 +1,22 @@
 import CoreGraphics
 
 nonisolated struct FaceSelectionCandidate: Equatable, Sendable {
-    /// Upright frame coordinates normalized with a top-left origin.
+    /// 바로 세운 프레임에서 왼쪽 위를 원점으로 정규화한 좌표다.
     let rect: CGRect
     let isSelectable: Bool
-    /// Jawline points in the same coordinates, ear to ear. Empty when Vision found no landmarks.
+    /// 같은 좌표계의 턱선 점들로, 한쪽 귀에서 반대쪽 귀까지 이어진다. Vision이 랜드마크를 찾지 못하면 비어 있다.
     var contour: [CGPoint] = []
 }
 
-/// Coordinates shared by face detection, the aspect-fill preview, and the registration crop.
+/// 얼굴 감지, aspect-fill 미리보기, 등록용 crop이 함께 쓰는 좌표 계산이다.
 nonisolated enum FaceSelectionGeometry {
-    /// Faces smaller than this in source pixels give poor registration embeddings.
+    /// 원본 픽셀 기준으로 이보다 작은 얼굴은 등록 임베딩 품질이 떨어진다.
     static let minimumFaceSide: CGFloat = 100
-    /// The registration preview is a square aspect-fill view.
+    /// 등록 미리보기는 정사각형 aspect-fill 뷰다.
     static let previewAspectRatio: CGFloat = 1
-    /// Leaves the 1.5x square used by the face recognizer inside the crop.
+    /// 얼굴 인식기가 쓰는 1.5x 정사각형이 crop 안에 들어오게 한다.
     static let registrationCropScale: CGFloat = 2
-    /// Covers hair and chin around a neighbor's tight face box.
+    /// 옆 사람 얼굴에 딱 맞는 박스 둘레의 머리카락과 턱까지 가린다.
     static let maskedFaceScale: CGFloat = 1.3
 
     static func candidates(
@@ -35,7 +35,7 @@ nonisolated enum FaceSelectionGeometry {
         }
     }
 
-    /// Normalized part of the upright frame that an aspect-fill preview shows.
+    /// 바로 세운 프레임 가운데 aspect-fill 미리보기에 보이는 영역을 정규화 좌표로 구한다.
     static func visibleRegion(imageSize: CGSize, previewAspectRatio: CGFloat) -> CGRect {
         guard imageSize.width > 0, imageSize.height > 0, previewAspectRatio > 0 else { return .zero }
         let imageAspectRatio = imageSize.width / imageSize.height
@@ -72,7 +72,7 @@ nonisolated enum FaceSelectionGeometry {
         return rect.origin
     }
 
-    /// Core Image pixel rect (bottom-left origin) scaled around the face center.
+    /// 얼굴 중심을 기준으로 배율을 적용한 Core Image 픽셀 사각형(왼쪽 아래 원점)이다.
     static func pixelRect(for normalized: CGRect, imageSize: CGSize, scale: CGFloat = 1) -> CGRect {
         let width = normalized.width * imageSize.width * scale
         let height = normalized.height * imageSize.height * scale

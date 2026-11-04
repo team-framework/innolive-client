@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-/// Registers a tapped guest in the background so the home screen can return to the broadcast at once.
+/// 탭한 게스트를 백그라운드에서 등록해 홈 화면이 바로 방송 화면으로 돌아갈 수 있게 한다.
 @MainActor
 final class GuestFaceRegistrar: ObservableObject {
     // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
@@ -10,7 +10,7 @@ final class GuestFaceRegistrar: ObservableObject {
     enum Status: Equatable {
         case registering
         case registered
-        /// `canRetry` is false when the face itself could not be prepared; pick it again instead.
+        /// 얼굴 이미지 자체를 준비하지 못했으면 `canRetry`는 false다. 이때는 재시도 대신 얼굴을 다시 고른다.
         case failed(message: String, canRetry: Bool)
     }
 
@@ -40,7 +40,7 @@ final class GuestFaceRegistrar: ObservableObject {
         status = .registering
         let detector = detector
         task = Task { [weak self] in
-            // Build the JPEG once and drop the frame, so no camera buffer stays retained.
+            // JPEG을 한 번만 만들고 프레임은 놓아서 카메라 버퍼가 계속 붙잡혀 있지 않게 한다.
             let data = await Task.detached(priority: .userInitiated) {
                 detector.registrationJPEG(from: frame, faceIndex: faceIndex)
             }.value

@@ -14,7 +14,7 @@ enum FaceDetectionOutcome: Sendable {
     case failed
 }
 
-/// One analyzed camera frame. The image is upright and mirrored like the preview.
+/// 분석한 카메라 프레임 하나다. 이미지는 미리보기와 똑같이 바로 세우고 좌우 반전돼 있다.
 nonisolated struct FaceSelectionFrame: @unchecked Sendable {
     let image: CIImage
     let faces: [FaceSelectionCandidate]
@@ -25,7 +25,7 @@ nonisolated struct FaceSelectionFrame: @unchecked Sendable {
 nonisolated final class FaceDetectionService: @unchecked Sendable {
     private static let outputSize = 500
     private static let detectionInterval: TimeInterval = 0.35
-    // Fast enough for brackets to follow a face; Vision runs off the main thread.
+    // 브래킷이 얼굴을 따라갈 만큼 빠르다. Vision은 메인 스레드 밖에서 돈다.
     private static let selectionInterval: TimeInterval = 0.1
 
     private let context = CIContext(options: [.cacheIntermediates: false])
@@ -39,7 +39,7 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         analysisLock.unlock()
     }
 
-    /// Width / height of the aspect-fill preview, so only faces the user can see are selectable.
+    /// aspect-fill 미리보기의 너비 / 높이다. 사용자가 화면에서 볼 수 있는 얼굴만 고를 수 있게 한다.
     func setPreviewAspectRatio(_ ratio: CGFloat) {
         guard ratio.isFinite, ratio > 0 else { return }
         analysisLock.lock()
@@ -144,13 +144,13 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         )
     }
 
-    /// A 500 x 500 JPEG around the selected face with every other face blacked out.
-    /// Server and on-device enrollment both reject images with more than one face.
+    /// 선택한 얼굴을 중심으로 자른 500 x 500 JPEG이며 다른 얼굴은 모두 검게 가린다.
+    /// 서버 등록과 온디바이스 등록 모두 얼굴이 둘 이상인 이미지는 거부한다.
     func registrationJPEG(from frame: FaceSelectionFrame, faceIndex: Int) -> Data? {
         guard var image = registrationImage(from: frame, faceIndex: faceIndex),
               var faces = faceRects(in: image) else { return nil }
         let center = CGPoint(x: 0.5, y: 0.5)
-        // A face too small to find in the full frame can appear once the crop is enlarged.
+        // 전체 프레임에서는 너무 작아 못 찾은 얼굴이 crop을 확대하면 잡힐 수 있다.
         let others = faces.filter { !$0.contains(center) }
         if !others.isEmpty, let selected = faces.first(where: { $0.contains(center) }) {
             let size = CGSize(width: image.width, height: image.height)
@@ -181,7 +181,7 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         let selected = FaceSelectionGeometry.pixelRect(for: frame.faces[faceIndex].rect, imageSize: size)
         let crop = FaceSelectionGeometry.registrationCropRect(around: selected)
         let scale = CGFloat(Self.outputSize) / crop.width
-        // Areas outside the frame stay black, like the server's square face crop padding.
+        // 프레임 밖 영역은 서버의 정사각형 얼굴 crop 여백처럼 검게 둔다.
         let output = masked.composited(over: CIImage(color: .black))
             .cropped(to: crop)
             .transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
@@ -192,8 +192,8 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         )
     }
 
-    /// Blacks out the `hiding` faces and keeps the selected face intact.
-    /// Rects are normalized with a top-left origin; `image` starts at the origin.
+    /// `hiding` 얼굴은 검게 가리고 선택한 얼굴은 그대로 둔다.
+    /// 사각형은 왼쪽 위 원점 기준으로 정규화돼 있고 `image`는 원점에서 시작한다.
     private func masking(_ image: CIImage, size: CGSize, hiding: [CGRect], keeping: CGRect) -> CIImage {
         let black = CIImage(color: .black)
         var masked = image
@@ -205,7 +205,7 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
             )
             masked = black.cropped(to: mask).composited(over: masked)
         }
-        // A neighbor's mask must not cover the selected face itself.
+        // 옆 사람을 가린 마스크가 선택한 얼굴 자체를 덮으면 안 된다.
         let selected = FaceSelectionGeometry.pixelRect(for: keeping, imageSize: size)
         return image.cropped(to: selected).composited(over: masked)
     }
@@ -240,7 +240,7 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         )
     }
 
-    /// Vision gives landmark points relative to the face box with a bottom-left origin.
+    /// Vision은 랜드마크 점을 얼굴 박스 기준 상대 좌표로, 왼쪽 아래를 원점으로 준다.
     private static func jawline(of observation: VNFaceObservation) -> [CGPoint] {
         guard let points = observation.landmarks?.faceContour?.normalizedPoints else { return [] }
         let box = observation.boundingBox
@@ -252,7 +252,7 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         }
     }
 
-    // Vision uses a bottom-left origin; the preview overlay uses top-left.
+    // Vision은 왼쪽 아래를 원점으로 쓰고 미리보기 오버레이는 왼쪽 위를 원점으로 쓴다.
     private static func topLeftRect(_ observation: VNFaceObservation) -> CGRect {
         let box = observation.boundingBox
         return CGRect(x: box.minX, y: 1 - box.maxY, width: box.width, height: box.height)
@@ -341,7 +341,7 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
 
     private static func runningOnSimulatorCPU<Request: VNImageBasedRequest>(_ request: Request) -> Request {
         #if targetEnvironment(simulator)
-        // The Simulator cannot create Vision's default inference context.
+        // 시뮬레이터에서는 Vision의 기본 추론 컨텍스트를 만들 수 없다.
         for (stage, devices) in (try? request.supportedComputeStageDevices) ?? [:] {
             if let cpu = devices.first(where: {
                 if case .cpu = $0 { return true }

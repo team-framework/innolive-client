@@ -1,7 +1,7 @@
 import Foundation
 import ImageIO
 
-/// Serial local registration work. No network request or JPEG persistence.
+/// 로컬 얼굴 등록 작업을 순서대로 처리한다. 네트워크 요청을 보내지 않고 JPEG도 저장하지 않는다.
 actor LocalFaceRegistrationStore {
     static let shared = LocalFaceRegistrationStore()
     private var recognizer: PrivacyFaceEmbeddingModel?

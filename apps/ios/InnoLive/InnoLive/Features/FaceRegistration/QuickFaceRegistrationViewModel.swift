@@ -15,9 +15,9 @@ private enum QuickFaceRegistrationFrameSource: Equatable {
     case webRTC
 }
 
-/// Finds selectable faces in the original camera for one-tap registration on the home screen.
-/// `GuestFaceRegistrar` registers the tapped face, so selection can end immediately.
-/// The settings screen keeps `FaceRegistrationViewModel`.
+/// 홈 화면 원탭 등록을 위해 원본 카메라에서 고를 수 있는 얼굴을 찾는다.
+/// 탭한 얼굴은 `GuestFaceRegistrar`가 등록하므로 선택은 바로 끝낼 수 있다.
+/// 설정 화면은 그대로 `FaceRegistrationViewModel`을 쓴다.
 @MainActor
 final class QuickFaceRegistrationViewModel: ObservableObject {
     // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
@@ -38,7 +38,7 @@ final class QuickFaceRegistrationViewModel: ObservableObject {
         detector.setPreviewAspectRatio(ratio)
     }
 
-    /// The frame whose faces are on screen, if `index` is a face the user may pick.
+    /// `index`가 사용자가 고를 수 있는 얼굴이면 지금 화면에 얼굴이 표시된 프레임을 반환한다.
     func frameForSelection(at index: Int) -> FaceSelectionFrame? {
         guard case .detecting = phase,
               let frame = latestFrame,
