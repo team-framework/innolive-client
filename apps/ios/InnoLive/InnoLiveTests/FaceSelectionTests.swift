@@ -38,18 +38,18 @@ final class FaceSelectionTests: XCTestCase {
 
     func testOnlyLargeVisibleFacesAreSelectable() {
         let candidates = FaceSelectionGeometry.candidates(for: [
-            CGRect(x: 0.1, y: 0.4, width: 0.2, height: 0.12),    // 216 x 230px, visible
-            CGRect(x: 0.5, y: 0.4, width: 0.09, height: 0.06),   // 97px short side
-            CGRect(x: 0.5, y: 0.5, width: 0.1, height: 0.06),    // 108 x 115px, visible
-            CGRect(x: 0.4, y: 0.02, width: 0.3, height: 0.17)    // large but above the square preview
+            CGRect(x: 0.1, y: 0.4, width: 0.2, height: 0.12),    // 216 x 230px, 보임
+            CGRect(x: 0.5, y: 0.4, width: 0.09, height: 0.06),   // 짧은 변 97px
+            CGRect(x: 0.5, y: 0.5, width: 0.1, height: 0.06),    // 108 x 115px, 보임
+            CGRect(x: 0.4, y: 0.02, width: 0.3, height: 0.17)    // 크지만 정사각형 미리보기보다 위에 있음
         ], imageSize: portrait)
         XCTAssertEqual(candidates.map(\.isSelectable), [true, false, true, false])
     }
 
     func testFullScreenPreviewChangesWhichFacesAreVisible() {
         let fullScreen: CGFloat = 393.0 / 852.0
-        let edge = CGRect(x: 0, y: 0.45, width: 0.12, height: 0.07)   // left edge, middle height
-        let top = CGRect(x: 0.45, y: 0.05, width: 0.12, height: 0.07)   // top, middle width
+        let edge = CGRect(x: 0, y: 0.45, width: 0.12, height: 0.07)   // 왼쪽 가장자리, 세로 가운데
+        let top = CGRect(x: 0.45, y: 0.05, width: 0.12, height: 0.07)   // 위쪽, 가로 가운데
         let square = FaceSelectionGeometry.candidates(for: [edge, top], imageSize: portrait, previewAspectRatio: 1)
         let tall = FaceSelectionGeometry.candidates(for: [edge, top], imageSize: portrait, previewAspectRatio: fullScreen)
         XCTAssertEqual(square.map(\.isSelectable), [true, false])
@@ -79,7 +79,7 @@ final class FaceSelectionTests: XCTestCase {
         let frame = solidFrame(faces: [
             FaceSelectionCandidate(rect: CGRect(x: 0.45, y: 0.45, width: 0.1, height: 0.1), isSelectable: true),
             FaceSelectionCandidate(rect: CGRect(x: 0.56, y: 0.45, width: 0.05, height: 0.1), isSelectable: false),
-            // Overlaps the selected face; its mask must not cover the selected face.
+            // 선택한 얼굴과 겹친다. 이 얼굴의 마스크가 선택한 얼굴을 가리면 안 된다.
             FaceSelectionCandidate(rect: CGRect(x: 0.38, y: 0.45, width: 0.08, height: 0.1), isSelectable: true)
         ])
         let image = try XCTUnwrap(FaceDetectionService().registrationImage(from: frame, faceIndex: 0))
@@ -116,7 +116,7 @@ final class FaceSelectionTests: XCTestCase {
         XCTAssertNil(service.registrationImage(from: small, faceIndex: 0))
     }
 
-    /// Uses an optional public test image placed in the ignored PrivacyFaceFixtures folder.
+    /// git이 무시하는 PrivacyFaceFixtures 폴더에 선택적으로 넣는 공개 테스트 이미지를 쓴다.
     func testPublicFaceFixtureRegistersEachLargeFaceAsASingleFace() throws {
         let canvas = try fixtureCanvas()
         let service = FaceDetectionService()
@@ -135,7 +135,7 @@ final class FaceSelectionTests: XCTestCase {
             XCTAssertEqual(image.width, 500)
             XCTAssertEqual(image.height, 500)
             if hasYuNet {
-                // Same YuNet weights, 0.9 score, one-face, and 40px rules as server enrollment.
+                // 서버 등록과 같은 YuNet 가중치, 0.9 점수, 얼굴 1개, 40px 규칙을 쓴다.
                 XCTAssertNoThrow(try PrivacyYuNetDetector().face(in: image, enrollment: true), "face \(index)")
             }
         }
@@ -148,7 +148,7 @@ final class FaceSelectionTests: XCTestCase {
             .sorted { $0.minX < $1.minX }
         XCTAssertFalse(upright.isEmpty)
 
-        // Camera buffers arrive in sensor orientation. Front portrait frames are mirrored like the preview.
+        // 카메라 버퍼는 센서 방향으로 들어온다. 전면 세로 프레임은 미리보기처럼 좌우 반전돼 있다.
         let cases: [(AVCaptureDevice.Position, CGImagePropertyOrientation)] = [(.front, .leftMirrored), (.back, .left)]
         for (position, sensorOrientation) in cases {
             let sensor = CIImage(cgImage: canvas).oriented(sensorOrientation)
@@ -169,7 +169,7 @@ final class FaceSelectionTests: XCTestCase {
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - 도우미
 
     private func solidFrame(faces: [FaceSelectionCandidate]) -> FaceSelectionFrame {
         FaceSelectionFrame(
@@ -178,8 +178,8 @@ final class FaceSelectionTests: XCTestCase {
         )
     }
 
-    /// Two large faces and one small face on a portrait canvas. The small face sits inside the
-    /// left face's registration crop, so the crop must mask it even if the full frame misses it.
+    /// 세로 캔버스에 큰 얼굴 2개와 작은 얼굴 1개가 있다. 작은 얼굴은 왼쪽 얼굴의 등록용 crop 안에 있어서,
+    /// 전체 프레임에서 놓치더라도 crop에서는 가려야 한다.
     private func fixtureCanvas() throws -> CGImage {
         let bundle = Bundle(for: FaceSelectionTests.self)
         guard let url = bundle.url(forResource: "face-selection-sample", withExtension: "jpg") else {
@@ -232,7 +232,7 @@ final class FaceSelectionTests: XCTestCase {
             data: &data, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         )!
-        // Shift the requested top-left pixel onto the 1x1 context.
+        // 좌상단 기준 좌표로 요청한 픽셀을 1x1 context 위로 옮긴다.
         context.draw(image, in: CGRect(x: -x, y: -(image.height - 1 - y), width: image.width, height: image.height))
         return Array(data.prefix(3))
     }

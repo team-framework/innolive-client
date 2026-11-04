@@ -19,7 +19,7 @@ final class BroadcastEndOverlayRenderingTests: XCTestCase {
         try await render("finalizing", recording: .finalizing, recorderEnabled: true)
         try await render("save-failed", recording: .failed("저장 공간이 부족합니다."), recorderEnabled: true)
         try await render("missing-file", recording: .saved(URL(fileURLWithPath: "/missing-recording.mp4")), recorderEnabled: true)
-        // The UI must not claim saving before a writer is connected (step 4).
+        // writer가 연결되기 전에는 UI가 저장 중이라고 표시하면 안 된다(4단계).
         try await render("unconnected-writer", recording: .finalizing, recorderEnabled: false)
     }
 
@@ -38,7 +38,7 @@ final class BroadcastEndOverlayRenderingTests: XCTestCase {
         strongContrast: Bool = false,
         duration: TimeInterval = 76
     ) async throws {
-        // Hosted tests can start before UIKit finishes activating the application scene.
+        // 호스트 앱에서 도는 테스트는 UIKit이 앱 scene 활성화를 마치기 전에 시작될 수 있다.
         for _ in 0..<50 {
             if UIApplication.shared.connectedScenes.contains(where: { $0.activationState == .foregroundActive }) { break }
             try await Task.sleep(for: .milliseconds(100))

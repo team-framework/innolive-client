@@ -9,7 +9,7 @@ import XCTest
         defer { try? FileManager.default.removeItem(at: url) }
         let epoch = CMClockGetTime(CMClockGetHostTimeClock())
         try recorder.start(url: url, epoch: epoch)
-        // The first three audio blocks arrive before video; these must be retained.
+        // 처음 오디오 블록 3개는 영상보다 먼저 도착한다. 이 블록도 남아 있어야 한다.
         for index in 0..<60 {
             let seconds = Double(index) / 100 + (index >= 30 ? 1 : 0)
             let time = CMTimeAdd(epoch, CMTime(seconds: seconds, preferredTimescale: 1_000_000_000))
@@ -38,7 +38,7 @@ import XCTest
         XCTAssertLessThan(decoded.gapPeak, 0.01)
         XCTAssertGreaterThan(decoded.resumedPeak, 0.1)
         XCTAssertLessThan(decoded.firstTime, 0.04)
-        // Late callback after finalized output must have no effect on disk content.
+        // 출력을 마무리한 뒤 늦게 온 콜백은 디스크 내용에 영향을 주면 안 된다.
         let before = try Data(contentsOf: url)
         recorder.appendVideo(pixelBuffer: try pixel(), rotation: 0, timestampNs: Int64.max)
         recorder.appendAudio(try tone(index: 0), when: AVAudioTime(hostTime: mach_absolute_time()))

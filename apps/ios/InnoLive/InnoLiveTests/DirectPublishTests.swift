@@ -484,7 +484,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
 
     func testOnDeviceSessionPrepareStartsYouTubeDirectPublish() async throws {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "idle")
-        // Glow has no server time but must still prepare on-device.
+        // Glow 요금제는 서버 시간이 없지만 온디바이스 준비는 해야 한다.
         await integration.planStore.refresh(api: try DevicePlanStub(), accessToken: "test")
         // 실제 prepare 응답은 세션 전체 응답(targets 포함)에 ingest_url을 더한 형태다. 공유 fixture는 targets를 생략한다.
         var prepare = try XCTUnwrap(JSONSerialization.jsonObject(

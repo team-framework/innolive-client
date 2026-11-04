@@ -65,7 +65,7 @@ final class BroadcastLifecycleTests: XCTestCase {
         XCTAssertEqual(lifecycle.phase, .live)
         XCTAssertEqual(lifecycle.recording, .recording)
         XCTAssertNil(lifecycle.result)
-        // A paused target remains in the caller's active set.
+        // 일시 중지된 대상도 호출자의 활성 대상 목록에 남아 있다.
         lifecycle.reconcileTargets(["chzzk"], generation: generation)
         XCTAssertEqual(lifecycle.phase, .live)
         XCTAssertTrue(lifecycle.beginEnding())

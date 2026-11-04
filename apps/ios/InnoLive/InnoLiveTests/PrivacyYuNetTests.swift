@@ -60,7 +60,7 @@ final class PrivacyYuNetTests: XCTestCase {
 
     func testStrideAndFivePointDecodingMatchOpenCVFormula() throws {
         var output = emptyOutputs()
-        let i = 5 // row 1, column 1, stride 8
+        let i = 5 // 1행 1열, stride 8
         output["cls_8"]![i] = 1
         output["obj_8"]![i] = 0.81
         output["bbox_8"]!.replaceSubrange(i * 4..<i * 4 + 4, with: [0.5, 0.5, log(Float(2)), log(Float(3))])

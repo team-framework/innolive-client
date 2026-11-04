@@ -65,7 +65,7 @@ final class LocalTakeUsageTests: XCTestCase {
         XCTAssertNotNil(ISO8601DateFormatter().date(from: try XCTUnwrap(object["started_at"] as? String)))
     }
 
-    /// The app is killed after the server stored the takes but before the acknowledgement reached the ledger.
+    /// 서버가 테이크를 저장한 뒤, 확인 응답이 ledger에 닿기 전에 앱이 종료된 상황이다.
     func testReplayAfterKillBetweenSendAndAcknowledgementCountsEachTakeOnce() async {
         var server: [UUID: Int] = [:]
         let first = ledger()
@@ -185,7 +185,7 @@ final class LocalTakeUsageTests: XCTestCase {
             {"plan":"beam","month":"2026-11","used_seconds":0,"remaining_seconds":144000,"available_by_mode":[],"device_limit_seconds":432000,"device_used_seconds":100,"device_remaining_seconds":1000,"device_local_seconds":40}
             """.utf8))
         XCTAssertEqual(usage.deviceLocalSeconds, 40)
-        // 2026-11-01 00:10 KST is November. 2026-10-31 23:50 KST is October.
+        // 2026-11-01 00:10 KST는 11월이고, 2026-10-31 23:50 KST는 10월이다.
         let november = Date(timeIntervalSince1970: 1_793_459_400)
         let october = Date(timeIntervalSince1970: 1_793_458_200)
         let takes = [recording(at: november, seconds: 60), recording(at: october, seconds: 30)]

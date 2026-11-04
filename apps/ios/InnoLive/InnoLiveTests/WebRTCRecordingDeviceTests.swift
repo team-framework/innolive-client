@@ -4,8 +4,8 @@ import XCTest
 @preconcurrency import LiveKitWebRTC
 @testable import InnoLive
 
-/// Explicit physical-device suite: actual microphone -> WebRTC APM -> production tap -> AAC MP4.
-/// Video is synthetic to isolate the audio bridge. No synthetic audio is supplied anywhere.
+/// 실기기에서 명시적으로 실행하는 스위트다. 경로: 실제 마이크 -> WebRTC APM -> 프로덕션 tap -> AAC MP4.
+/// 오디오 브리지만 떼어 보려고 영상은 합성한다. 합성 오디오는 어디에도 넣지 않는다.
 @MainActor
 final class WebRTCRecordingDeviceTests: XCTestCase {
     func testProductionTapRecordsRealMicrophoneAndDetachesBetweenRecorders() async throws {
@@ -28,11 +28,11 @@ final class WebRTCRecordingDeviceTests: XCTestCase {
             let firstBytes = try Data(contentsOf: firstURL)
             self.attachFile(firstURL, name: "physical-microphone-eight-seconds.mp4")
 
-            // A detached sink must not append into the old file while RTP capture continues.
+            // RTP 캡처가 계속되는 동안 분리된 sink가 이전 파일에 이어 쓰면 안 된다.
             try await Task.sleep(for: .milliseconds(500))
             XCTAssertEqual(try Data(contentsOf: firstURL), firstBytes)
 
-            // Same production tap, fresh recorder and epoch: old callbacks cannot target the new recording.
+            // 같은 프로덕션 tap에 새 recorder와 epoch를 쓴다. 이전 콜백은 새 녹화에 닿을 수 없다.
             let secondURL = directory.appendingPathComponent("microphone-new-generation.mp4")
             let second = try await self.capture(tap: tap, url: secondURL, seconds: 1.5)
             XCTAssertGreaterThan(second.audioFrames, 60_000)
@@ -51,8 +51,8 @@ final class WebRTCRecordingDeviceTests: XCTestCase {
         }
     }
 
-    /// Production tap mute flag only. Sender track remains enabled; this does not exercise UI mute.
-    /// Speak continuously throughout all three stages; silent outer stages must fail.
+    /// 프로덕션 tap의 음소거 플래그만 쓴다. 송신 track은 켜 둔 채이며 UI 음소거는 검증하지 않는다.
+    /// 세 단계 내내 계속 말해야 한다. 바깥 두 단계가 무음이면 실패해야 한다.
     func testProductionTapMuteWritesSilenceAndUnmuteRestoresRealMicrophone() async throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Requires the assigned physical iPhone microphone")
@@ -99,8 +99,8 @@ final class WebRTCRecordingDeviceTests: XCTestCase {
                 throw error
             }
             let fullReport = try await self.inspect(url, expectedDuration: boundaries[3])
-            // Exclude 350 ms on both sides of transitions for callback timestamp phase and
-            // AAC overlap/priming. The remaining >1.2 seconds must contain actual decoded PCM.
+            // 콜백 타임스탬프 위상과 AAC overlap/priming 때문에 전환 지점 앞뒤 350 ms씩을 뺀다.
+            // 남은 1.2초 넘는 구간에는 실제로 디코딩된 PCM이 있어야 한다.
             var segments: [MuteSegmentMetrics] = []
             for index in 0..<3 {
                 let start = boundaries[index] + 0.35
@@ -315,15 +315,15 @@ private enum RecordingMicrophoneLoopback {
         _ = LKRTCInitializeSSL()
         let tap = WebRTCRecordingAudioTap()
         let module = LKRTCDefaultAudioProcessingModule(config: nil, capturePostProcessingDelegate: tap, renderPreProcessingDelegate: nil)
-        // Upstream adapter initWithDelegate currently ignores its argument; setter binds it.
+        // upstream adapter의 initWithDelegate는 지금 인자를 무시하므로 setter로 연결한다.
         module.capturePostProcessingDelegate = tap
         let senderFactory = LKRTCPeerConnectionFactory(audioDeviceModuleType: .platformDefault, bypassVoiceProcessing: false,
             encoderFactory: LKRTCDefaultVideoEncoderFactory(), decoderFactory: LKRTCDefaultVideoDecoderFactory(), audioProcessingModule: module)
-        let receiverFactory = senderFactory // One native audio device for both loopback peers.
+        let receiverFactory = senderFactory // 두 loopback peer가 네이티브 오디오 장치 하나를 같이 쓴다.
         let session = LKRTCAudioSession.sharedInstance()
         let priorManual = session.useManualAudio
         let priorEnabled = session.isAudioEnabled
-        // Match the existing production platform-default automatic audio session.
+        // 기존 프로덕션의 platform-default 자동 오디오 세션 설정에 맞춘다.
         session.useManualAudio = false
         session.isAudioEnabled = priorEnabled
         defer {
@@ -421,7 +421,7 @@ nonisolated private final class RecordingMicrophonePeerDelegate: NSObject, LKRTC
     private let lock = NSLock()
     private var candidates: [LKRTCIceCandidate] = []
     private var target: LKRTCPeerConnection?
-    // RTCAudioTrack deinit removes native sinks: retain remote ObjC wrappers for the test.
+    // RTCAudioTrack이 deinit되면 네이티브 sink가 제거되므로 테스트 동안 원격 ObjC 래퍼를 붙잡아 둔다.
     private var remoteAudioTracks: [LKRTCAudioTrack] = []
     private func attach(_ track: LKRTCAudioTrack) {
         let isNew = lock.withLock {

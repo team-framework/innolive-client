@@ -180,8 +180,8 @@ import XCTest
         try await feed(try XCTUnwrap(recorder))
         lifecycle.reconcileTargets([], generation: lifecycle.generation)
         coordinator.reconcile(targets: [], sessionID: .server("old-ui"))
-        // Change presentation generation before the new writer starts. The store's old
-        // generation can still publish expiry, but the coordinator must reject it.
+        // 새 writer가 시작되기 전에 화면 표시 generation을 바꾼다. store의 이전 generation은
+        // 여전히 만료를 알릴 수 있지만 coordinator는 이를 거부해야 한다.
         let preparation = lifecycle.beginPreparation()
         leases[0].expire()
         XCTAssertEqual(lifecycle.recording, .idle)

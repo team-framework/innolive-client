@@ -7,9 +7,9 @@ import XCTest
 
 @testable import InnoLive
 
-/// Face selection swaps the broadcast output between the main area and the corner.
-/// SwiftUI may update the outgoing view after creating the incoming one, so the
-/// uplink must keep feeding every renderer still on screen.
+/// 얼굴 선택은 송출 화면을 메인 영역과 모서리 사이에서 맞바꾼다.
+/// SwiftUI는 새로 들어오는 뷰를 만든 뒤 사라질 뷰를 갱신할 수 있으므로,
+/// uplink는 아직 화면에 있는 모든 renderer에 프레임을 계속 공급해야 한다.
 @MainActor
 final class RemoteRendererSwapTests: XCTestCase {
     func testOutgoingRendererUpdateDoesNotStopTheIncomingRenderer() throws {
@@ -19,8 +19,8 @@ final class RemoteRendererSwapTests: XCTestCase {
         let corner = CountingRenderer(frame: .zero)
         let main = CountingRenderer(frame: .zero)
 
-        // Order recorded when leaving face selection: the main view is created,
-        // the outgoing corner view is updated once more, then it is dismantled.
+        // 얼굴 선택을 마칠 때 기록된 순서다. 메인 뷰가 만들어지고, 사라질 모서리 뷰가
+        // 한 번 더 갱신된 뒤 해체된다.
         uplink.attachRemoteRenderer(corner)
         uplink.attachRemoteRenderer(main)
         uplink.attachRemoteRenderer(corner)
@@ -43,7 +43,7 @@ final class RemoteRendererSwapTests: XCTestCase {
         uplink.attachRemoteRenderer(removed)
         uplink.detachRemoteRenderer(removed)
 
-        // Reconnecting replaces the remote track; the remaining renderer moves with it.
+        // 재연결하면 원격 track이 바뀌고, 남은 renderer도 새 track으로 옮겨 간다.
         let nextSource = factory.videoSource()
         uplink.setRemoteVideoTrack(factory.videoTrack(with: nextSource, trackId: "next-remote"))
         try deliverFrame(to: firstSource, timestampNs: 1_000_000)
@@ -58,7 +58,7 @@ final class RemoteRendererSwapTests: XCTestCase {
         let uplink = WebRTCVideoUplink()
         let factory = uplink.peerConnectionFactory
         let source = factory.videoSource()
-        // Any capturer makes the views show the remote renderer; nothing is captured here.
+        // capturer가 있기만 하면 뷰가 원격 renderer를 보여 준다. 여기서는 아무것도 캡처하지 않는다.
         uplink.fileVideoCapturer = LKRTCFileVideoCapturer(delegate: source)
         uplink.setRemoteVideoTrack(factory.videoTrack(with: source, trackId: "swap-hosted"))
         defer { uplink.fileVideoCapturer = nil }
@@ -135,7 +135,7 @@ private final class SwapState: ObservableObject {
     @Published var isSelecting = false
 }
 
-/// The same arrangement as HomeView: the main area and the corner preview trade the broadcast view.
+/// HomeView와 같은 배치다. 메인 영역과 모서리 미리보기가 송출 화면을 맞바꾼다.
 private struct SwapHome: View {
     @ObservedObject var state: SwapState
     let uplink: WebRTCVideoUplink

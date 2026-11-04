@@ -20,7 +20,7 @@ final class BroadcastTutorialTests: XCTestCase {
         super.tearDown()
     }
 
-    // MARK: - Policy
+    // MARK: - 정책
 
     func testIdleHomeAsksToOpenPreparation() {
         XCTAssertEqual(stage(.init()), .init(step: .openPreparation, host: .home))
@@ -100,7 +100,7 @@ final class BroadcastTutorialTests: XCTestCase {
         XCTAssertEqual(BroadcastTutorialPolicy.progress(for: .goLive, includesAccountStep: false), .init(index: 4, total: 4))
     }
 
-    // MARK: - Coordinator
+    // MARK: - 코디네이터
 
     func testFirstLaunchStartsAtTheFirstStep() {
         let tutorial = makeCoordinator()
@@ -248,7 +248,7 @@ final class BroadcastTutorialTests: XCTestCase {
         XCTAssertFalse(BroadcastTutorialStore(userDefaults: defaults).hasSeenLiveStatusTip)
     }
 
-    // MARK: - Helpers
+    // MARK: - 도우미
 
     private func stage(_ snapshot: BroadcastTutorialSnapshot) -> BroadcastTutorialStage? {
         BroadcastTutorialPolicy.stage(for: snapshot)

@@ -4,8 +4,8 @@ import XCTest
 @preconcurrency import LiveKitWebRTC
 @testable import InnoLive
 
-/// Physical camera + microphone only. No account, server, STUN, or public broadcast.
-/// Keep the phone unlocked; point at a detailed scene and speak/clap during capture.
+/// 실제 카메라와 마이크만 쓴다. 계정·서버·STUN·공개 방송은 쓰지 않는다.
+/// 휴대폰 잠금을 풀어 두고, 캡처하는 동안 디테일이 많은 장면을 비추며 말하거나 손뼉을 친다.
 @MainActor final class CameraBroadcastRecordingDeviceTests: XCTestCase {
     func testRealCameraMicrophoneSwitchRotationAndRelayRecreation() async throws {
         #if targetEnvironment(simulator)
@@ -15,15 +15,15 @@ import XCTest
         guard await AVCaptureDevice.requestAccess(for: .video), await AVAudioApplication.requestRecordPermission() else {
             return XCTFail("Camera and microphone permission are required")
         }
-        // Each of three stages defaults to 10 seconds; 100 gives a five-minute run.
+        // 세 단계는 각각 기본 10초다. 100을 주면 5분 동안 실행한다.
         let requestedStageSeconds = Double(ProcessInfo.processInfo.environment["INNOLIVE_RECORDING_STAGE_SECONDS"] ?? "") ?? 10
         let stageSeconds = requestedStageSeconds.isFinite ? min(600, max(10, requestedStageSeconds)) : 10
         print("PHYSICAL_CAMERA_START device=\(UIDevice.current.model),stageSeconds=\(stageSeconds),appState=\(UIApplication.shared.applicationState.rawValue)")
         let uplink = WebRTCVideoUplink()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("physical-camera-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
-        // Subscribe before AVCaptureSession.startRunning; startup failures can precede
-        // prepareNativeCamera's completion and no longer appear in a preflight-only observer.
+        // AVCaptureSession.startRunning 전에 구독한다. 시작 실패는 prepareNativeCamera가 끝나기 전에
+        // 일어날 수 있어, 사전 점검 때만 붙이는 observer에서는 더 이상 보이지 않는다.
         let captureDiagnostics = CameraCaptureNotificationDiagnostics(session: nil)
         defer {
             captureDiagnostics.stop()
@@ -92,7 +92,7 @@ import XCTest
                 coordinator.arm(sessionID: .server(sessionID))
                 XCTAssertNotNil(recorder)
                 XCTAssertEqual(lifecycle.recording, .recording)
-                // Local authoritative-state fixture; no settings API or public server is involved.
+                // 로컬에서 만든 확정 상태 fixture다. 설정 API나 공개 서버는 거치지 않는다.
                 lifecycle.reconcileTargets(["local-loopback"], generation: generation)
                 coordinator.reconcile(targets: ["local-loopback"], sessionID: .server(sessionID))
                 XCTAssertEqual(lifecycle.phase, .live)
@@ -115,10 +115,10 @@ import XCTest
             let originalRelay = try XCTUnwrap(uplink.cameraFrameRelay)
             await uplink.stopAndWait()
             XCTAssertTrue(uplink.recordingSink === recorder, "Recording owner must survive media teardown")
-            // Exercise the same production camera construction path used after reconnect.
-            // This is media recreation evidence; it does not claim real server reconnect coverage.
-            // prepareNativeCamera starts capture before returning the new relay. Account for
-            // that observable instrumentation window separately from actual input mismatches.
+            // 재연결 뒤에 쓰는 것과 같은 프로덕션 카메라 생성 경로를 실행한다.
+            // 미디어를 다시 만드는 과정의 근거일 뿐, 실제 서버 재연결까지 검증한다는 뜻은 아니다.
+            // prepareNativeCamera는 새 relay를 돌려주기 전에 캡처를 시작한다. 이때 계측에 잡히는
+            // 구간은 실제 입력 불일치와 따로 센다.
             pathAudit.beginRelayInstallation()
             try await prepareCapture(uplink)
             uplink.cameraFrameRelay?.setValidationRecordingSource { buffer, rotation, time in
@@ -136,8 +136,8 @@ import XCTest
                 receivedVideoFrames += remote.videoRenderer.count
                 XCTAssertGreaterThan(remote.videoRenderer.count, Int(stageSeconds * 10),
                                      "The remote peer must decode transmitted physical-camera frames")
-                // Finish recording while both peer connections still keep microphone capture
-                // alive. withConnectedPeers closes them when this body returns.
+                // 두 peer connection이 아직 마이크 캡처를 유지하는 동안 녹화를 끝낸다.
+                // withConnectedPeers는 이 본문이 반환되면 연결을 닫는다.
                 elapsed = ProcessInfo.processInfo.systemUptime - startedAt
                 XCTAssertTrue(lifecycle.beginEnding())
                 lifecycle.finishEnding(remainingTargets: [], generation: lifecycle.generation)
@@ -517,7 +517,7 @@ nonisolated private final class CameraRecordingPeerDelegate: NSObject, LKRTCPeer
     private let lock = NSLock()
     private var candidates: [LKRTCIceCandidate] = []
     private var target: LKRTCPeerConnection?
-    // RTCAudioTrack deinit removes native sinks: retain remote ObjC wrappers for the test.
+    // RTCAudioTrack이 deinit되면 네이티브 sink가 제거되므로 테스트 동안 원격 ObjC 래퍼를 붙잡아 둔다.
     private var remoteAudioTracks: [LKRTCAudioTrack] = []
     private var remoteVideoTracks: [LKRTCVideoTrack] = []
     private func attach(_ track: LKRTCVideoTrack) {
@@ -573,7 +573,7 @@ nonisolated private final class CameraRecordingFrameObserver: NSObject, LKRTCVid
     var count: Int { lock.withLock { frames } }
 }
 
-/// Bounded metadata-only evidence; retains neither frame buffers nor image content.
+/// 크기가 제한된 메타데이터 기록만 남긴다. 프레임 버퍼나 이미지 내용은 보관하지 않는다.
 nonisolated private final class CameraRecordingPathAudit: @unchecked Sendable {
     private struct Input: Equatable { let identity: ObjectIdentifier; let rotation: Int }
     private let lock = NSLock()
@@ -602,7 +602,7 @@ nonisolated private final class CameraRecordingPathAudit: @unchecked Sendable {
         lock.withLock {
             if recent[time] == Input(identity: ObjectIdentifier(buffer), rotation: rotation) { matches += 1 }
             else if installingRelay, firstObservedTime.map({ time < $0 }) ?? true {
-                // Only frames captured before this relay's first instrumented delivery.
+                // 이 relay가 계측된 첫 프레임을 전달하기 전에 캡처된 프레임만 센다.
                 initialAdmissions += 1
             } else { mismatches += 1 }
         }
@@ -612,14 +612,14 @@ nonisolated private final class CameraRecordingPathAudit: @unchecked Sendable {
     }
 }
 
-/// At most eight metadata-only AVCapture events; no captured image or audio content.
+/// 메타데이터만 담은 AVCapture 이벤트를 최대 8개까지 남긴다. 캡처한 이미지나 오디오 내용은 담지 않는다.
 nonisolated private final class CameraCaptureNotificationDiagnostics: @unchecked Sendable {
     private let lock = NSLock()
     private var events: [String] = []
     private var tokens: [NSObjectProtocol] = []
     init(session: AVCaptureSession?) {
-        // A nil session observes all AVCapture sessions, including startup before the
-        // newly constructed production capturer becomes available to this test.
+        // session이 nil이면 모든 AVCapture 세션을 관찰한다. 새로 만든 프로덕션 capturer를
+        // 이 테스트가 받기 전의 시작 단계도 포함한다.
         for name in [AVCaptureSession.runtimeErrorNotification, AVCaptureSession.wasInterruptedNotification,
                      AVCaptureSession.interruptionEndedNotification, AVCaptureSession.didStartRunningNotification,
                      AVCaptureSession.didStopRunningNotification] {

@@ -76,7 +76,7 @@ final class BroadcastPreparationOverlayRenderingTests: XCTestCase {
         XCTAssertGreaterThan(scroll.bounds.width, 200)
         let viewportHeight = scroll.bounds.height - scroll.adjustedContentInset.top - scroll.adjustedContentInset.bottom
         XCTAssertGreaterThanOrEqual(scroll.contentSize.height, viewportHeight - 1)
-        // Accessibility sizes must remain scrollable without horizontal clipping.
+        // 접근성 글자 크기에서도 가로로 잘리지 않고 스크롤할 수 있어야 한다.
         XCTAssertLessThanOrEqual(scroll.contentSize.width, scroll.bounds.width + 1)
         XCTAssertEqual(retryCount, 0, "Rendering a failure must not trigger an automatic retry")
         XCTAssertEqual(cancelCount, 0)

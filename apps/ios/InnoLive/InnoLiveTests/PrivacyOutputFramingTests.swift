@@ -34,11 +34,11 @@ final class PrivacyOutputFramingTests: XCTestCase {
     func testMaskAndPictureMoveTogetherAtExactlyOnePointOneScale() {
         let extent = CGRect(x: 0, y: 0, width: 1000, height: 1000)
         let original = CIImage(color: .green).cropped(to: extent)
-        // Stand-in for an already composited anonymization region.
+        // 이미 합성을 마친 비식별화 영역을 대신한다.
         let protected = CIImage(color: .blue).cropped(to: CGRect(x: 600, y: 400, width: 100, height: 200))
             .composited(over: original)
         let output = PrivacyOutputFraming.apply(to: protected)
-        // x=600...700 maps to 610...720 about the frame center, with no second mask transform.
+        // 프레임 중심 기준으로 x=600...700이 610...720으로 옮겨지고, 마스크 변환은 한 번 더 적용되지 않는다.
         XCTAssertEqual(pixel(output, 605, 500), [0, 255, 0, 255])
         XCTAssertEqual(pixel(output, 615, 500), [0, 0, 255, 255])
         XCTAssertEqual(pixel(output, 715, 500), [0, 0, 255, 255])

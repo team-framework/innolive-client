@@ -19,7 +19,7 @@ final class SimulatorVideoInputTests: XCTestCase {
         }
         await fulfillment(of: [loopExpectation], timeout: 10)
         capturer.stopCapture()
-        // The SDK may already have queued the last delegate callback.
+        // SDK가 마지막 delegate 콜백을 이미 큐에 넣었을 수 있다.
         try await Task.sleep(for: .milliseconds(200))
         let count = frames.count
         XCTAssertGreaterThan(count, 30, "The two-second, 30-frame bundle must repeat")

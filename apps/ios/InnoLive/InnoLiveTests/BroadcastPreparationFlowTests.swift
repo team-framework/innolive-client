@@ -603,7 +603,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
             attachment.name = name
             attachment.lifetime = .keepAlways
             add(attachment)
-            // Kept outside the repository for inspection; xcresult contains the same images.
+            // 확인용으로 저장소 밖에 남긴다. xcresult에도 같은 이미지가 들어 있다.
             try data.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(name + ".png"))
             window.isHidden = true
             window.rootViewController = nil

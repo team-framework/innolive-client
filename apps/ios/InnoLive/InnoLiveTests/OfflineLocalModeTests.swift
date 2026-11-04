@@ -1,7 +1,7 @@
 import XCTest
 @testable import InnoLive
 
-/// Admin local mode with the radio off: every request fails as offline and is recorded, and the critical path must make none.
+/// 무선 연결을 끈 관리자 로컬 모드다. 모든 요청은 오프라인으로 실패하고 기록되며, 핵심 경로는 요청을 하나도 보내면 안 된다.
 @MainActor
 final class OfflineLocalModeTests: XCTestCase {
     private let account = "550e8400-e29b-41d4-a716-446655440000"

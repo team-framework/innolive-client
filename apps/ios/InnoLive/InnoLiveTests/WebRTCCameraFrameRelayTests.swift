@@ -175,7 +175,7 @@ final class WebRTCCameraFrameRelayTests: XCTestCase {
             processingMode: mode,
             previewTarget: preview
         )
-        // Exercise the asynchronous local route without invoking the AI model.
+        // AI 모델을 호출하지 않고 비동기 로컬 경로를 실행한다.
         if mode == .onDevice { relay.setLocalAnonymizationEnabled(false) }
         relay.setUnprocessedPreviewHandler { buffer, rotation in
             raw.record(buffer, rotation: rotation)
@@ -241,7 +241,7 @@ final class WebRTCCameraFrameRelayTests: XCTestCase {
 
     @MainActor
     func testOnDeviceRecordingDoesNotWaitForAIProcessing() async throws {
-        // Admission must occur synchronously before asynchronous AI processing finishes.
+        // 녹화 입력 수락은 비동기 AI 처리가 끝나기 전에 동기적으로 일어나야 한다.
         try await assertOriginalRecording(mode: .onDevice)
     }
 
@@ -254,7 +254,7 @@ final class WebRTCCameraFrameRelayTests: XCTestCase {
     func testProtectedRecordingNeverAdmitsCameraOrUnanonymizedFrames() async throws {
         let target = ColorRecordingVideoTarget()
         let relay = WebRTCCameraFrameRelay(target: target, cameraPosition: .back, processingMode: .onDevice)
-        // Anonymization off makes the processor pass the camera frame through without the AI model.
+        // 비식별화를 끄면 processor가 AI 모델 없이 카메라 프레임을 그대로 넘긴다.
         relay.setLocalAnonymizationEnabled(false)
         defer { relay.stopProcessing() }
         let recorder = LocalBroadcastRecorder(source: .protected)
@@ -311,7 +311,7 @@ final class WebRTCCameraFrameRelayTests: XCTestCase {
         relay.setRecordingSink(nil)
         relay.capturer(LKRTCVideoCapturer(delegate: target), didCapture: frame)
         XCTAssertEqual(admitted.snapshot.count, 1, "Detached recorders must not receive another frame")
-        _ = try? await recorder.stop() // Video-only admission test; no microphone input.
+        _ = try? await recorder.stop() // 영상 입력 수락만 보는 테스트라 마이크 입력이 없다.
     }
 
     private func firstPixel(_ buffer: CVPixelBuffer) throws -> [UInt8] {

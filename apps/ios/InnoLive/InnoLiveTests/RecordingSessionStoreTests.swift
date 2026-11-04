@@ -25,7 +25,7 @@ import XCTest
         await reloaded.reloadLibrary()
         XCTAssertEqual(reloaded.recordings, [saved])
         XCTAssertNil(reloaded.libraryError)
-        // A failed subsequent start only removes its own partial file.
+        // 다음 시작이 실패하면 그 시작이 만든 미완성 파일만 지운다.
         let next = try store.begin(sessionID: "session-two")
         try await feed(next)
         try await store.abortFailedStart(sessionID: "session-two")
