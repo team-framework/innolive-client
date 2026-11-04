@@ -15,8 +15,8 @@ struct SignupConsent {
         topInset: CGFloat,
         bottomInset _: CGFloat
     ) -> (contentHeight: CGFloat, visibleHeight: CGFloat, offset: CGFloat) {
-        // Top inset makes contentOffset.y negative at rest. Bottom inset is the
-        // fixed action bar, not unread content — adding it makes the end unreachable.
+        // 위쪽 inset 때문에 멈춰 있을 때 contentOffset.y는 음수다. 아래쪽 inset은 읽지 않은
+        // 내용이 아니라 고정된 버튼 영역이다. 이를 더하면 끝에 도달할 수 없다.
         (contentHeight, visibleHeight, offset + topInset)
     }
 

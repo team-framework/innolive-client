@@ -14,7 +14,7 @@ extension EnvironmentValues {
         set { self[InnoLiveGlassOpaqueKey.self] = newValue }
     }
 
-    /// Allows previews and rendering tests to exercise the older-OS appearance.
+    /// 미리보기와 렌더링 테스트에서 이전 OS용 외형을 확인할 수 있게 한다.
     var innoLiveGlassForceFallback: Bool {
         get { self[InnoLiveGlassFallbackKey.self] }
         set { self[InnoLiveGlassFallbackKey.self] = newValue }

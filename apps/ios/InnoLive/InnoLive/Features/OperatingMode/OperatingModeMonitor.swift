@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import Network
 
-/// Feeds path changes and server probes into `OperatingState`. Runs only for administrators, because local mode is admin-only.
+/// 네트워크 경로 변화와 서버 확인 결과를 `OperatingState`에 넣는다. 로컬 모드는 관리자 전용이라 관리자일 때만 실행한다.
 @MainActor
 final class OperatingModeMonitor: ObservableObject {
     nonisolated deinit {}
@@ -26,14 +26,14 @@ final class OperatingModeMonitor: ObservableObject {
         configuration.timeoutIntervalForResource = Self.probeTimeout
         configuration.waitsForConnectivity = false
         probeSession = URLSession(configuration: configuration)
-        // The always-local switch no longer has a settings row, so a choice saved by an earlier build must not pin local mode.
+        // 항상 로컬 스위치는 이제 설정 항목이 없으므로, 이전 빌드에서 저장한 선택 때문에 로컬 모드로 고정되면 안 된다.
         defaults.removeObject(forKey: Self.alwaysLocalKey)
         state = OperatingState()
     }
 
     var alwaysLocal: Bool { state.alwaysLocal }
 
-    /// Set only while the admin monitor runs and has decided on local mode.
+    /// 관리자 모니터가 실행 중이고 로컬 모드로 정했을 때만 값이 있다.
     var broadcastUnavailableReason: String? {
         guard isMonitoring, case .local(let reason) = state.mode else { return nil }
         return reason.broadcastUnavailableReason
@@ -72,7 +72,7 @@ final class OperatingModeMonitor: ObservableObject {
         send(.alwaysLocal(enabled))
     }
 
-    /// The user's "서버 모드로 전환" confirms the server with one fresh probe first.
+    /// 사용자가 "서버 모드로 전환"을 고르면 먼저 새 확인 요청 한 번으로 서버 상태를 확인한다.
     func switchToServer() async {
         guard state.canSwitchToServer else { return }
         send(.probe(succeeded: await probe()))
@@ -104,7 +104,7 @@ final class OperatingModeMonitor: ObservableObject {
         }
     }
 
-    /// Any HTTP answer below 500 means the server is reachable; authorization is not this probe's question.
+    /// 500 미만의 HTTP 응답이면 서버에 닿는다고 본다. 인증 여부는 이 확인에서 따지지 않는다.
     private func probe() async -> Bool {
         guard let url = AuthenticationConfiguration.serverURL(path: "/users/me/plan") else { return false }
         var request = URLRequest(url: url, timeoutInterval: Self.probeTimeout)

@@ -35,7 +35,7 @@ nonisolated enum OperatingEvent: Equatable, Sendable {
     case tick
 }
 
-/// The single answer to "can we use the server?". An active local capture never switches back on its own.
+/// "서버를 쓸 수 있는가"에 대한 단 하나의 판단이다. 진행 중인 로컬 캡처는 스스로 서버로 돌아가지 않는다.
 nonisolated struct OperatingState: Equatable, Sendable {
     static let suspectWindow: Duration = .seconds(2)
     static let recoveryWindow: Duration = .seconds(30)
@@ -50,7 +50,7 @@ nonisolated struct OperatingState: Equatable, Sendable {
     private(set) var pathSatisfied = true
     private(set) var alwaysLocal = false
     private(set) var captureActive = false
-    /// Probes kept succeeding long enough while local. Shown as the "서버 연결됨" chip.
+    /// 로컬 모드에서 서버 확인이 충분히 오래 계속 성공했다. "서버 연결됨" 칩으로 보여 준다.
     private(set) var serverAvailable = false
     private var recovery: Recovery?
 
@@ -58,10 +58,10 @@ nonisolated struct OperatingState: Equatable, Sendable {
         if alwaysLocal { apply(.alwaysLocal(true), at: .now) }
     }
 
-    /// Usage uploads wait only for a network path under "항상 로컬", which never probes the server.
+    /// "항상 로컬"에서는 서버를 확인하지 않으므로 사용량 업로드는 네트워크 경로만 기다린다.
     var canUploadUsage: Bool { pathSatisfied && (alwaysLocal || mode == .server || serverAvailable) }
 
-    /// A user may switch back after at least one successful probe while idle.
+    /// 캡처 중이 아닐 때 서버 확인이 한 번 이상 성공하면 사용자가 서버로 다시 전환할 수 있다.
     var canSwitchToServer: Bool {
         guard case .local(let reason) = mode, reason != .userChoice, !captureActive else { return false }
         return recovery != nil
@@ -118,7 +118,7 @@ nonisolated struct OperatingState: Equatable, Sendable {
                 mode = .server
                 resetRecovery()
             } else if serverAvailable, !captureActive {
-                // The next session defaults to the server again; an active take keeps local.
+                // 다음 세션은 다시 서버를 기본으로 쓴다. 진행 중인 촬영은 로컬을 유지한다.
                 mode = .server
                 resetRecovery()
             }
