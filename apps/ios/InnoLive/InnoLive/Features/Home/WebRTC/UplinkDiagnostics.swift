@@ -21,7 +21,7 @@ nonisolated struct UplinkVideoEncoderStats: Equatable, Sendable {
         } ?? "-"
         let size = outbound.width.flatMap { width in outbound.height.map { "\(width)x\($0)" } } ?? "-"
         return """
-        uplink video at=\(UplinkQualityLog.timestamp(at)) reason=\(outbound.reason) size=\(size) fps=\(fps) \
+        uplink video at=\(ISO8601Timestamp.stringWithFractionalSeconds(from: at)) reason=\(outbound.reason) size=\(size) fps=\(fps) \
         targetBitrate=\(targetBitrate.map { String(Int($0)) } ?? "-") encoder=\(encoderImplementation ?? "-") \
         resolutionChanges=\(qualityLimitationResolutionChanges.map(String.init) ?? "-")
         """
@@ -54,7 +54,7 @@ nonisolated struct UplinkQualityLog: Equatable, Sendable {
             String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), value)
         } ?? "-"
         return """
-        uplink quality at=\(Self.timestamp(at)) kind=\(kind.rawValue) \
+        uplink quality at=\(ISO8601Timestamp.stringWithFractionalSeconds(from: at)) kind=\(kind.rawValue) \
         reason=\(reason) previousReason=\(previousReason ?? "-") \
         size=\(sizeLine) previousSize=\(previousSizeLine) fps=\(fps)
         """
@@ -63,12 +63,6 @@ nonisolated struct UplinkQualityLog: Equatable, Sendable {
     private static func size(_ width: Int?, _ height: Int?) -> String {
         guard let width, let height else { return "-" }
         return "\(width)x\(height)"
-    }
-
-    fileprivate static func timestamp(_ date: Date) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.string(from: date)
     }
 }
 
@@ -221,7 +215,7 @@ nonisolated struct UplinkDisconnectLog: Equatable, Sendable {
     var networkTo: String?
 
     func line() -> String {
-        let alive = lastAliveAt.map(UplinkQualityLog.timestamp) ?? "-"
+        let alive = lastAliveAt.map(ISO8601Timestamp.stringWithFractionalSeconds(from:)) ?? "-"
         let network: String
         if networkChanged, let networkFrom, let networkTo {
             network = "\(networkFrom)->\(networkTo)"
@@ -229,7 +223,7 @@ nonisolated struct UplinkDisconnectLog: Equatable, Sendable {
             network = "-"
         }
         return """
-        uplink disconnect at=\(UplinkQualityLog.timestamp(at)) trigger=\(trigger) \
+        uplink disconnect at=\(ISO8601Timestamp.stringWithFractionalSeconds(from: at)) trigger=\(trigger) \
         lastAliveAt=\(alive) callbackDelayed=\(callbackDelayed) \
         background=\(background) screenOff=\(screenOff) \
         networkChanged=\(networkChanged) network=\(network)

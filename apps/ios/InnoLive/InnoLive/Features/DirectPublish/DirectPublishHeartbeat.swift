@@ -132,7 +132,7 @@ struct DirectHeartbeatBuilder {
             target.sentBytes.map { (target.provider, $0) }
         })
         return DirectHeartbeatRequest(
-            sentAt: Self.timestamp(now),
+            sentAt: ISO8601Timestamp.string(from: now),
             targets: targets,
             video: .init(fps: (fps * 10).rounded() / 10, droppedFrames: metrics.droppedFrames,
                          width: metrics.videoWidth, height: metrics.videoHeight),
@@ -145,12 +145,6 @@ struct DirectHeartbeatBuilder {
             device: device,
             model: model
         )
-    }
-
-    static func timestamp(_ date: Date) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.string(from: date)
     }
 
     private nonisolated static func rounded(_ value: Double) -> Double { (value * 10).rounded() / 10 }

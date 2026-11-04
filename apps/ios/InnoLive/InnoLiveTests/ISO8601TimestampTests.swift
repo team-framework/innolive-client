@@ -21,4 +21,16 @@ final class ISO8601TimestampTests: XCTestCase {
         XCTAssertNil(ISO8601Timestamp.date(from: "2027-01-15"))
         XCTAssertNil(ISO8601Timestamp.date(from: "not a date"))
     }
+
+    func testFormatsTimestampWithoutFractionalSeconds() {
+        let date = Date(timeIntervalSince1970: 1_800_000_000)
+        XCTAssertEqual(ISO8601Timestamp.string(from: date), "2027-01-15T08:00:00Z")
+        XCTAssertEqual(ISO8601Timestamp.date(from: ISO8601Timestamp.string(from: date)), date)
+    }
+
+    func testFormatsTimestampWithFractionalSeconds() {
+        let date = Date(timeIntervalSince1970: 1_800_000_000.25)
+        XCTAssertEqual(ISO8601Timestamp.stringWithFractionalSeconds(from: date), "2027-01-15T08:00:00.250Z")
+        XCTAssertEqual(ISO8601Timestamp.date(from: ISO8601Timestamp.stringWithFractionalSeconds(from: date))?.timeIntervalSince1970 ?? 0, date.timeIntervalSince1970, accuracy: 0.0001)
+    }
 }
