@@ -2,7 +2,7 @@ import Accelerate
 import CoreML
 import CoreImage
 
-/// Fixed contract produced by scripts/export-ios-privacy-model.py.
+/// scripts/export-ios-privacy-model.py가 만드는 모델의 고정 규격이다.
 nonisolated enum PrivacySegmentation {
     static let inputSize = 640
     static let maskSize = 160
@@ -11,7 +11,7 @@ nonisolated enum PrivacySegmentation {
     static let confidence: Float = 0.01
 
     struct Detection {
-        let box: CGRect // top-left origin, 640-pixel model coordinates
+        let box: CGRect // 좌상단 원점, 640픽셀 모델 좌표
         let score: Float
         let classID: Int
         let coefficients: [Float]
@@ -62,7 +62,7 @@ nonisolated enum PrivacySegmentation {
             if !kept.contains(where: { $0.classID == candidate.classID && iou($0.box, candidate.box) > 0.70 }) {
                 kept.append(candidate)
             }
-            // Do not silently leave excess detections unprotected in crowded scenes.
+            // 붐비는 장면에서 한도를 넘은 검출을 보호하지 않은 채 조용히 넘어가지 않는다.
             if kept.count > 100 { throw PrivacyModelError.tooManyObjects }
         }
         return kept
@@ -111,7 +111,7 @@ nonisolated enum PrivacySegmentation {
                     covered = true
                 }
             }
-            // A valid detection with an empty mask still needs protection.
+            // 마스크가 비어 있어도 유효한 검출이면 보호해야 한다.
             if !covered {
                 for y in y0..<y1 { for x in x0..<x1 { mask[y * maskSize + x] = 255 } }
             }
@@ -120,7 +120,7 @@ nonisolated enum PrivacySegmentation {
         return instances
     }
 
-    /// Check every value, including NaN/Inf, without per-element key-path dispatch in Debug builds.
+    /// NaN/Inf를 포함해 모든 값을 검사한다. Debug 빌드에서도 요소마다 key-path 디스패치가 일어나지 않게 한다.
     static func allFinite(_ values: [Float]) -> Bool {
         values.withUnsafeBufferPointer { buffer in
             guard var cursor = buffer.baseAddress else { return true }
@@ -135,7 +135,7 @@ nonisolated enum PrivacySegmentation {
 
     static func floats(_ tensor: MLMultiArray, shape: [Int]) throws -> [Float] {
         guard tensor.shape.map(\.intValue) == shape else { throw PrivacyModelError.outputContract }
-        // Verify contiguous output before using its pointer rather than assuming strides.
+        // stride를 가정하지 않고, 포인터를 쓰기 전에 출력이 연속 메모리인지 확인한다.
         var stride = 1
         for axis in shape.indices.reversed() {
             guard tensor.strides[axis].intValue == stride else { throw PrivacyModelError.outputContract }

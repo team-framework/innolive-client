@@ -9,7 +9,7 @@ nonisolated enum ModelReadiness: Equatable, Sendable {
     case failed(String)
 }
 
-/// Loads the on-device models once so Core ML compiles and caches them while the app can still go online.
+/// 앱이 아직 온라인에 연결할 수 있는 동안 온디바이스 모델을 한 번 불러와 Core ML이 컴파일하고 캐시하게 한다.
 @MainActor
 final class ModelReadinessStore: ObservableObject {
     nonisolated deinit {}
@@ -19,7 +19,7 @@ final class ModelReadinessStore: ObservableObject {
         let load: @Sendable () throws -> Void
     }
 
-    /// The face embedding model also loads YuNet, so two loads warm all three bundled models.
+    /// 얼굴 임베딩 모델이 YuNet도 함께 불러오므로, 두 번만 불러와도 번들 모델 세 개가 모두 워밍업된다.
     nonisolated static let bundledLoaders: [Loader] = [
         Loader(name: "PrivacyDetector") { _ = try PrivacyModel() },
         Loader(name: "PrivacyFaceRecognizer+PrivacyYuNet") { _ = try PrivacyFaceEmbeddingModel() }
@@ -42,7 +42,7 @@ final class ModelReadinessStore: ObservableObject {
 
     var isReady: Bool { state == .ready }
 
-    /// Whether this app build on this OS finished a warm-up before, a proxy for Core ML's compiled cache.
+    /// 이 OS에서 이 앱 빌드가 워밍업을 마친 적이 있는지 나타낸다. Core ML 컴파일 캐시 여부를 대신 판단하는 값이다.
     var wasWarmedForThisBuild: Bool { defaults.string(forKey: Self.warmedBuildKey) == Self.buildKey }
 
     private static var buildKey: String {
@@ -50,7 +50,7 @@ final class ModelReadinessStore: ObservableObject {
         return "\(version)|\(ProcessInfo.processInfo.operatingSystemVersionString)"
     }
 
-    /// Safe to call repeatedly; only one warm-up runs, and a ready or missing state is final.
+    /// 여러 번 호출해도 안전하다. 워밍업은 하나만 실행되고, ready나 missing 상태가 되면 더 바뀌지 않는다.
     func warm() async {
         if let task { return await task.value }
         switch state {

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Opt-in device profiling. Records timings and counts, never frames or credentials.
+/// 켰을 때만 동작하는 기기 프로파일링이다. 시간과 횟수만 기록하고 프레임이나 인증 정보는 기록하지 않는다.
 nonisolated enum PrivacyPipelineProbe {
     #if DEBUG
     static let enabled = ProcessInfo.processInfo.arguments.contains("--privacy-pipeline-probe")

@@ -12,7 +12,7 @@ nonisolated enum PrivacyAnimal: String, CaseIterable, Identifiable {
     }
 }
 
-/// Queue-owned compositor. Missing assets always retain the already protected image.
+/// 큐가 소유하는 합성기다. 에셋이 없으면 항상 이미 보호 처리된 이미지를 그대로 둔다.
 nonisolated final class PrivacyAnimalSprite {
     private struct Metadata: Decodable { let faceRect: [Double]; let anchor: [Double] }
     private var unavailable: Set<PrivacyAnimal> = []

@@ -1,9 +1,9 @@
 import Foundation
 import CoreGraphics
 
-/// Stream-local approval bound to a registered face and the BoT-SORT lifetime.
-/// Approved tracks are matched again every `reverifyFrames` frames, because the tracker has no ReID
-/// and an ID swap could otherwise carry an approval to a stranger.
+/// 스트림 안에서만 유효한 승인으로, 등록된 얼굴과 BoT-SORT 트랙 수명에 묶인다.
+/// 트래커에 ReID가 없어 ID가 뒤바뀌면 승인이 모르는 사람에게 넘어갈 수 있으므로,
+/// 승인된 트랙도 `reverifyFrames` 프레임마다 다시 매칭한다.
 nonisolated final class PrivacyFaceTracking {
     static let reverifyFrames = 30
 
@@ -38,7 +38,7 @@ nonisolated final class PrivacyFaceTracking {
             var track = old.first { $0.sourceID == sourceID } ?? Track(index: index, box: box, sourceID: sourceID)
             track.box = box
             track.index = index
-            // Avoid ambiguous initial crops. Existing approvals follow the ID even during overlap.
+            // 처음 크롭이 모호해지지 않게 한다. 이미 받은 승인은 얼굴이 겹쳐 있는 동안에도 ID를 따라간다.
             track.isolated = !valid.contains { $0.key != index && PrivacySegmentation.iou(box, $0.value) > 0.05 }
             return track
         }
@@ -51,7 +51,7 @@ nonisolated final class PrivacyFaceTracking {
         for index in tracks.indices where tracks[index].candidate != nil { tracks[index].framesSinceVerified += 1 }
     }
 
-    /// A whitelist edit cancels in-flight decisions, but preserves approvals for surviving entries.
+    /// 허용 목록을 고치면 진행 중인 판단은 취소하되, 남아 있는 항목의 승인은 유지한다.
     func retainEntries(_ entryIDs: Set<UUID>) {
         tracks = tracks.map { track in
             if let candidate = track.candidate, entryIDs.contains(candidate) { return track }
@@ -59,7 +59,7 @@ nonisolated final class PrivacyFaceTracking {
         }
     }
 
-    /// Approved tracks due for re-verification go before unapproved ones.
+    /// 재검증할 때가 된 승인 트랙을 승인되지 않은 트랙보다 먼저 고른다.
     func next(at time: Double) -> Track? {
         guard time.isFinite,
               let index = tracks.indices.filter({ tracks[$0].needsMatch && tracks[$0].index >= 0 && tracks[$0].isolated && time - tracks[$0].lastScheduled >= 0.25 })
@@ -69,8 +69,9 @@ nonisolated final class PrivacyFaceTracking {
         return tracks[index]
     }
 
-    /// A fresh, isolated, usable sample decides the track: a match approves or confirms it, no match revokes it.
-    /// An unusable or late sample changes nothing, so a due approved track is simply retried.
+    /// 최근에 찍었고, 다른 얼굴과 겹치지 않으며, 쓸 수 있는 샘플이 트랙을 결정한다. 매칭되면 승인하거나
+    /// 승인을 확인하고, 매칭되지 않으면 승인을 취소한다.
+    /// 쓸 수 없거나 늦게 온 샘플은 아무것도 바꾸지 않으므로, 재검증할 때가 된 승인 트랙은 그대로 다시 시도한다.
     func accept(trackID: UUID, match: UUID?, capturedAt: Double, now: Double, sampleAvailable: Bool = true) {
         guard let index = tracks.firstIndex(where: { $0.id == trackID }), tracks[index].needsMatch,
               tracks[index].lastScheduled == capturedAt, tracks[index].isolated,

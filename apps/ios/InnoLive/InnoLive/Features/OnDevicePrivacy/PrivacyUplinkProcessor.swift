@@ -2,7 +2,7 @@ import CoreImage
 import ImageIO
 @preconcurrency import LiveKitWebRTC
 
-/// One processing frame and one replaceable pending frame. Changes revoke both.
+/// 처리 중인 프레임 하나와 교체 가능한 대기 프레임 하나만 둔다. 상태가 바뀌면 둘 다 무효로 한다.
 nonisolated final class PrivacyFrameGate: @unchecked Sendable {
     struct Ticket { let id: UUID; let generation: UInt; let enabled: Bool }
     private let lock = NSLock()
@@ -21,7 +21,7 @@ nonisolated final class PrivacyFrameGate: @unchecked Sendable {
             return Ticket(id: id, generation: generation, enabled: enabled)
         }
     }
-    /// Keep only the newest input when processing briefly exceeds a capture interval.
+    /// 처리 시간이 잠깐 캡처 간격을 넘으면 가장 최근 입력만 남긴다.
     @discardableResult
     func enqueue(_ work: @escaping @Sendable (Ticket) -> Void) -> Admission {
         var ticket: Ticket?
@@ -110,7 +110,7 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     func reset() { gate.invalidate() }
     func stop() { gate.invalidate(stop: true) }
 
-    /// `deliver` receives the frame and whether it passed through anonymization.
+    /// `deliver`는 프레임과, 그 프레임이 비식별화를 거쳤는지 여부를 받는다.
     func submit(_ frame: LKRTCVideoFrame, deliver: @escaping @Sendable (LKRTCVideoFrame, Bool) -> Void) {
         let payload = FramePayload(frame: frame)
         let libraryRevision = PrivacyFaceLibrary.revision
@@ -144,7 +144,7 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                         let upright = original.transformed(by: CGAffineTransform(translationX: -original.extent.minX, y: -original.extent.minY))
                         let output = try outputPool.acquire(width: CVPixelBufferGetWidth(pixels.pixelBuffer),
                                                             height: CVPixelBufferGetHeight(pixels.pixelBuffer))
-                        // Restore sensor dimensions; WebRTC still carries the original rotation metadata.
+                        // 센서 원래 크기로 되돌린다. 회전 메타데이터는 WebRTC가 원래 값 그대로 전달한다.
                         let current = mosaicLock.withLock { mosaic }
                         let processing = try model!.process(upright, into: output, restoring: orientation.reverse, mosaic: current)
                         #if DEBUG
@@ -160,7 +160,7 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                         result = LKRTCVideoFrame(buffer: LKRTCCVPixelBuffer(pixelBuffer: output), rotation: payload.frame.rotation, timeStampNs: payload.frame.timeStampNs)
                         result.timeStamp = payload.frame.timeStamp
                     } else {
-                        // Only the user's explicit anonymization-off control permits raw output.
+                        // 사용자가 직접 비식별화를 끈 경우에만 원본을 내보낸다.
                         result = payload.frame
                     }
                     gate.finish(ticket) {
@@ -174,7 +174,7 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                 } catch {
                     report(.failure)
                     gate.finish(ticket) { onError(error.localizedDescription) }
-                    // No raw fallback when model loading, inference or rendering fails.
+                    // 모델 로드, 추론, 렌더링이 실패해도 원본으로 대신 내보내지 않는다.
                 }
             }
         }
@@ -216,7 +216,7 @@ nonisolated enum PrivacyUplinkValidationMetrics {
 }
 #endif
 
-/// Serializes the routing decision with delivery, including asynchronous AI results.
+/// 경로 결정과 전달을 직렬화한다. 비동기로 돌아오는 AI 결과도 여기에 포함된다.
 nonisolated final class PrivacyUplinkRoute: @unchecked Sendable {
     struct Ticket { let generation: UInt; let mode: AIProcessingMode }
     private let lock = NSLock()
@@ -239,7 +239,7 @@ nonisolated final class PrivacyUplinkRoute: @unchecked Sendable {
     }
 }
 
-/// Used on the processing queue. Core Video only reuses buffers released by every consumer.
+/// 처리 큐에서 사용한다. Core Video는 모든 사용처가 놓아준 버퍼만 재사용한다.
 nonisolated final class PrivacyOutputBufferPool {
     private var pool: CVPixelBufferPool?
     private var dimensions: CGSize = .zero

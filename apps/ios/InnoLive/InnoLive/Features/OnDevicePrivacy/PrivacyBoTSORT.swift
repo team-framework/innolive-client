@@ -3,8 +3,8 @@
 import Foundation
 import CoreGraphics
 
-/// Stream-local BoT-SORT, configured like innolive-ai/config/botsort.yaml.
-/// Appearance ReID is disabled on the server; AdaFace remains a separate identity decision.
+/// 스트림마다 따로 두는 BoT-SORT다. 설정은 innolive-ai/config/botsort.yaml과 같다.
+/// 서버에서 외형 ReID는 꺼져 있고, 신원 판단은 AdaFace가 따로 맡는다.
 nonisolated final class PrivacyBoTSORT {
     struct Observation {
         let trackID: Int
@@ -68,10 +68,10 @@ nonisolated final class PrivacyBoTSORT {
                                 lastFrame: frame, detectionIndex: index, classID: detection.classID))
             nextID += 1
         }
-        // Match before expiring the lost pool, in the same order as BYTETracker.
+        // BYTETracker와 같은 순서로, 매칭을 먼저 끝낸 뒤 lost 풀을 만료시킨다.
         tracks.removeAll { $0.state == .lost && frame - $0.lastFrame > Self.buffer }
         removeDuplicates()
-        // Tentative detections still get a mask immediately. They cannot grant a face exception.
+        // 아직 확정되지 않은(tentative) 검출에도 바로 마스크를 씌운다. 이런 검출로는 얼굴 예외를 줄 수 없다.
         let observations = tracks.filter { $0.state != .lost && $0.lastFrame == frame }.map {
             Observation(trackID: $0.id, detectionIndex: $0.detectionIndex, box: $0.filter.box,
                         confirmed: $0.state == .tracked)

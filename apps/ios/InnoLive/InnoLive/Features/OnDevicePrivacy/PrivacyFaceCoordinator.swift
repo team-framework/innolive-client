@@ -11,7 +11,7 @@ nonisolated struct PrivacyFaceSnapshot: Sendable {
     let ready: Bool
 }
 
-/// All state is owned by PrivacyCamera's serial queue. Recognition returns through a locked mailbox.
+/// 모든 상태는 PrivacyCamera의 직렬 큐가 소유한다. 인식 결과는 락으로 보호한 메일박스를 거쳐 돌아온다.
 nonisolated final class PrivacyFaceCoordinator {
     private struct Enrollment {
         let id = UUID()
@@ -93,7 +93,7 @@ nonisolated final class PrivacyFaceCoordinator {
                               height: box.height * image.extent.height / layout.resized.height).intersection(image.extent)
             if !real.isNull, min(real.width, real.height) >= 24 { boxes[index] = real }
         }
-        // Keep the original model coordinates; small and overlapping faces still retain approved IDs.
+        // 원래 모델 좌표를 그대로 넘긴다. 작거나 겹친 얼굴도 승인된 ID를 계속 유지한다.
         tracking.update(Dictionary(uniqueKeysWithValues: faceIndices.map { ($0, objects[$0].box) }), at: timestamp, trackIDs: trackIDs, liveTrackIDs: liveTrackIDs)
         if let output = worker.takeResult(), output.generation == generation {
             milliseconds = output.milliseconds

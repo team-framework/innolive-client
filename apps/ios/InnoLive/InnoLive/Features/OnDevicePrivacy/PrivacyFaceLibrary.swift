@@ -22,7 +22,7 @@ nonisolated enum PrivacyFaceMath {
         return zip(a, b).reduce(Float(0)) { $0 + $1.0 * $1.1 }
     }
 
-    // Experimental local threshold. Server embeddings and thresholds are not reused.
+    // 실험용 로컬 임계값이다. 서버 임베딩과 임계값은 재사용하지 않는다.
     static func match(_ embedding: [Float], entries: [PrivacyRegisteredFace]) -> UUID? {
         guard normalized(embedding) != nil else { return nil }
         let scores = entries.map { ($0.id, cosine(embedding, $0.embedding)) }.sorted { $0.1 > $1.1 }
@@ -32,7 +32,7 @@ nonisolated enum PrivacyFaceMath {
     }
 }
 
-/// Key for the sealed face library. It never leaves the device and is not restored from backups.
+/// 암호화한 얼굴 라이브러리의 키다. 기기 밖으로 나가지 않고 백업에서 복원되지도 않는다.
 nonisolated protocol PrivacyFaceLibraryKeyStoring: Sendable {
     func load() -> SymmetricKey?
     func create() throws -> SymmetricKey
@@ -72,8 +72,8 @@ nonisolated struct PrivacyFaceLibraryKeychainKey: PrivacyFaceLibraryKeyStoring {
     func remove() { SecItemDelete(identity as CFDictionary) }
 }
 
-/// Called only on the camera queue. Stores embeddings, never photos, as an AES-GCM sealed box
-/// on top of complete file protection, keyed by a device-only Keychain item.
+/// 카메라 큐에서만 호출한다. 사진은 저장하지 않고 임베딩만 저장한다. 임베딩은 complete 파일 보호에 더해
+/// AES-GCM sealed box로 한 번 더 암호화하고, 키는 이 기기 전용 Keychain 항목에 둔다.
 nonisolated final class PrivacyFaceLibrary {
     private static let revisionState = RevisionState()
     private final class RevisionState: @unchecked Sendable {
@@ -93,7 +93,7 @@ nonisolated final class PrivacyFaceLibrary {
     private let legacyURL: URL
     private let keys: PrivacyFaceLibraryKeyStoring
     private(set) var entries: [PrivacyRegisteredFace] = []
-    /// Set when this load had to discard registrations; the user needs to register again.
+    /// 이번 로드에서 등록 데이터를 버려야 했을 때 설정한다. 사용자가 다시 등록해야 한다.
     private(set) var notice: String?
 
     private static func defaultURLs() throws -> (sealed: URL, legacy: URL) {
@@ -116,7 +116,7 @@ nonisolated final class PrivacyFaceLibrary {
                 guard let key = keys.load() else { throw CryptoKitError.authenticationFailure }
                 plain = try AES.GCM.open(AES.GCM.SealedBox(combined: Data(contentsOf: self.url)), using: key)
             } catch {
-                // A restored backup or a new device has no key. Biometric data is not recoverable by design.
+                // 백업에서 복원했거나 새 기기라면 키가 없다. 생체 데이터는 설계상 복구할 수 없다.
                 try? fileManager.removeItem(at: self.url)
                 notice = Self.unreadableMessage
                 return
@@ -130,7 +130,7 @@ nonisolated final class PrivacyFaceLibrary {
         }
     }
 
-    /// Removes the library and its key, for sign-out, session expiry and account deletion.
+    /// 로그아웃, 세션 만료, 계정 삭제 때 라이브러리와 그 키를 함께 지운다.
     static func eraseAll(keys: PrivacyFaceLibraryKeyStoring = PrivacyFaceLibraryKeychainKey()) {
         if let urls = try? defaultURLs() {
             try? FileManager.default.removeItem(at: urls.sealed)
@@ -143,7 +143,7 @@ nonisolated final class PrivacyFaceLibrary {
     private func adopt(_ data: Data) throws {
         let document = try JSONDecoder().decode(Document.self, from: data)
         guard document.contract == Self.contract else {
-            // Embeddings from a different recognizer are not comparable.
+            // 다른 인식기가 만든 임베딩과는 비교할 수 없다.
             entries = []
             notice = Self.contractChangedMessage
             return

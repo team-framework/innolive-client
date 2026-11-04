@@ -60,7 +60,7 @@
         _points = std::move(points);
         return result;
     } catch (const cv::Exception &) {
-        // Same identity fallback as the server; don't bridge a C++ exception into Swift.
+        // 서버와 같이 항등 변환으로 대체한다. C++ 예외를 Swift로 넘기지 않는다.
         [self reset];
         return CGAffineTransformIdentity;
     }

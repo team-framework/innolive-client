@@ -1,6 +1,6 @@
 import CoreImage
 
-/// Crop the protected output only. Detector, tracking, and recognition retain the full camera field of view.
+/// 보호 처리된 출력만 크롭한다. 검출, 추적, 인식은 카메라 전체 화각을 그대로 쓴다.
 nonisolated enum PrivacyOutputFraming {
     static let scale: CGFloat = 1.1
 

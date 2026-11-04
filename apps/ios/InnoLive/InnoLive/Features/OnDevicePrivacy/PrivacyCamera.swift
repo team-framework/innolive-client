@@ -2,7 +2,7 @@
 import AVFoundation
 import OSLog
 
-/// Capture, inference and compositing share one serial queue. Late frames are dropped by AVFoundation.
+/// 캡처, 추론, 합성은 직렬 큐 하나를 함께 쓴다. 늦게 들어온 프레임은 AVFoundation이 버린다.
 nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     typealias FrameHandler = @Sendable (CGImage, Int, PrivacyTimings, Double, PrivacyFaceSnapshot) -> Void
     typealias ErrorHandler = @Sendable (String) -> Void
@@ -114,7 +114,7 @@ nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleB
                 onFrame?(image, count, timings, fps, faces)
                 if processed == 1 || processed % 60 == 0 {
                     logger.info("processed=\(self.processed) objects=\(count) processing_ms=\(timings.total) fps=\(fps)")
-                    // Numeric diagnostics only; no camera images, crops or embeddings are stored.
+                    // 수치 진단값만 남긴다. 카메라 이미지, 크롭, 임베딩은 저장하지 않는다.
                     benchmark.append(["frame": Double(processed), "uptime": completed,
                                       "objects": Double(count), "fps": fps, "total_ms": timings.total,
                                       "prepare_ms": timings.prepare, "inference_ms": timings.inference,
@@ -128,7 +128,7 @@ nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleB
                     }
                 }
             } catch {
-                // Never show an unprocessed fallback frame after a runtime failure.
+                // 실행 중 실패가 나면 처리되지 않은 대체 프레임을 절대 보여 주지 않는다.
                 session.stopRunning()
                 onError?(error.localizedDescription)
                 logger.error("processing failed: \(error.localizedDescription, privacy: .public)")

@@ -1,8 +1,8 @@
 #if DEBUG
 import SwiftUI
 
-/// Explicit launch-argument smoke test for an authorized private broadcast.
-/// Uses the app's existing authentication, never exports tokens or camera images.
+/// 실행 인자로 명시했을 때만 도는, 권한 있는 비공개 방송용 스모크 테스트다.
+/// 앱의 기존 인증을 그대로 쓰고, 토큰이나 카메라 이미지는 밖으로 내보내지 않는다.
 struct PrivateBroadcastValidationView: View {
     @StateObject private var authentication = AuthSession()
     @StateObject private var youtube: YouTubeIntegration
@@ -179,7 +179,7 @@ struct PrivateBroadcastValidationView: View {
             let saved = try await api.saveBroadcastSettings(session: session, accessToken: token, settings: settings)
             guard saved.broadcast?.privacy == "private" else { throw PrivacyFaceError.message("비공개 설정 확인 실패") }
             record("server_broadcast_privacy=private")
-            // Set before awaiting, so a lost prepare response still triggers cleanup.
+            // await 전에 설정해 두어 prepare 응답을 받지 못해도 정리가 실행되게 한다.
             prepared = true
             let snapshot = try await api.prepareStream(session: session, accessToken: token)
             guard snapshot.broadcast?.privacy == "private" else { throw PrivacyFaceError.message("준비된 방송의 비공개 설정 확인 실패") }

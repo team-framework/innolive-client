@@ -3,8 +3,8 @@
 import Foundation
 import CoreGraphics
 
-/// BoT-SORT's XYWH constant-velocity model. State: cx, cy, w, h, vx, vy, vw, vh.
-/// Noise weights follow the server's pinned Ultralytics 8.4.104 KalmanFilterXYWH.
+/// BoT-SORT의 XYWH 등속 모델이다. 상태: cx, cy, w, h, vx, vy, vw, vh.
+/// 노이즈 가중치는 서버가 버전을 고정한 Ultralytics 8.4.104의 KalmanFilterXYWH를 따른다.
 nonisolated struct PrivacyTrackKalman {
     private(set) var mean: [Double]
     private(set) var covariance: [Double]
@@ -74,7 +74,7 @@ nonisolated struct PrivacyTrackKalman {
         covariance = next
     }
 
-    /// Apply the 2x2 camera warp to all four state pairs, including covariance.
+    /// 2x2 카메라 워프를 공분산까지 포함해 상태 쌍 네 개 모두에 적용한다.
     mutating func compensate(_ warp: CGAffineTransform) {
         let rotation = [[Double(warp.a), Double(warp.c)], [Double(warp.b), Double(warp.d)]]
         let oldMean = mean
@@ -122,8 +122,8 @@ nonisolated struct PrivacyTrackKalman {
 }
 
 nonisolated enum PrivacyTrackAssignment {
-    /// Rectangular Hungarian assignment with unmatched vertices. A real match has
-    /// cost (distance - limit); dummy columns cost zero, matching LAPJV's cost limit.
+    /// 매칭되지 않는 정점을 허용하는 직사각 Hungarian 할당이다. 실제 매칭의 비용은
+    /// (distance - limit)이고 더미 열의 비용은 0이라, LAPJV의 cost limit과 같게 동작한다.
     static func solve(_ costs: [[Double]], limit: Double) -> [(Int, Int)] {
         guard let first = costs.first, !first.isEmpty else { return [] }
         let transpose = costs.count > first.count
