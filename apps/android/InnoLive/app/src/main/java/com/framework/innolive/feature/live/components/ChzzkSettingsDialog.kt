@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live.components
 
 import com.framework.innolive.ui.theme.ModalSurface
 import com.framework.innolive.ui.theme.InnoLiveDialog
+import com.framework.innolive.ui.text.asString
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +30,7 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.live.ChzzkBroadcastSettings
 import com.framework.innolive.feature.live.ChzzkCategory
 import com.framework.innolive.feature.live.validationField
+import com.framework.innolive.feature.live.validationMessage
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialDialogFrame
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialGuide
@@ -160,9 +162,7 @@ internal fun ChzzkSettingsFields(
                 else raw.split(',').map(String::trim)))
         }, label = { Text(stringResource(R.string.chzzk_label_tags)) },
             modifier = Modifier.fillMaxWidth())
-        val invalidField = settings.validationField()
-        if (invalidField != null) Text(stringResource(R.string.chzzk_validation_field, invalidField),
-            color = Color.Red)
+        settings.validationMessage()?.let { Text(it.asString(), color = Color.Red) }
         message?.let { Text(stringResource(it), color = Color.Red) }
     }
 }

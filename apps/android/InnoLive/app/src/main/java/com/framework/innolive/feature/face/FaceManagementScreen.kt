@@ -475,7 +475,6 @@ internal fun FaceManagementScreen(
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = stringResource(R.string.action_register_face),
-                tint = Color.White,
                 modifier = Modifier
                     .width(48.dp)
             )

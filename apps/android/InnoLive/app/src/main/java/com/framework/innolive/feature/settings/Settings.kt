@@ -34,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -147,6 +148,7 @@ fun AppInfoSettingsScreen(props: SettingsScreenProps, onBack: () -> Unit) {
         LocalConfiguration.current.locales[0].language,
     )
     val enabled = !props.isDeletingAccount && !props.isAccountDeletionPending
+    var privacyPolicyOpenFailed by remember { mutableStateOf(false) }
     SettingsSubpage(stringResource(R.string.settings_app_info), onBack, backEnabled = enabled) {
         SettingsSectionLabel(stringResource(R.string.settings_section_account))
         // iOS처럼 계정 줄을 누르면 로그아웃·계정 삭제를 모은 화면으로 들어갑니다.
@@ -160,7 +162,16 @@ fun AppInfoSettingsScreen(props: SettingsScreenProps, onBack: () -> Unit) {
         SettingsDivider()
         SettingsLinkRow(stringResource(R.string.tutorial_replay), enabled && props.canReplayBroadcastGuide,
             props.onReplayBroadcastGuide)
-        SettingsLinkRow(stringResource(R.string.privacy_policy), enabled, { uriHandler.openUri(privacyPolicyUrl) })
+        SettingsLinkRow(stringResource(R.string.privacy_policy), enabled, {
+            privacyPolicyOpenFailed = !uriHandler.tryOpenUri(privacyPolicyUrl)
+        })
+        if (privacyPolicyOpenFailed) {
+            Text(
+                stringResource(R.string.account_consent_external_link_failed),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         if (props.isAdministrator) {
             SettingsDivider()
             LabSettings(props)
@@ -193,7 +204,7 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
                     onClick = { animalPreferences.edit().putString("selected", value).apply(); animal = value }),
                     verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(selected = animal == value, onClick = null, enabled = enabled)
-                    Text(stringResource(title))
+                    Text(stringResource(title), modifier = Modifier.padding(start = 8.dp))
                 }
             }
             Text(stringResource(R.string.lab_face_effect_description), style = MaterialTheme.typography.bodySmall)

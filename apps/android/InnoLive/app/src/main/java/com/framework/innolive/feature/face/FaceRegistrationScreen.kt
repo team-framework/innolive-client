@@ -499,7 +499,8 @@ internal fun FaceRegistrationPreviewImage(
             .graphicsLayer {
                 scaleX = if (cameraLensFacing.shouldMirrorPreview) -1f else 1f
             },
-        contentScale = ContentScale.FillBounds,
+        // 정사각형이 아닌 칸에서도 얼굴이 늘어나지 않게 비율을 유지합니다.
+        contentScale = ContentScale.Fit,
     )
 }
 

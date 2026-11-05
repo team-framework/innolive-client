@@ -12,7 +12,7 @@
     <string name="chzzk_default_settings_hint">設定をすべて空にすると、準備時にサーバーの既定値を使用します。</string>
     <string name="chzzk_action_clear_category">カテゴリを解除</string>
     <string name="chzzk_label_tags">タグ（カンマ区切り、最大5個）</string>
-    <string name="chzzk_validation_field">%1$sの入力を確認してください。タグは各15文字以内の文字と数字のみ使用できます。</string>
+    <string name="chzzk_validation_title_required">配信タイトルを入力してください。</string>
     <string name="chzzk_oauth_title">CHZZKアカウント連携</string>
     <string name="chzzk_oauth_load_failed">CHZZKのログインページを読み込めませんでした。もう一度お試しください。</string>
     <string name="chzzk_oauth_ssl_failed">CHZZKログインページの安全な接続を確認できませんでした。ネットワークを確認して、もう一度お試しください。</string>

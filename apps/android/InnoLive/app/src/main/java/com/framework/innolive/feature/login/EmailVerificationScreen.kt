@@ -82,7 +82,8 @@ internal fun EmailVerificationScreen(
     LaunchedEffect(resendGeneration) {
         if (resendGeneration > 0) code = ""
     }
-    BackHandler(enabled = !pending, onBack = onBack)
+    // 확인·재전송 중에도 뒤로 가기를 받아 무시합니다. 꺼 두면 시스템 기본 동작으로 넘어가 앱을 벗어납니다.
+    BackHandler { if (!pending) onBack() }
 
     Column(
         modifier = Modifier

@@ -1,5 +1,8 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
+
 data class BroadcastSettings(
     val title: String,
     val description: String,
@@ -41,6 +44,13 @@ internal fun ChzzkBroadcastSettings.validationField(): String? {
     val usesServerDefaults = title.isBlank() && categoryType.isBlank() && categoryId.isBlank() && tags.isEmpty()
     if (!usesServerDefaults && title.isBlank()) return "title"
     return null
+}
+
+/** [validationField]의 내부 필드 키 대신 서버 검증 오류와 같은 필드별 안내 문구를 돌려줍니다. */
+internal fun ChzzkBroadcastSettings.validationMessage(): UiText? {
+    val field = validationField() ?: return null
+    if (field == "title" && title.isBlank()) return UiText.Resource(R.string.chzzk_validation_title_required)
+    return chzzkBroadcastErrorMessage("bad_request", field)
 }
 
 enum class BroadcastState {

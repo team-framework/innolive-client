@@ -12,7 +12,7 @@
     <string name="chzzk_default_settings_hint">설정을 모두 비우면 준비할 때 서버의 기본값을 조회해 사용합니다.</string>
     <string name="chzzk_action_clear_category">카테고리 해제</string>
     <string name="chzzk_label_tags">태그 (쉼표로 구분, 최대 5개)</string>
-    <string name="chzzk_validation_field">%1$s 입력을 확인하세요. 태그는 각 15자 이하의 문자·숫자만 가능합니다.</string>
+    <string name="chzzk_validation_title_required">방송 제목을 입력하세요.</string>
     <string name="chzzk_oauth_title">치지직 계정 연결</string>
     <string name="chzzk_oauth_load_failed">치지직 로그인 페이지를 불러오지 못했습니다. 다시 시도하세요.</string>
     <string name="chzzk_oauth_ssl_failed">치지직 로그인 페이지의 보안 연결을 확인하지 못했습니다. 네트워크를 확인하고 다시 시도하세요.</string>

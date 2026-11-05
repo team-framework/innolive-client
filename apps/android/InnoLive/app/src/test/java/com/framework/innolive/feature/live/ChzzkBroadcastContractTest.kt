@@ -31,6 +31,34 @@ class ChzzkBroadcastContractTest {
         assertEquals("tags", ChzzkBroadcastSettings(tags = List(6) { "tag$it" }).validationField())
     }
 
+    @Test fun validationMessageShowsFieldGuidanceInsteadOfInternalKeys() {
+        assertNull(ChzzkBroadcastSettings().validationMessage())
+        assertEquals(
+            UiText.Resource(R.string.chzzk_error_tags),
+            ChzzkBroadcastSettings(title = "방송", tags = listOf("게임", "")).validationMessage(),
+        )
+        assertEquals(
+            UiText.Resource(R.string.chzzk_error_tags),
+            ChzzkBroadcastSettings(tags = List(6) { "tag$it" }).validationMessage(),
+        )
+        assertEquals(
+            UiText.Resource(R.string.chzzk_error_category),
+            ChzzkBroadcastSettings(title = "방송", categoryType = "GAME").validationMessage(),
+        )
+        assertEquals(
+            UiText.Resource(R.string.chzzk_error_category),
+            ChzzkBroadcastSettings(title = "방송", categoryId = "12345").validationMessage(),
+        )
+        assertEquals(
+            UiText.Resource(R.string.chzzk_error_title),
+            ChzzkBroadcastSettings(title = "가".repeat(101)).validationMessage(),
+        )
+        assertEquals(
+            UiText.Resource(R.string.chzzk_validation_title_required),
+            ChzzkBroadcastSettings(title = " ", tags = listOf("게임")).validationMessage(),
+        )
+    }
+
     /** broadcast-settings-v1.md: 클라이언트는 공백뿐인 제목을 허용하지 않는다. 빈 설정 전체는 서버 기본값 조회다. */
     @Test fun whitespaceOnlyTitleIsRejectedUnlessEverySettingIsBlank() {
         assertEquals("title", ChzzkBroadcastSettings(title = "   ", categoryType = "GAME", categoryId = "g").validationField())

@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -272,6 +273,8 @@ fun CameraPreview(
         if (hasCameraError) {
             Text(
                 text = stringResource(R.string.error_camera_preview),
+                // 미리보기 배경은 테마와 관계없이 검은색이라 글자색을 고정합니다.
+                color = Color.White,
                 modifier = Modifier.align(Alignment.Center),
             )
         }
