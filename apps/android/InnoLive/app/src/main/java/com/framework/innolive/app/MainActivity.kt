@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.media.AudioDeviceInfo
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -203,9 +202,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // 루트 화면 뒤로 가기는 기기에 따라 Activity를 끝내 방송 연결까지 닫으므로 항상 앱을 뒤로 보냅니다.
         // 화면 안의 뒤로 가기 처리가 모두 꺼진 루트 화면에서만 받도록 Compose 화면보다 먼저 등록합니다.
         onBackPressedDispatcher.addCallback(
-            object : OnBackPressedCallback(movesTaskToBackOnRootBack(Build.VERSION.SDK_INT)) {
+            object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     moveTaskToBack(true)
                 }

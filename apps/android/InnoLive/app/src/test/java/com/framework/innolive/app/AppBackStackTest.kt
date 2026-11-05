@@ -1,6 +1,5 @@
 package com.framework.innolive.app
 
-import android.os.Build
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -46,11 +45,5 @@ class AppBackStackTest {
         // 닫히는 동안 같은 옵션 화면을 한 번 더 눌러도 방송 정보 화면은 남아 있어야 합니다.
         assertFalse(backStack.acceptsBackFrom(option))
         assertTrue(backStack.acceptsBackFrom(BroadcastSettingRoute))
-    }
-
-    @Test fun onlyAndroid11MovesTheTaskBackFromTheRootScreen() {
-        assertTrue(movesTaskToBackOnRootBack(Build.VERSION_CODES.R))
-        assertFalse(movesTaskToBackOnRootBack(Build.VERSION_CODES.S))
-        assertFalse(movesTaskToBackOnRootBack(Build.VERSION_CODES.TIRAMISU))
     }
 }
