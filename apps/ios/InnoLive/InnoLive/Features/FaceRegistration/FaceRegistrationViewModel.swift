@@ -85,7 +85,10 @@ final class FaceRegistrationViewModel: ObservableObject {
         using cameraManager: CameraManager,
         videoUplink: WebRTCVideoUplink
     ) async {
-        guard canStartCapture else { phase = .failed(String(localized: "이름을 1~40자로 입력해 주세요.")); return }
+        guard canStartCapture else {
+            phase = .failed(faceSlotMessage ?? String(localized: "이름을 1~40자로 입력해 주세요."))
+            return
+        }
         activeLifecycleSessionID = lifecycleSessionID
         invalidateDetection()
         let generation = detectionGeneration
