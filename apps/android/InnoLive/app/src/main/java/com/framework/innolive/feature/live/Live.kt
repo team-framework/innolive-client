@@ -3,10 +3,7 @@ package com.framework.innolive.feature.live
 import com.framework.innolive.ui.theme.ModalSurface
 import com.framework.innolive.ui.theme.InnoLiveDialog
 import android.app.Activity
-import android.content.Intent
-import android.net.Uri
 import android.os.SystemClock
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -1330,14 +1327,7 @@ private fun LiveScreenContent(
                     permissionState = mediaPermissionState,
                     needsSettings = mediaPermissionsNeedSettings,
                     onRequestPermissions = requestMissingMediaPermissions,
-                    onOpenSettings = {
-                        context.startActivity(
-                            Intent(
-                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                Uri.fromParts("package", context.packageName, null),
-                            ),
-                        )
-                    },
+                    onOpenSettings = { context.openAppPermissionSettings() },
                     modifier = Modifier.align(Alignment.Center),
                 )
             },
