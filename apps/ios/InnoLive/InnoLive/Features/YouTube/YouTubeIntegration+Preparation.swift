@@ -483,7 +483,9 @@ extension YouTubeIntegration {
             guard preparationGeneration == generation else { return false }
             if !prepared || !isProviderPrepared(provider) {
                 let phase: BroadcastPreparationPhase = preparationStatus?.phase == .savingSettings ? .savingSettings : .preparingStream
-                let message = provider.title + ": " + (errorMessage ?? phase.failureMessage)
+                let prefix = provider.title + ": "
+                let detail = errorMessage ?? phase.failureMessage
+                let message = detail.hasPrefix(prefix) ? detail : prefix + detail
                 preparationFailures[provider] = BroadcastPreparationStatus(phase: phase, failedPhase: phase, message: message)
             }
         }

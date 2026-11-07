@@ -5,7 +5,7 @@ import XCTest
 /// innolive-server#505: YouTube 요청 한도와 방송 준비 거절 사유를 일반 오류 문구로 가리지 않는다.
 @MainActor
 final class YouTubeRateLimitMessageTests: XCTestCase {
-    private let generic = String(localized: "YouTube 요청을 처리하지 못했습니다.")
+    private let generic = String(localized: "방송 요청을 처리하지 못했습니다.")
 
     func testBroadcastRejectionCodesHaveDedicatedMessages() {
         let expected = [

@@ -541,8 +541,7 @@ final class YouTubeIntegration: ObservableObject {
     func handleSettingsError(_ error: Error, provider: BroadcastSettingsProvider) {
         if provider == .chzzk, let error = error as? YouTubeAPIError {
             showError(error)
-            errorMessage = error.userMessage.replacingOccurrences(of: "YouTube", with: provider.title)
-            helpURL = error.helpURL
+            errorMessage = provider.title + ": " + error.userMessage
         } else {
             handle(error)
         }
