@@ -100,8 +100,8 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         guard try availableCapacity(directory) >= minimumFreeBytes else { throw RecordingSessionStoreError.insufficientSpace }
         let id = UUID()
         let token = UUID()
-        let partialURL = directory.appendingPathComponent("\(id.uuidString).partial.mp4")
-        let finalURL = directory.appendingPathComponent("\(id.uuidString).mp4")
+        let partialURL = partialRecordingURL(id)
+        let finalURL = finalRecordingURL(id)
         let recorder = LocalBroadcastRecorder(source: source, onFailure: onFailure)
         try recorder.start(url: partialURL)
         generation = token
@@ -236,7 +236,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
     /// 완료된 라이브러리 항목만 지운다. 진행 중이거나 아직 마무리되지 않은 녹화는 제외한다.
     func delete(_ recording: SavedBroadcastRecording) throws {
         guard recordings.contains(where: { $0.id == recording.id }),
-              recording.fileName == "\(recording.id.uuidString).mp4",
+              recording.fileName == finalRecordingURL(recording.id).lastPathComponent,
               active?.id != recording.id, pendingCommits[recording.id] == nil else {
             throw RecordingSessionStoreError.invalidFile
         }
@@ -249,7 +249,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         recordings.removeAll { $0.id == recording.id }
         if case .saved(let saved) = state, saved.id == recording.id { state = .idle }
         // 메타데이터만으로는 지운 영상을 되살릴 수 없다. 위의 파일 삭제 오류는 그대로 드러낸다.
-        try? FileManager.default.removeItem(at: directory.appendingPathComponent("\(recording.id.uuidString).json"))
+        try? FileManager.default.removeItem(at: metadataURL(recording.id))
         try? FileManager.default.removeItem(at: journalURL(recording.id))
     }
 
@@ -267,13 +267,12 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
                 includingPropertiesForKeys: [.creationDateKey, .fileSizeKey], options: [.skipsHiddenFiles])
             var recovered: [SavedBroadcastRecording] = []
             var rejected = 0
-            for url in urls where url.pathExtension == "mp4" && !url.lastPathComponent.hasSuffix(".partial.mp4") {
+            for url in urls where url.pathExtension == "mp4" && !url.lastPathComponent.hasSuffix(Self.partialSuffix) {
                 guard let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent) else { continue }
                 do {
                     let duration = try await validate(url)
                     guard !deletedRecordingIDs.contains(id) else { continue }
-                    let metadataURL = directory.appendingPathComponent("\(id.uuidString).json")
-                    let metadata = try? JSONDecoder().decode(SavedBroadcastRecording.self, from: Data(contentsOf: metadataURL))
+                    let metadata = try? JSONDecoder().decode(SavedBroadcastRecording.self, from: Data(contentsOf: metadataURL(id)))
                     let attributes = try url.resourceValues(forKeys: [.creationDateKey, .fileSizeKey])
                     let entry: SavedBroadcastRecording
                     if let metadata, metadata.id == id, metadata.fileName == url.lastPathComponent {
@@ -288,7 +287,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
                             videoFrames: nil, audioFrames: nil, droppedVideoFrames: nil,
                             source: journal?.source, mosaic: journal?.mosaic)
                     }
-                    try JSONEncoder().encode(entry).write(to: metadataURL, options: .atomic)
+                    try writeMetadata(entry)
                     recovered.append(entry)
                 } catch { if !deletedRecordingIDs.contains(id) { rejected += 1 } }
             }
@@ -319,7 +318,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
             videoFrames: pending.result.videoFrames, audioFrames: pending.result.audioFrames,
             droppedVideoFrames: pending.result.droppedVideoFrames,
             source: session.source, mosaic: session.mosaic)
-        try JSONEncoder().encode(metadata).write(to: directory.appendingPathComponent("\(session.id.uuidString).json"), options: .atomic)
+        try writeMetadata(metadata)
         onSaved(metadata)
         recordings.removeAll { $0.id == metadata.id }
         recordings.append(metadata)
@@ -373,8 +372,26 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
             .appendingPathComponent(url.lastPathComponent).standardizedFileURL.path
     }
 
+    private static let partialSuffix = ".partial.mp4"
+
+    private func partialRecordingURL(_ id: UUID) -> URL {
+        directory.appendingPathComponent("\(id.uuidString)\(Self.partialSuffix)")
+    }
+
+    private func finalRecordingURL(_ id: UUID) -> URL {
+        directory.appendingPathComponent("\(id.uuidString).mp4")
+    }
+
+    private func metadataURL(_ id: UUID) -> URL {
+        directory.appendingPathComponent("\(id.uuidString).json")
+    }
+
     private func journalURL(_ id: UUID) -> URL {
         directory.appendingPathComponent("\(id.uuidString).pending.json")
+    }
+
+    private func writeMetadata(_ metadata: SavedBroadcastRecording) throws {
+        try JSONEncoder().encode(metadata).write(to: metadataURL(metadata.id), options: .atomic)
     }
 
     private func writeJournal(_ session: Session, status: RecordingRecoveryJournal.Status) throws {
@@ -400,15 +417,15 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
             return
         }
         var preserved: [PreservedBroadcastRecording] = []
-        for url in urls where url.lastPathComponent.hasSuffix(".partial.mp4") {
-            let stem = String(url.lastPathComponent.dropLast(".partial.mp4".count))
+        for url in urls where url.lastPathComponent.hasSuffix(Self.partialSuffix) {
+            let stem = String(url.lastPathComponent.dropLast(Self.partialSuffix.count))
             guard let id = UUID(uuidString: stem) else { continue }
             let key = Self.ownershipKey(url)
             guard !Self.ownedPaths.contains(key) else { continue }
             let before = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
             var reason = String(localized: "저장이 완료되지 않은 원본을 보관하고 있습니다.")
             if let journal = readJournal(id), journal.status.mayRecover {
-                let finalURL = directory.appendingPathComponent("\(id.uuidString).mp4")
+                let finalURL = finalRecordingURL(id)
                 if !FileManager.default.fileExists(atPath: finalURL.path) {
                     Self.ownedPaths.insert(key)
                     let lease = backgroundLeaseFactory("Recover broadcast recording", {})
@@ -426,7 +443,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
                         let metadata = SavedBroadcastRecording(id: id, sessionID: journal.sessionID,
                             createdAt: journal.createdAt, duration: duration, fileName: finalURL.lastPathComponent,
                             bytes: Int64(after.fileSize ?? 0), videoFrames: nil, audioFrames: nil, droppedVideoFrames: nil)
-                        try JSONEncoder().encode(metadata).write(to: directory.appendingPathComponent("\(id.uuidString).json"), options: .atomic)
+                        try writeMetadata(metadata)
                         onSaved(metadata)
                         try? FileManager.default.removeItem(at: journalURL(id))
                         lease.end()
