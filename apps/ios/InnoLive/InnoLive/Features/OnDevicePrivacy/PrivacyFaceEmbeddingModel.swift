@@ -38,9 +38,7 @@ nonisolated final class PrivacyFaceEmbeddingModel {
         config.computeUnits = computeUnits
         model = try MLModel(contentsOf: url, configuration: config)
         recognizerLoadMilliseconds = (ProcessInfo.processInfo.systemUptime - start) * 1000
-        let metadata = model.modelDescription.metadata[.creatorDefinedKey] as? [String: String]
-        guard metadata?["innolive.contract"] == "privacy-face-vit-kprpe-v1",
-              metadata?["innolive.checkpoint_sha256"] == "04b4bee1de7cefa9e97900f8449fca906d8afbab2029bd39cc5049d33e927ed9",
+        guard PrivacyModelContract.faceRecognizer.accepts(model.modelDescription),
               model.modelDescription.inputDescriptionsByName["image"]?.imageConstraint?.pixelsWide == 112,
               model.modelDescription.inputDescriptionsByName["landmarks"]?.multiArrayConstraint?.shape.map(\.intValue) == [1, 5, 2],
               model.modelDescription.outputDescriptionsByName["embedding"]?.multiArrayConstraint?.shape.map(\.intValue) == [1, 512] else {

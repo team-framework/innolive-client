@@ -37,7 +37,8 @@ nonisolated final class PrivacyModel {
         config.computeUnits = .cpuAndNeuralEngine
         model = try MLModel(contentsOf: url, configuration: config)
         let description = model.modelDescription
-        guard let imageInput = description.inputDescriptionsByName.first(where: { $0.value.type == .image }),
+        guard PrivacyModelContract.detector.accepts(description),
+              let imageInput = description.inputDescriptionsByName.first(where: { $0.value.type == .image }),
               imageInput.value.imageConstraint?.pixelsWide == 640,
               imageInput.value.imageConstraint?.pixelsHigh == 640,
               let detections = description.outputDescriptionsByName.first(where: {
