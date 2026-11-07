@@ -291,7 +291,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         SessionLifecycleURLProtocol.responses = [.empty(204)]
         var currentToken = token
         let api = makeAPI()
-        api.configureAuthentication(accessTokenProvider: { currentToken }, refreshSession: { .invalid }, onInvalidRefresh: {})
+        api.configureAuthentication(accessTokenProvider: { currentToken }, refreshSession: { .invalid })
         let integration = makeIntegration(api: api)
         SessionLifecycleURLProtocol.beforeResponse = { _ in currentToken = Self.token("user-b") }
         let result = await integration.prepareSession(accessToken: token)
@@ -307,8 +307,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         let api = makeAPI()
         api.configureAuthentication(
             accessTokenProvider: { currentToken },
-            refreshSession: { currentToken = Self.token("user-b"); return .refreshed },
-            onInvalidRefresh: {}
+            refreshSession: { currentToken = Self.token("user-b"); return .refreshed }
         )
         let result = await makeIntegration(api: api).prepareSession(accessToken: token)
         XCTAssertFalse(result)

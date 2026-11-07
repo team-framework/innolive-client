@@ -370,9 +370,6 @@ final class YouTubeIntegration: ObservableObject {
             refreshSession: { [weak authentication] in
                 guard let authentication else { return .invalid }
                 return await authentication.refreshSession()
-            },
-            onInvalidRefresh: { [weak authentication] in
-                authentication?.expireSession()
             }
         )
         authentication.onSessionEnd { [weak self] end in

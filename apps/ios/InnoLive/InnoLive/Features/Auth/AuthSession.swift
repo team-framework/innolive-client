@@ -219,8 +219,6 @@ final class AuthSession: ObservableObject {
                     return false
                 }
             case .invalid:
-                guard isCurrentSession(generation) else { return false }
-                expireSession()
                 return false
             case .unavailable:
                 guard isCurrentSession(generation) else { return false }
@@ -264,6 +262,7 @@ final class AuthSession: ObservableObject {
         pendingSignup = nil
     }
 
+    /// refresh token이 무효면 갱신을 시작한 호출이 세션을 한 번 만료한다. 호출부는 결과에 따라 요청만 정리한다.
     func refreshSession() async -> AuthenticationRefreshResult {
         if let tokenRefreshTask {
             return await tokenRefreshTask.value
@@ -299,6 +298,9 @@ final class AuthSession: ObservableObject {
         if sessionGeneration == generation, tokenRefreshTaskGeneration == generation {
             tokenRefreshTask = nil
             tokenRefreshTaskGeneration = nil
+        }
+        if case .invalid = result, sessionGeneration == generation {
+            expireSession()
         }
         return result
     }

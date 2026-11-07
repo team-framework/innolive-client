@@ -207,7 +207,7 @@ final class LiveBroadcastEditingTests: XCTestCase {
     func testAuthenticationRefreshRetriesPatchOnceWithSamePayload() async throws {
         try seed(); begin()
         var access = token, refreshed = 0
-        api.configureAuthentication(accessTokenProvider: { access }, refreshSession: { refreshed += 1; access = self.token + "renewed"; return .refreshed }, onInvalidRefresh: {})
+        api.configureAuthentication(accessTokenProvider: { access }, refreshSession: { refreshed += 1; access = self.token + "renewed"; return .refreshed })
         enqueue("{\"error\":{\"code\":\"unauthorized\"}}", status: 401); enqueue(snapshot())
         let saved = await integration.saveLiveSettings(accessToken: token)
         XCTAssertTrue(saved); XCTAssertEqual(refreshed, 1); XCTAssertEqual(LiveEditURLProtocol.requests.count, 2)

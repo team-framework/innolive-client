@@ -39,7 +39,7 @@ final class OfflineLocalModeTests: XCTestCase {
         let api = YouTubeAPI(urlSession: URLSession(configuration: configuration),
                              serverURLProvider: { URL(string: "https://example.invalid\($0)") })
         let token = token
-        api.configureAuthentication(accessTokenProvider: { token }, refreshSession: { .unavailable }, onInvalidRefresh: {})
+        api.configureAuthentication(accessTokenProvider: { token }, refreshSession: { .unavailable })
         return YouTubeIntegration(
             preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api,
             localModelsAvailable: { true },
