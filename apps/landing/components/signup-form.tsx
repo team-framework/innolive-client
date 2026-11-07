@@ -10,20 +10,16 @@ import { TextField } from "@/components/text-field";
 import { TermsConsentDialog } from "@/components/terms-consent-dialog";
 import { authErrorMessage, completeSignup, startSignup } from "@/lib/auth-client";
 import {
-  isValidEmail,
-  isValidSignupPassword,
-  isVerificationCode,
+  hasErrors,
+  validateSignupCredentials,
+  validateVerificationCode,
+  type SignupCredentialErrors,
+  type VerificationErrors,
 } from "@/lib/auth-validation";
 import { trackConversion } from "@/lib/conversion-analytics";
 import { interpolate } from "@/lib/locales";
 
-type SignupErrors = {
-  email?: string;
-  password?: string;
-  confirm?: string;
-  agreed?: string;
-  verificationCode?: string;
-};
+type SignupErrors = SignupCredentialErrors & VerificationErrors;
 
 export function SignupForm({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -46,32 +42,17 @@ export function SignupForm({ children }: { children: ReactNode }) {
   const [agreeBefore, agreeAfter] = copy.agree.split("{terms}");
 
   const submitCredentials = async () => {
-    const next: SignupErrors = {};
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      next.email = copy.validation.emailRequired;
-    } else if (!isValidEmail(trimmedEmail)) {
-      next.email = copy.validation.emailInvalid;
-    }
-    if (!password) {
-      next.password = copy.validation.passwordRequired;
-    } else if (!isValidSignupPassword(password)) {
-      next.password = copy.validation.passwordLength;
-    }
-    if (!confirm) {
-      next.confirm = copy.validation.confirmRequired;
-    } else if (confirm !== password) {
-      next.confirm = copy.validation.confirmMismatch;
-    }
-    if (!agreed) next.agreed = copy.validation.termsRequired;
-
+    const next = validateSignupCredentials(
+      { email, password, confirm, agreed },
+      copy.validation,
+    );
     setErrors(next);
     setNotice(null);
-    if (Object.keys(next).length > 0) return;
+    if (hasErrors(next)) return;
 
     setIsSubmitting(true);
     try {
-      await startSignup(trimmedEmail, password);
+      await startSignup(email.trim(), password);
       trackConversion("signup_verification_sent", locale);
       setStep("verification");
       setNotice(copy.verificationSent);
@@ -83,13 +64,10 @@ export function SignupForm({ children }: { children: ReactNode }) {
   };
 
   const submitVerification = async () => {
-    const next: SignupErrors = {};
-    if (!isVerificationCode(verificationCode)) {
-      next.verificationCode = copy.validation.codeRequired;
-    }
+    const next = validateVerificationCode(verificationCode, copy.validation);
     setErrors(next);
     setNotice(null);
-    if (Object.keys(next).length > 0) return;
+    if (hasErrors(next)) return;
 
     setIsSubmitting(true);
     try {
