@@ -1,6 +1,5 @@
 package com.framework.innolive.feature.login
 
-import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.net.http.SslError
 import android.webkit.SslErrorHandler
@@ -52,6 +51,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.BoxWithConstraints
 import com.framework.innolive.R
 import com.framework.innolive.feature.settings.privacyPolicyUrlForLanguage
+import com.framework.innolive.feature.settings.tryOpenUri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -147,14 +147,7 @@ internal fun AccountConsentDialog(onAccept: () -> Unit, onDismiss: () -> Unit) {
                                                     return true
                                                 }
                                                 if (request.url.scheme in setOf("https", "mailto")) {
-                                                    try {
-                                                        uriHandler.openUri(target)
-                                                        externalLinkFailed = false
-                                                    } catch (_: ActivityNotFoundException) {
-                                                        externalLinkFailed = true
-                                                    } catch (_: SecurityException) {
-                                                        externalLinkFailed = true
-                                                    }
+                                                    externalLinkFailed = !uriHandler.tryOpenUri(target)
                                                 }
                                                 return true
                                             }
