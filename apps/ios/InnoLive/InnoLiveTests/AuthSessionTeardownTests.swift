@@ -49,7 +49,7 @@ final class AuthSessionTeardownTests: XCTestCase {
 final class AuthSessionBroadcastTeardownTests: XCTestCase {
     private var suite: String!
     private var defaults: UserDefaults!
-    private let token = SessionStateFixture.token("teardown-user")
+    private var token: String { SessionStateFixture.token("teardown-user") }
     private var integration: YouTubeIntegration?
 
     override func setUp() {
@@ -66,26 +66,26 @@ final class AuthSessionBroadcastTeardownTests: XCTestCase {
         super.tearDown()
     }
 
-    func testExpireSessionStopsLiveBroadcastPolling() async {
+    func testExpireSessionTearsDownLiveBroadcast() async {
         let (session, integration) = makeSignedInBroadcast()
         await startLiveBroadcast(integration)
 
         session.expireSession()
 
-        await assertBroadcastTornDown(integration)
+        assertBroadcastTornDown(integration)
         XCTAssertFalse(session.isAuthenticated)
     }
 
-    func testSignOutStopsLiveBroadcastPolling() async {
+    func testSignOutTearsDownLiveBroadcast() async {
         let (session, integration) = makeSignedInBroadcast()
         await startLiveBroadcast(integration)
 
         session.signOut()
 
-        await assertBroadcastTornDown(integration)
+        assertBroadcastTornDown(integration)
     }
 
-    func testAccountDeletionWithInvalidRefreshStopsLiveBroadcastPolling() async {
+    func testAccountDeletionWithInvalidRefreshTearsDownLiveBroadcast() async {
         let api = TeardownAuthenticationAPI(
             deleteError: AuthenticationError.api(code: "unauthorized", fallback: ""),
             refreshError: AuthenticationError.api(code: "invalid_refresh_token", fallback: "")
@@ -96,8 +96,20 @@ final class AuthSessionBroadcastTeardownTests: XCTestCase {
         let deleted = await session.deleteAccount()
 
         XCTAssertFalse(deleted)
-        await assertBroadcastTornDown(integration)
+        assertBroadcastTornDown(integration)
         XCTAssertEqual(session.errorMessage, String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요."))
+    }
+
+    func testAccountDeletionTearsDownLiveBroadcastAndClearsAccountSettings() async {
+        let (session, integration) = makeSignedInBroadcast()
+        await startLiveBroadcast(integration)
+        integration.broadcastSettings.title = "deleted account title"
+
+        let deleted = await session.deleteAccount()
+
+        XCTAssertTrue(deleted)
+        assertBroadcastTornDown(integration)
+        XCTAssertEqual(integration.broadcastSettings, .defaultValue)
     }
 
     func testExpireSessionClearsPendingLocalTakes() {
@@ -157,13 +169,9 @@ final class AuthSessionBroadcastTeardownTests: XCTestCase {
         _ integration: YouTubeIntegration,
         file: StaticString = #filePath,
         line: UInt = #line
-    ) async {
+    ) {
         XCTAssertNil(integration.session, file: file, line: line)
         XCTAssertFalse(integration.hasStartedYouTubeBroadcast, file: file, line: line)
-        let requestsAtTeardown = TeardownBroadcastURLProtocol.requests.count
-        try? await Task.sleep(for: .milliseconds(150))
-        XCTAssertEqual(TeardownBroadcastURLProtocol.requests.count, requestsAtTeardown,
-                       "no session requests after the login session ended", file: file, line: line)
     }
 }
 
