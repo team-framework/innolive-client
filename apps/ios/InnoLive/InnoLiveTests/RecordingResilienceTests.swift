@@ -14,6 +14,9 @@ import XCTest
         XCTAssertTrue(store.preservedRecordings.isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appendingPathComponent("\(id).partial.mp4").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appendingPathComponent("\(id).pending.json").path))
+        XCTAssertEqual(store.recordings.first?.fileName, "\(id).mp4")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("\(id).mp4").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("\(id).json").path))
     }
 
     func testCorruptUnknownAndProvisionalPartialsPreserved() async throws {
