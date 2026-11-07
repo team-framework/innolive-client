@@ -43,8 +43,8 @@ final class AuthSessionTeardownTests: XCTestCase {
     }
 }
 
-/// 로그인 세션이 끝나는 모든 경로가 진행 중 방송을 정리하는지 본다. 얼굴 등록 API는 refresh가 무효면
-/// `expireSession()`만 부르므로, 만료 자체가 방송을 멈춰야 한다.
+/// 로그인 세션이 끝나는 모든 경로가 진행 중 방송을 정리하는지 본다. 얼굴 등록처럼 방송과 무관한 요청의
+/// refresh 무효도 세션 만료로 끝나므로, 만료 자체가 방송을 멈춰야 한다.
 @MainActor
 final class AuthSessionBroadcastTeardownTests: XCTestCase {
     private var suite: String!
