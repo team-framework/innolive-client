@@ -8,7 +8,8 @@
       "allowed_modes": [],
       "device_modes": [
         "720p_single"
-      ]
+      ],
+      "face_slots": 2
     },
     "usage": {
       "plan": "spark",
@@ -56,7 +57,8 @@
       "device_modes": [
         "720p_single",
         "fhd_single"
-      ]
+      ],
+      "face_slots": 2
     },
     "usage": {
       "plan": "glow",
@@ -109,7 +111,8 @@
         "720p_single",
         "fhd_single",
         "720p_multi"
-      ]
+      ],
+      "face_slots": 5
     },
     "usage": {
       "plan": "beam",
@@ -191,7 +194,8 @@
         "fhd_single",
         "720p_multi",
         "fhd_multi"
-      ]
+      ],
+      "face_slots": 10
     },
     "usage": {
       "plan": "plasma",
