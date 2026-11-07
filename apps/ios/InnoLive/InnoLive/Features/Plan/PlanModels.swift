@@ -281,6 +281,9 @@ extension BroadcastNotice {
         case "broadcast_limit_10m": String(localized: "1회 방송 한도까지 10분 남았습니다.")
         case "broadcast_limit_reached": String(localized: "1회 방송 한도에 도달해 방송이 종료되었습니다.")
         case "no_input_stopped": String(localized: "영상 입력이 없어 방송이 종료되었습니다.")
+        case "channel_live_elsewhere": String(localized: "치지직 채널이 이미 다른 도구로 방송 중이라 송출이 거절됐습니다. 다른 도구의 방송을 먼저 끝내세요.")
+        case "platform_broadcast_ended": String(localized: "플랫폼 스튜디오에서 방송이 종료되어 송출을 멈췄습니다.")
+        case "youtube_quota_low": String(localized: "오늘 유튜브 연동 사용량이 많아 송출 방식 변경이나 새 방송이 실패할 수 있습니다.")
         default: nil
         }
     }
