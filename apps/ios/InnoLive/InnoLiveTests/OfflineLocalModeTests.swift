@@ -26,20 +26,22 @@ final class OfflineLocalModeTests: XCTestCase {
         super.tearDown()
     }
 
-    private var token: String {
+    private var token: String { token(for: account) }
+
+    private func token(for account: String) -> String {
         let payload = Data(#"{"sub":"\#(account)"}"#.utf8).base64EncodedString()
             .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
         return "eyJhbGciOiJIUzI1NiJ9.\(payload).sig"
     }
 
-    private func makeIntegration(grant: OfflineGrant?) -> YouTubeIntegration {
+    private func makeIntegration(grant: OfflineGrant?, accessToken: (() -> String?)? = nil) -> YouTubeIntegration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [OfflineURLProtocol.self]
         let api = YouTubeAPI(urlSession: URLSession(configuration: configuration),
                              serverURLProvider: { URL(string: "https://example.invalid\($0)") })
         let token = token
-        api.configureAuthentication(accessTokenProvider: { token }, refreshSession: { .unavailable }, onInvalidRefresh: {})
+        api.configureAuthentication(accessTokenProvider: accessToken ?? { token }, refreshSession: { .unavailable }, onInvalidRefresh: {})
         return YouTubeIntegration(
             preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api,
             localModelsAvailable: { true },
@@ -63,6 +65,54 @@ final class OfflineLocalModeTests: XCTestCase {
         for _ in 0..<5 { await Task.yield() }
 
         XCTAssertEqual(OfflineURLProtocol.recorded, [], "the offline local-mode path made a network request")
+    }
+
+    func testLocalTakeSavedForTheSameAccountIsRecorded() async throws {
+        let (youtube, recording) = try await startLocalTake { [token] in token }
+
+        youtube.recordingStore.onSaved(recording)
+
+        XCTAssertTrue(youtube.localTakeLedger.pending.contains { $0.takeID == recording.id })
+    }
+
+    func testLocalTakeSavedAfterAnotherAccountSignedInIsNotRecorded() async throws {
+        var signedIn: String? = token
+        let (youtube, recording) = try await startLocalTake { signedIn }
+
+        signedIn = token(for: "6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+        youtube.recordingStore.onSaved(recording)
+
+        XCTAssertFalse(youtube.localTakeLedger.pending.contains { $0.takeID == recording.id },
+                       "a take started by the previous account must not be charged to the next one")
+    }
+
+    func testLocalTakeSavedAfterSessionEndedIsNotRecorded() async throws {
+        var signedIn: String? = token
+        let (youtube, recording) = try await startLocalTake { signedIn }
+
+        youtube.reset()
+        signedIn = nil
+        youtube.recordingStore.onSaved(recording)
+
+        XCTAssertFalse(youtube.localTakeLedger.pending.contains { $0.takeID == recording.id })
+    }
+
+    private func startLocalTake(
+        accessToken: @escaping () -> String?
+    ) async throws -> (YouTubeIntegration, SavedBroadcastRecording) {
+        let youtube = makeIntegration(grant: OfflineGrant(accountID: account, isAdministrator: true,
+                                                          serverDate: .now, receivedAt: .now),
+                                      accessToken: accessToken)
+        addTeardownBlock { @MainActor in youtube.reset() }
+        await youtube.modelReadiness.warm()
+        let capture = UUID()
+        youtube.localCaptureID = capture
+        try youtube.startLocalTake()
+        let recording = SavedBroadcastRecording(
+            id: UUID(), sessionID: CaptureSessionID.local(capture).recordingKey, createdAt: .now, duration: 30,
+            fileName: "take.mp4", bytes: 1, videoFrames: nil, audioFrames: nil, droppedVideoFrames: nil
+        )
+        return (youtube, recording)
     }
 
     func testOtherAccountGrantStillBlocksLocalTake() async {
