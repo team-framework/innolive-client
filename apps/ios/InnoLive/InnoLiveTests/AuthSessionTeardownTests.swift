@@ -127,10 +127,10 @@ final class AuthSessionBroadcastTeardownTests: XCTestCase {
     }
 
     private func makeSignedInBroadcast(
-        api: AuthenticationAPIClient = TeardownAuthenticationAPI()
+        api: AuthenticationAPIClient? = nil
     ) -> (AuthSession, YouTubeIntegration) {
         let session = AuthSession(
-            api: api,
+            api: api ?? TeardownAuthenticationAPI(),
             tokenStore: TeardownTokenStore(tokens: AuthenticationTokenPair(accessToken: token, refreshToken: "refresh")),
             offlineGrantStore: TeardownOfflineGrantStore()
         )
