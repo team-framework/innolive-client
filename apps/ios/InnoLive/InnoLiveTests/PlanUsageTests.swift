@@ -121,7 +121,7 @@ final class PlanUsageTests: XCTestCase {
     func testPlanErrorsAndNoticesHaveActionableMessages() {
         for code in ["plan_server_streaming_not_allowed", "plan_resolution_not_allowed", "plan_simulcast_not_allowed", "monthly_limit_exhausted", "broadcast_limit_reached"] {
             XCTAssertNotEqual(YouTubeAPIError.api(code: code, fallback: "", helpURL: nil).userMessage,
-                              String(localized: "YouTube 요청을 처리하지 못했습니다."))
+                              String(localized: "방송 요청을 처리하지 못했습니다."))
         }
         for code in ["monthly_usage_80", "monthly_usage_100", "monthly_limit_reached", "broadcast_limit_30m", "broadcast_limit_10m", "broadcast_limit_reached", "no_input_stopped"] {
             XCTAssertNotNil(BroadcastNotice(code: code, at: "test").planMessage)

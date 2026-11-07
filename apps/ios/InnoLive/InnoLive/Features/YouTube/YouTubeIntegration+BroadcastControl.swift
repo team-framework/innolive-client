@@ -179,7 +179,7 @@ extension YouTubeIntegration {
               statePolicy.broadcastPhase == .prepared || hasStartedYouTubeBroadcast else {
             showError(.api(
                 code: "broadcast_not_prepared",
-                fallback: String(localized: "YouTube 방송을 먼저 준비해 주세요."),
+                fallback: String(localized: "방송을 먼저 준비해 주세요."),
                 helpURL: nil
             ))
             return

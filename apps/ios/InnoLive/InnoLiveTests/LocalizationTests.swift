@@ -58,7 +58,7 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(ReferenceFaceAPIError.api(code: "future_error", fallback: message).userMessage, message)
         XCTAssertEqual(
             YouTubeAPIError.api(code: "future_error", fallback: message, helpURL: nil).userMessage,
-            String(localized: "YouTube 요청을 처리하지 못했습니다.")
+            String(localized: "방송 요청을 처리하지 못했습니다.")
         )
     }
 

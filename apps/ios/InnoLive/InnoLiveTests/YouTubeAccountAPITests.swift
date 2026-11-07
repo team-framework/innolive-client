@@ -84,7 +84,7 @@ final class YouTubeAccountAPITests: XCTestCase {
                 _ = try await makeAPI().streamingAccounts(accessToken: "access-token")
                 XCTFail("an unknown server error must fail")
             } catch let error as YouTubeAPIError {
-                XCTAssertEqual(error.userMessage, String(localized: "YouTube 요청을 처리하지 못했습니다."))
+                XCTAssertEqual(error.userMessage, String(localized: "방송 요청을 처리하지 못했습니다."))
                 XCTAssertFalse(error.userMessage.contains("private"))
             } catch {
                 XCTFail("unexpected error: \(error)")

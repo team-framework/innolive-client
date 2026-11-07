@@ -181,7 +181,7 @@ final class YouTubeAPI: PlanAPIClient {
         }
         throw YouTubeAPIError.api(
             code: envelope?.error.code,
-            fallback: String(localized: "YouTube 요청을 처리하지 못했습니다."),
+            fallback: String(localized: "방송 요청을 처리하지 못했습니다."),
             helpURL: envelope?.error.details?.helpURL
         )
     }
