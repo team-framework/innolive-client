@@ -103,7 +103,7 @@ final class OfflineLocalModeTests: XCTestCase {
         let youtube = makeIntegration(grant: OfflineGrant(accountID: account, isAdministrator: true,
                                                           serverDate: .now, receivedAt: .now),
                                       accessToken: accessToken)
-        addTeardownBlock { @MainActor in youtube.reset() }
+        addTeardownBlock { youtube.reset() }
         await youtube.modelReadiness.warm()
         let capture = UUID()
         youtube.localCaptureID = capture
