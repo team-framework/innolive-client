@@ -22,6 +22,29 @@ final class PlanUsageTests: XCTestCase {
             .map { PlanSnapshot(plan: $0.plan, usage: $0.usage) }
     }
 
+    func testFaceSlotsFromContractBlockOnlyNewFacesBeyondThePlan() throws {
+        let plans = try processingSnapshots().map(\.plan)
+        XCTAssertEqual(plans.map(\.plan), ["spark", "glow", "beam", "plasma"])
+        XCTAssertEqual(plans.map(\.faceSlots), [2, 2, 5, 10])
+        let spark = plans[0]
+        XCTAssertNil(spark.faceSlotMessage(registeredCount: 1))
+        XCTAssertEqual(spark.faceSlotMessage(registeredCount: 2),
+                       String(format: String(localized: "현재 요금제는 얼굴을 최대 %lld명까지 등록할 수 있습니다."), Int64(2)))
+        XCTAssertNotNil(spark.faceSlotMessage(registeredCount: 3), "a plan downgrade keeps blocking new faces")
+    }
+
+    func testMissingFaceSlotsNeverBlocksRegistration() throws {
+        let legacy = try plan()
+        XCTAssertNil(legacy.faceSlots)
+        XCTAssertNil(legacy.faceSlotMessage(registeredCount: 20))
+    }
+
+    func testFaceSlotsSurviveThePlanCacheRoundTrip() throws {
+        let beam = try XCTUnwrap(processingSnapshots().map(\.plan).first { $0.plan == "beam" })
+        let cached = try JSONDecoder().decode(UserPlan.self, from: JSONEncoder().encode(beam))
+        XCTAssertEqual(cached.faceSlots, 5)
+    }
+
     func testMaximumUsesServerSecondsAndPerBroadcastCap() throws {
         let capped = PlanSnapshot(plan: try plan(), usage: try usage(usageJSON(seconds: "80000")))
         XCTAssertEqual(capped.maximumBroadcastAvailability(for: .hdSingle, processing: .server)?.seconds, 28800)
