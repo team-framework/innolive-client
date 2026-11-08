@@ -74,6 +74,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
@@ -193,18 +194,19 @@ private fun LiveScreenContent(
     val setVideoControlsOpen: (Boolean) -> Unit = { open ->
         if (props.isVideoControlsOpen != null) props.onVideoControlsOpenChange(open) else localVideoControlsOpen = open
     }
-    var openFaceManagement by remember { mutableStateOf(false) }
+    // 화면을 돌려 Activity가 다시 만들어져도 열어 둔 화면과 창을 그대로 보여 줍니다.
+    var openFaceManagement by rememberSaveable { mutableStateOf(false) }
     // 방송 카메라가 켜진 뒤 연 얼굴 관리는 방송을 끊지 않고 그 위에 띄웁니다.
-    var faceManagementUsesBroadcastCamera by remember { mutableStateOf(false) }
+    var faceManagementUsesBroadcastCamera by rememberSaveable { mutableStateOf(false) }
     // 홈 화면 원탭 얼굴 등록입니다. 선택 중에는 원본 카메라를 메인에 두고 송출 화면을 작은 창으로 보냅니다.
     var isSelectingFace by remember { mutableStateOf(false) }
     // 마지막으로 열린 카메라 방향입니다. 고른 방향과 다르면 카메라를 바꾸는 중입니다.
     var openedCameraLensFacing by remember { mutableStateOf<CameraLensFacing?>(null) }
     // 방송 설정 창 하나에서 화질·플랫폼·플랫폼별 설정을 고릅니다. 탭은 열 때 보여 줄 플랫폼입니다.
-    var openSettingsDialog by remember { mutableStateOf(false) }
-    var openYouTubeEditor by remember { mutableStateOf(false) }
-    var openChzzkEditor by remember { mutableStateOf(false) }
-    var openModeEditor by remember { mutableStateOf(false) }
+    var openSettingsDialog by rememberSaveable { mutableStateOf(false) }
+    var openYouTubeEditor by rememberSaveable { mutableStateOf(false) }
+    var openChzzkEditor by rememberSaveable { mutableStateOf(false) }
+    var openModeEditor by rememberSaveable { mutableStateOf(false) }
     /** 방송 설정 메뉴를 열고, [editor]가 있으면 그 플랫폼 설정 창을 위에 바로 엽니다. */
     fun openBroadcastSettings(editor: BroadcastProvider? = null) {
         openSettingsDialog = true
@@ -223,25 +225,25 @@ private fun LiveScreenContent(
     var chzzkAccountRefreshKey by remember { mutableIntStateOf(0) }
     var chzzkBusy by remember { mutableStateOf(false) }
     var chzzkMessage by remember { mutableStateOf<UiText?>(null) }
-    var openBroadcastActions by remember { mutableStateOf(false) }
+    var openBroadcastActions by rememberSaveable { mutableStateOf(false) }
     // 보기 전용 시청자 채팅입니다. 라이브 YouTube 대상의 주소가 있는 동안만 받고, 주소가 사라지면(방송 종료·대상 제거·
     // 세션 종료) 수신기를 없앱니다. iOS처럼 숨김 상태는 방송이 이어지는 동안 기억하고 방송이 끝나면 다시 보이게 합니다.
     val viewerChat = rememberYouTubeViewerChatState(webRtcSession.viewerChatUrl)
     var viewerChatHidden by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(viewerChat == null) { if (viewerChat == null) viewerChatHidden = false }
     // 방송 준비 중 표시할 동의·안내입니다. 수락하면 다음 단계로 이어서 진행합니다.
-    var pendingConsentStep by remember { mutableStateOf<BroadcastConsentStep?>(null) }
+    var pendingConsentStep by rememberSaveable { mutableStateOf<BroadcastConsentStep?>(null) }
     // 사용자가 방송 방식을 직접 고르기 전에는 요금제가 허용하는 최고 화질을 따릅니다.
     var directModeUserSelected by rememberSaveable { mutableStateOf(false) }
-    var dismissedNoticeCodes by remember { mutableStateOf(emptySet<String>()) }
     val sessionSnapshot = webRtcSession.sessionSnapshot
     val sessionId = webRtcSession.sessionSnapshot?.sessionId
+    // 닫은 안내는 세션이 바뀔 때만 다시 보여 줍니다. 화면을 돌려도 같은 세션에서는 닫은 상태를 유지합니다.
+    var dismissedNoticeCodes by rememberSaveable(sessionId, stateSaver = DismissedNoticeCodesSaver) {
+        mutableStateOf(emptySet<String>())
+    }
     val activeNoticeCode = sessionSnapshot?.bannerNotices?.firstOrNull { notice ->
         notice.code !in dismissedNoticeCodes && sessionNoticeMessageResource(notice.code) != null
     }?.code
-    LaunchedEffect(sessionId) {
-        dismissedNoticeCodes = emptySet()
-    }
     val context = LocalContext.current
     val providerPreferences = remember(context) {
         context.getSharedPreferences(BROADCAST_PROVIDER_PREFERENCES, android.content.Context.MODE_PRIVATE)
@@ -1403,6 +1405,12 @@ private val FaceManagementBroadcastStates = setOf(
 
 /** 원탭 얼굴 선택이 가능한 방송 단계입니다. 실패 뒤에도 카메라는 켜져 있으므로 포함합니다. */
 private val FaceSelectionBroadcastStates = FaceManagementBroadcastStates + BroadcastState.FAILED
+
+/** 방송 화면에서 닫은 세션 안내 코드를 화면 회전 뒤에도 유지합니다. */
+private val DismissedNoticeCodesSaver = Saver<Set<String>, ArrayList<String>>(
+    save = { ArrayList(it) },
+    restore = { it.toSet() },
+)
 
 @Composable
 private fun LiveFaceManagement(
