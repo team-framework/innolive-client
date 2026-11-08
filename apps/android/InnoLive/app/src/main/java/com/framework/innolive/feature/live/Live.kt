@@ -428,7 +428,11 @@ private fun LiveScreenContent(
         webRtcSession.restoreAIProcessingSelection(context)
         webRtcSession.restoreFaceSwapSelection(context)
     }
+    // 처음 들어올 때 한 번만 묻습니다. 화면을 돌릴 때마다 거부한 권한을 다시 묻지 않습니다.
+    var initialMediaPermissionsRequested by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
+        if (initialMediaPermissionsRequested) return@LaunchedEffect
+        initialMediaPermissionsRequested = true
         requestMissingMediaPermissions()
     }
     val tutorialSnapshot = BroadcastTutorialSnapshot(
