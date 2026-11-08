@@ -106,9 +106,7 @@ nonisolated final class PrivacyYuNetDetector {
         // 작고 입력 크기가 바뀌는 YuNet은 GPU shape 캐시가 계속 커지지 않도록 CPU에서만 돌린다.
         config.computeUnits = .cpuOnly
         model = try MLModel(contentsOf: url, configuration: config)
-        let metadata = model.modelDescription.metadata[.creatorDefinedKey] as? [String: String]
-        guard metadata?["innolive.contract"] == "privacy-yunet-2023mar-v1",
-              metadata?["innolive.checkpoint_sha256"] == "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4" else {
+        guard PrivacyModelContract.yuNet.accepts(model.modelDescription) else {
             throw PrivacyModelError.outputContract
         }
     }
