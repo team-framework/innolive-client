@@ -46,6 +46,8 @@ struct InnoLiveApp: App {
             PrivacyFaceBenchmarkView()
         } else if ProcessInfo.processInfo.arguments.contains("--on-device-privacy") {
             OnDevicePrivacyView()
+        } else if FaceSlotPreviewFixture.registeredFaceCount != nil {
+            FaceSlotValidationView()
         } else {
             ContentView()
         }

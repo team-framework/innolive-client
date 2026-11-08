@@ -319,7 +319,7 @@ struct BroadcastControlsView: View {
             isSettingsSheetPresented: isShowingBroadcastSettings,
             selectedAccountsConnected: youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected),
             preparation: youtube.preparationStatus,
-            phase: YouTubeBroadcastPhase(rawValue: youtube.broadcastPhase),
+            phase: youtube.statePolicy.broadcastPhase,
             hasStartedBroadcast: youtube.hasStartedYouTubeBroadcast
         )
     }
@@ -342,9 +342,10 @@ struct BroadcastControlsView: View {
 
     private var canCancelPreparation: Bool {
         if youtube.hasStartedYouTubeBroadcast { return false }
-        if youtube.broadcastPhase == "live" || youtube.broadcastPhase == "going_live" { return false }
+        let phase = youtube.statePolicy.broadcastPhase
+        if phase == .live || phase == .goingLive { return false }
         if youtube.preparationStatus != nil { return true }
-        return youtube.broadcastPhase == "prepared" || youtube.isVideoConnected
+        return phase == .prepared || youtube.isVideoConnected
     }
 
     private var isYouTubeStreaming: Bool {
@@ -359,12 +360,12 @@ struct BroadcastControlsView: View {
             || youtube.videoUplink.isSwitchingCamera
             || youtube.isChangingStreamState
             || previewTransition == .stopping
-            || ["preparing", "going_live"].contains(youtube.broadcastPhase)
+            || [.preparing, .goingLive].contains(youtube.statePolicy.broadcastPhase)
             || (isBroadcasting && !youtube.isFeatureAvailable)
     }
 
     private var isReadyToStart: Bool {
-        isBroadcasting && !youtube.hasStartedYouTubeBroadcast && youtube.broadcastPhase == "prepared"
+        isBroadcasting && !youtube.hasStartedYouTubeBroadcast && youtube.statePolicy.broadcastPhase == .prepared
             && !isPrimaryActionDisabled
     }
 
@@ -381,7 +382,7 @@ struct BroadcastControlsView: View {
         if isYouTubeStreaming {
             return String(localized: "방송 일시 중지, 재개, 종료 메뉴를 엽니다.")
         }
-        if youtube.broadcastPhase == "prepared" {
+        if youtube.statePolicy.broadcastPhase == .prepared {
             return String(localized: "준비된 플랫폼의 방송을 시청자에게 공개합니다.", table: "Simulcast")
         }
         return String(localized: "방송 설정 시트를 엽니다.")
@@ -416,7 +417,7 @@ struct BroadcastControlsView: View {
 
         if isYouTubeStreaming {
             isShowingBroadcastActions = true
-        } else if youtube.broadcastPhase == "prepared" {
+        } else if youtube.statePolicy.broadcastPhase == .prepared {
             Task {
                 await youtube.startBroadcastCountdown(accessToken: authentication.currentAccessToken())
             }
@@ -429,7 +430,7 @@ struct BroadcastControlsView: View {
         isShowingBroadcastSettings = false
         Task {
             await onPrepareBroadcast(provider)
-            if youtube.preparationStatus?.isFailed != true, youtube.broadcastPhase == "prepared" {
+            if youtube.preparationStatus?.isFailed != true, youtube.statePolicy.broadcastPhase == .prepared {
                 isShowingBroadcastSettings = false
             }
         }
