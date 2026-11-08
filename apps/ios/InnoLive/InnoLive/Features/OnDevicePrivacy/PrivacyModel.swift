@@ -83,7 +83,10 @@ nonisolated final class PrivacyModel {
                  restoring orientation: CGImagePropertyOrientation,
                  mosaic: OnDeviceMosaicSettings = OnDeviceMosaicSettings()) throws -> (Int, PrivacyTimings, PrivacyFaceSnapshot) {
         let result = try process(original, mosaic: mosaic) { image in
-            let restored = image.oriented(orientation)
+            // 미리보기는 똑바로 렌더한 픽셀을 회전한다. 회전이 처리 그래프에 합쳐지면 샘플링이 달라져
+            // 미리보기와 다른 픽셀이 송출되므로, 중간 버퍼로 렌더한 뒤 회전한다.
+            let upright = orientation == .up ? image : image.insertingIntermediate(cache: false)
+            let restored = upright.oriented(orientation)
             let normalized = restored.transformed(by: CGAffineTransform(translationX: -restored.extent.minX,
                                                                          y: -restored.extent.minY))
             context.render(normalized, to: output,
