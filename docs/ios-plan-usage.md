@@ -70,3 +70,9 @@ Application Support `PlanSnapshot.json`에 저장한다. 앱 시작 시 같은 �
 - 전환 후 기존 동의·설정 저장·준비 경로 재사용, 자동 golive 미실행
 - 온디바이스 최초 준비의 캡처 preset과 세션 생성 `broadcast_resolution` 일치
 - FHD 미지원 시 카메라 720p 선택·송출 대상 축소 안내, 준비 검증 실패 후 해상도 임시 상태 제거로 재시도 허용
+
+## 얼굴 슬롯 화면 확인
+
+- Debug 빌드의 `--face-slot-preview=1` 또는 `=2` 인자는 로그인 없이 Spark(`face_slots=2`) 요금제와 등록 얼굴 1명 또는 2명으로 실제 얼굴 관리 화면을 연다. 이 경로의 `URLSession.shared` 요청은 앱 안 모의 응답으로 끝나고, Release 빌드에는 이 경로가 없다.
+- 단위 테스트 호스트에서는 SwiftUI 접근성 트리가 비어 있어 버튼 상태를 읽을 수 없다. `InnoLiveUITests/FaceSlotRegistrationUITests`가 앱을 별도 프로세스로 띄워 1명·이름 입력에서 `얼굴 등록` 활성, 2명에서 제한 문구와 비활성을 확인하고 라이트·다크 화면을 첨부한다. 화면 모드는 시뮬레이터 시스템 설정 대신 Debug 전용 `--face-slot-preview-appearance=light` 또는 `=dark` 인자로 창에 고정하고, 테스트가 창의 SwiftUI `colorScheme` 값을 접근성으로 읽어 확인한다.
+- 실행 전 `xcrun simctl privacy <device> grant camera com.framework.innolive`로 카메라 권한을 준다.

@@ -34,6 +34,20 @@
                ReferencedContainer = "container:InnoLive.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "D74000012026110800000001"
+               BuildableName = "InnoLiveUITests.xctest"
+               BlueprintName = "InnoLiveUITests"
+               ReferencedContainer = "container:InnoLive.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -51,6 +65,17 @@
                BlueprintIdentifier = "7B64AA093013CA7300BA69CE"
                BuildableName = "InnoLiveTests.xctest"
                BlueprintName = "InnoLiveTests"
+               ReferencedContainer = "container:InnoLive.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "D74000012026110800000001"
+               BuildableName = "InnoLiveUITests.xctest"
+               BlueprintName = "InnoLiveUITests"
                ReferencedContainer = "container:InnoLive.xcodeproj">
             </BuildableReference>
          </TestableReference>
