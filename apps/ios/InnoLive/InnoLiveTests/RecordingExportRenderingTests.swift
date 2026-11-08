@@ -38,21 +38,11 @@ final class RecordingExportRenderingTests: XCTestCase {
         }
     }
 
-    private func foregroundScene() async throws -> UIWindowScene {
-        for _ in 0..<50 {
-            if let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
-                .first(where: { $0.activationState == .foregroundActive }) { return scene }
-            try await Task.sleep(for: .milliseconds(100))
-        }
-        return try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive }, "Foreground the test app before running hosted UI checks")
-    }
-
     private func render<Content: View>(_ name: String, textSize: DynamicTypeSize,
                                       highContrast: Bool = false, expectsFullHeightScroll: Bool = false,
                                       expectsAnyScroll: Bool = true,
                                       @ViewBuilder content: () -> Content) async throws {
-        let scene = try await foregroundScene()
+        let scene = try await foregroundActiveScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         let window = UIWindow(windowScene: scene)
         window.frame = scene.coordinateSpace.bounds
