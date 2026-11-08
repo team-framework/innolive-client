@@ -118,9 +118,12 @@ struct YouTubeBroadcastControlLabel: View {
         if let recovery = youtube.videoRecoveryStatus {
             return recovery.buttonTitle
         }
-        if youtube.broadcastPhase == "prepared" { return String(localized: "방송 시작") }
-        if youtube.broadcastPhase == "preparing" { return String(localized: "방송 준비 중") }
-        if youtube.broadcastPhase == "going_live" { return String(localized: "방송 시작 중") }
+        switch youtube.statePolicy.broadcastPhase {
+        case .prepared: return String(localized: "방송 시작")
+        case .preparing: return String(localized: "방송 준비 중")
+        case .goingLive: return String(localized: "방송 시작 중")
+        case .idle, .live, .unknown: break
+        }
         guard youtube.isYouTubeBroadcastActive else { return String(localized: "방송 준비") }
         let duration = formattedDuration(since: youtube.streamStartedAt, now: date)
         if youtube.isYouTubeBroadcastPaused {
