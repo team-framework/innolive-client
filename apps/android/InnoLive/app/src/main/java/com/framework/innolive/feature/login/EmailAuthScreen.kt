@@ -76,8 +76,9 @@ fun EmailAuthScreen(
     var passwordConfirmation by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var passwordConfirmationVisible by rememberSaveable { mutableStateOf(false) }
-    var hasAcceptedConsent by remember { mutableStateOf(false) }
-    var showConsentDialog by remember { mutableStateOf(startWithSignUp) }
+    // 화면을 돌려도 약관 동의와 열어 둔 약관 창을 그대로 유지합니다.
+    var hasAcceptedConsent by rememberSaveable { mutableStateOf(false) }
+    var showConsentDialog by rememberSaveable { mutableStateOf(startWithSignUp) }
 
     val isSignIn = mode == EmailAuthMode.SIGN_IN
     val backBlocked = isSubmitting && !isSignIn
