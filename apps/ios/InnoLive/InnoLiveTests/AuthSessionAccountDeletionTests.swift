@@ -13,10 +13,11 @@ final class AuthSessionAccountDeletionTests: XCTestCase {
         let session = AuthSession(api: api, tokenStore: tokenStore)
         session.restore()
         var cleanupCallCount = 0
-
-        let didDelete = await session.deleteAccount {
-            cleanupCallCount += 1
+        session.onSessionEnd { end in
+            if end == .accountDeleted { cleanupCallCount += 1 }
         }
+
+        let didDelete = await session.deleteAccount()
 
         XCTAssertTrue(didDelete)
         XCTAssertEqual(api.receivedAccessTokens, ["access"])
@@ -102,11 +103,12 @@ final class AuthSessionAccountDeletionTests: XCTestCase {
         let session = AuthSession(api: api, tokenStore: tokenStore)
         session.restore()
         var cleanupCallCount = 0
+        session.onSessionEnd { end in
+            if end == .accountDeleted { cleanupCallCount += 1 }
+        }
 
         let deletion = Task { @MainActor in
-            await session.deleteAccount {
-                cleanupCallCount += 1
-            }
+            await session.deleteAccount()
         }
         await api.waitForDeleteStart()
 

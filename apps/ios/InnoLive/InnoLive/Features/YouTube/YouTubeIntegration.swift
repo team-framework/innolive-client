@@ -260,6 +260,8 @@ final class YouTubeIntegration: ObservableObject {
 
     let planStore: PlanStore
     let localTakeLedger = LocalTakeUsageLedger()
+    /// 로컬 촬영 녹화 키별로 촬영을 시작한 계정이다. 저장은 로그인 세션이 끝난 뒤에도 완료될 수 있다.
+    var localTakeOwners: [String: String] = [:]
     lazy var localTakeUploader = LocalTakeUsageUploader(ledger: localTakeLedger, upload: { [weak self] takes in
         guard let self else { return [] }
         return try await self.api.uploadLocalTakes(takes, accessToken: self.api.currentAccessToken(fallback: ""))
@@ -285,6 +287,8 @@ final class YouTubeIntegration: ObservableObject {
     private func wireLocalTakeUsage() {
         recordingStore.onSaved = { [weak self] recording in
             guard let self else { return }
+            let accountID = OfflineGrant.accountID(fromAccessToken: self.api.currentAccessToken(fallback: ""))
+            guard let accountID, (self.localTakeOwners[recording.sessionID] ?? accountID) == accountID else { return }
             self.localTakeLedger.record(recording)
             self.localTakeUploader.drain()
         }
@@ -371,11 +375,13 @@ final class YouTubeIntegration: ObservableObject {
                 guard let authentication else { return .invalid }
                 return await authentication.refreshSession()
             },
-            onInvalidRefresh: { [weak self, weak authentication] in
-                self?.reset()
+            onInvalidRefresh: { [weak authentication] in
                 authentication?.expireSession()
             }
         )
+        authentication.onSessionEnd { [weak self] end in
+            if end == .accountDeleted { self?.resetForAccountDeletion() } else { self?.reset() }
+        }
     }
 
     var isConnected: Bool { connection != nil }
