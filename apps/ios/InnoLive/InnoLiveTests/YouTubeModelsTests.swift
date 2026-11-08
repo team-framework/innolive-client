@@ -154,4 +154,25 @@ final class YouTubeModelsTests: XCTestCase {
 
         XCTAssertEqual(source.markedStoppedByUser().stopReason, "user_requested")
     }
+
+    func testBroadcastPhaseWireValuesMapToTypedCasesAndBack() {
+        let wireValues: [(String, YouTubeBroadcastPhase)] = [
+            ("idle", .idle),
+            ("preparing", .preparing),
+            ("prepared", .prepared),
+            ("going_live", .goingLive),
+            ("live", .live),
+        ]
+        for (wire, phase) in wireValues {
+            XCTAssertEqual(YouTubeBroadcastPhase(rawValue: wire), phase, wire)
+            XCTAssertEqual(phase.rawValue, wire)
+        }
+
+        let future = YouTubeBroadcastPhase(rawValue: "future_phase")
+        XCTAssertEqual(future, .unknown("future_phase"))
+        XCTAssertEqual(future.rawValue, "future_phase")
+        for (_, phase) in wireValues {
+            XCTAssertNotEqual(future, phase)
+        }
+    }
 }
