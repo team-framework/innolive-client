@@ -17,6 +17,7 @@ nonisolated final class PrivacyModel {
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
     private var blurBuffer: CVPixelBuffer?
+    private let uprightPool = PrivacyOutputBufferPool()
     private let input: CVPixelBuffer
     private let inputName: String
     private let detectionsName: String
@@ -83,15 +84,18 @@ nonisolated final class PrivacyModel {
                  restoring orientation: CGImagePropertyOrientation,
                  mosaic: OnDeviceMosaicSettings = OnDeviceMosaicSettings()) throws -> (Int, PrivacyTimings, PrivacyFaceSnapshot) {
         let result = try process(original, mosaic: mosaic) { image in
-            // 미리보기는 똑바로 렌더한 픽셀을 회전한다. 회전이 처리 그래프에 합쳐지면 샘플링이 달라져
-            // 미리보기와 다른 픽셀이 송출되므로, 중간 버퍼로 렌더한 뒤 회전한다.
-            let upright = orientation == .up ? image : image.insertingIntermediate(cache: false)
-            let restored = upright.oriented(orientation)
-            let normalized = restored.transformed(by: CGAffineTransform(translationX: -restored.extent.minX,
-                                                                         y: -restored.extent.minY))
-            context.render(normalized, to: output,
-                           bounds: CGRect(x: 0, y: 0, width: CVPixelBufferGetWidth(output), height: CVPixelBufferGetHeight(output)),
-                           colorSpace: colorSpace)
+            func draw(_ image: CIImage, into buffer: CVPixelBuffer) {
+                let normalized = image.transformed(by: CGAffineTransform(translationX: -image.extent.minX, y: -image.extent.minY))
+                context.render(normalized, to: buffer,
+                               bounds: CGRect(x: 0, y: 0, width: CVPixelBufferGetWidth(buffer), height: CVPixelBufferGetHeight(buffer)),
+                               colorSpace: colorSpace)
+            }
+            guard orientation != .up else { return draw(image, into: output) }
+            // 회전을 처리 그래프에 합치면 8비트 반올림이 미리보기와 1단계 달라진다.
+            // 미리보기처럼 똑바로 8비트 버퍼에 렌더한 뒤, 그 픽셀만 회전해 송출한다.
+            let upright = try uprightPool.acquire(width: Int(image.extent.width), height: Int(image.extent.height))
+            draw(image, into: upright)
+            draw(CIImage(cvPixelBuffer: upright).oriented(orientation), into: output)
         }
         return (result.1, result.2, result.3)
     }
