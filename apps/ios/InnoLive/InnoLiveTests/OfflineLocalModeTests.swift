@@ -44,6 +44,7 @@ final class OfflineLocalModeTests: XCTestCase {
         api.configureAuthentication(accessTokenProvider: accessToken ?? { token }, refreshSession: { .unavailable }, onInvalidRefresh: {})
         return YouTubeIntegration(
             preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api,
+            sessionStore: MemorySessionStore(),
             localModelsAvailable: { true },
             offlineGrantStore: MemoryOfflineGrantStore(grant),
             modelReadiness: ModelReadinessStore(available: true, loaders: [.init(name: "bundled") {}], defaults: defaults),
@@ -195,6 +196,14 @@ private final class MemoryOfflineGrantStore: OfflineGrantStoring {
     func save(_ grant: OfflineGrant) { self.grant = grant }
     func load() -> OfflineGrant? { grant }
     func remove() { grant = nil }
+}
+
+private final class MemorySessionStore: BroadcastSessionStoring {
+    nonisolated deinit {}
+    private var records: [String: StoredBroadcastSession] = [:]
+    func load(scope: BroadcastSessionScope) throws -> StoredBroadcastSession? { records[scope.storageKey] }
+    func save(_ session: StoredBroadcastSession, scope: BroadcastSessionScope) throws { records[scope.storageKey] = session }
+    func remove(scope: BroadcastSessionScope) throws { records.removeValue(forKey: scope.storageKey) }
 }
 
 private final class OfflineURLProtocol: StubURLProtocol {
