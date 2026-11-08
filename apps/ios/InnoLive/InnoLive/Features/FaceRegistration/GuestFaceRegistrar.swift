@@ -19,6 +19,7 @@ final class GuestFaceRegistrar: ObservableObject {
     private struct Request {
         let name: String
         let mode: AIProcessingMode
+        let plan: UserPlan?
         let authentication: AuthSession
     }
 
@@ -32,10 +33,11 @@ final class GuestFaceRegistrar: ObservableObject {
         faceIndex: Int,
         name: String,
         mode: AIProcessingMode,
+        plan: UserPlan?,
         authentication: AuthSession
     ) {
         task?.cancel()
-        request = Request(name: name, mode: mode, authentication: authentication)
+        request = Request(name: name, mode: mode, plan: plan, authentication: authentication)
         jpegData = nil
         status = .registering
         let detector = detector
@@ -75,9 +77,13 @@ final class GuestFaceRegistrar: ObservableObject {
     private func upload() async {
         guard let request, let jpegData else { return }
         do {
+            let api = ReferenceFaceAPI(authentication: request.authentication)
+            if let plan = request.plan, plan.faceSlots != nil {
+                let registered = try await request.mode == .server ? api.status() : LocalFaceRegistrationStore.shared.status()
+                if let message = plan.faceSlotMessage(registeredCount: registered.count) { throw PrivacyFaceError.message(message) }
+            }
             if request.mode == .server {
-                _ = try await ReferenceFaceAPI(authentication: request.authentication)
-                    .register(jpegData: jpegData, name: request.name)
+                _ = try await api.register(jpegData: jpegData, name: request.name)
             } else {
                 _ = try await LocalFaceRegistrationStore.shared.register(jpegData: jpegData, name: request.name)
             }

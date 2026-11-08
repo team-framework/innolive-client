@@ -291,7 +291,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         SessionLifecycleURLProtocol.responses = [.empty(204)]
         var currentToken = token
         let api = makeAPI()
-        api.configureAuthentication(accessTokenProvider: { currentToken }, refreshSession: { .invalid }, onInvalidRefresh: {})
+        api.configureAuthentication(accessTokenProvider: { currentToken }, refreshSession: { .invalid })
         let integration = makeIntegration(api: api)
         SessionLifecycleURLProtocol.beforeResponse = { _ in currentToken = Self.token("user-b") }
         let result = await integration.prepareSession(accessToken: token)
@@ -307,8 +307,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         let api = makeAPI()
         api.configureAuthentication(
             accessTokenProvider: { currentToken },
-            refreshSession: { currentToken = Self.token("user-b"); return .refreshed },
-            onInvalidRefresh: {}
+            refreshSession: { currentToken = Self.token("user-b"); return .refreshed }
         )
         let result = await makeIntegration(api: api).prepareSession(accessToken: token)
         XCTAssertFalse(result)
@@ -677,6 +676,31 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertEqual(BroadcastMosaicConfig().effectiveMaskMargin, 8)
         let legacy = try JSONDecoder().decode(YouTubeSessionResponse.self, from: SessionLifecycleURLProtocol.Response.blur(false).body)
         XCTAssertNil(legacy.media.mosaicConfig)
+    }
+
+    func testMosaicBoundsAndDefaultsMatchContract() throws {
+        struct Bound: Decodable {
+            let minimum: Int?
+            let exclusiveMinimum: Int?
+            let maximum: Int
+            let `default`: Int
+            enum CodingKeys: String, CodingKey { case minimum, maximum, `default`; case exclusiveMinimum = "exclusive_minimum" }
+        }
+        struct Bounds: Decodable {
+            let blurRadius: Bound
+            let maskMargin: Bound
+            enum CodingKeys: String, CodingKey { case blurRadius = "blur_radius", maskMargin = "mask_margin" }
+        }
+        let contract = try JSONDecoder().decode(Bounds.self, from: ContractTestFixtures.data(named: "mosaic-config-bounds.v1"))
+        XCTAssertEqual(BroadcastMosaicConfig.defaultBlurRadius, contract.blurRadius.default)
+        XCTAssertEqual(BroadcastMosaicConfig.blurRadiusRange.upperBound, contract.blurRadius.maximum)
+        XCTAssertGreaterThan(BroadcastMosaicConfig.blurRadiusRange.lowerBound, try XCTUnwrap(contract.blurRadius.exclusiveMinimum))
+        XCTAssertEqual(BroadcastMosaicConfig.defaultMaskMargin, contract.maskMargin.default)
+        XCTAssertEqual(BroadcastMosaicConfig.maskMarginRange, try XCTUnwrap(contract.maskMargin.minimum)...contract.maskMargin.maximum)
+        XCTAssertEqual(BroadcastMosaicConfig().effectiveBlurRadius, contract.blurRadius.default, "an empty config shows the AI default")
+        let clamped = BroadcastMosaicConfig().adjusted(blurRadius: contract.blurRadius.maximum + 1, maskMargin: contract.maskMargin.maximum + 1)
+        XCTAssertEqual(clamped.effectiveBlurRadius, contract.blurRadius.maximum, "the slider never sends a radius the AI rejects")
+        XCTAssertEqual(clamped.effectiveMaskMargin, contract.maskMargin.maximum)
     }
 
     func testMosaicConfigUsesAuthenticatedPutAndKeepsPixelSize() async throws {

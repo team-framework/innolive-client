@@ -38,7 +38,7 @@ final class PlanAPITests: XCTestCase {
         client.configureAuthentication(accessTokenProvider: { refreshes == 0 ? "old" : "new" }, refreshSession: {
             refreshes += 1
             return .refreshed
-        }, onInvalidRefresh: {})
+        })
         let usage = try await client.userUsage(accessToken: "old")
         XCTAssertNil(usage.remainingSeconds)
         XCTAssertEqual(refreshes, 1)

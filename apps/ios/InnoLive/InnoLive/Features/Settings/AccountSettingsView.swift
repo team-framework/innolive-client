@@ -26,7 +26,6 @@ struct AccountSettingsView: View {
             InnoLiveGlassContainer {
                 VStack(spacing: 12) {
                     Button {
-                        youtube.reset()
                         authentication.signOut()
                     } label: {
                         SettingsGlassRow {
@@ -95,9 +94,7 @@ struct AccountSettingsView: View {
             Button(String(localized: "계정 삭제"), role: .destructive) {
                 Task { @MainActor in
                     guard !isDeletionBlocked else { return }
-                    await authentication.deleteAccount {
-                        youtube.resetForAccountDeletion()
-                    }
+                    await authentication.deleteAccount()
                 }
             }
             Button(String(localized: "취소"), role: .cancel) {}

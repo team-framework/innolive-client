@@ -161,7 +161,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
 
     func testConfiguredMissingTokenCannotUseFallback() async {
         let api = makeAPI()
-        api.configureAuthentication(accessTokenProvider: { nil }, refreshSession: { .invalid }, onInvalidRefresh: {})
+        api.configureAuthentication(accessTokenProvider: { nil }, refreshSession: { .invalid })
         SessionStateURLProtocol.handler = { _ in XCTFail("must not send fallback token"); return .init(status: 200, json: "[]") }
         do {
             _ = try await api.streamingAccounts(accessToken: SessionStateFixture.token("old"))
@@ -173,7 +173,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
         for isCreate in [false, true] {
             let api = makeAPI()
             var token = SessionStateFixture.token("old")
-            api.configureAuthentication(accessTokenProvider: { token }, refreshSession: { .invalid }, onInvalidRefresh: {})
+            api.configureAuthentication(accessTokenProvider: { token }, refreshSession: { .invalid })
             SessionStateURLProtocol.handler = { _ in
                 token = SessionStateFixture.token("new")
                 return .init(status: isCreate ? 201 : 200, json: isCreate ? SessionStateFixture.json() : "[]")
@@ -191,7 +191,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
     func testSameAccountTokenRefreshDuringResponseIsAccepted() async throws {
         let api = makeAPI()
         var token = SessionStateFixture.token("user")
-        api.configureAuthentication(accessTokenProvider: { token }, refreshSession: { .refreshed }, onInvalidRefresh: {})
+        api.configureAuthentication(accessTokenProvider: { token }, refreshSession: { .refreshed })
         SessionStateURLProtocol.handler = { _ in token = SessionStateFixture.token("user", version: 1); return .init(status: 200, json: "[]") }
         let accounts = try await api.streamingAccounts(accessToken: token)
         XCTAssertTrue(accounts.isEmpty)

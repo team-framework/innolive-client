@@ -56,8 +56,7 @@ final class YouTubeAccountAPITests: XCTestCase {
             refreshSession: {
                 refreshCallCount += 1
                 return .refreshed
-            },
-            onInvalidRefresh: {}
+            }
         )
 
         let accounts = try await api.streamingAccounts(accessToken: "fallback-access-token")
@@ -153,8 +152,7 @@ final class YouTubeAccountAPITests: XCTestCase {
                 refreshStarted.fulfill()
                 try? await Task.sleep(for: .milliseconds(200))
                 return .refreshed
-            },
-            onInvalidRefresh: {}
+            }
         )
 
         let deleteTask = Task { () -> Error? in
@@ -234,7 +232,7 @@ final class YouTubeAccountAPITests: XCTestCase {
         let api = makeAPI()
         api.configureAuthentication(
             accessTokenProvider: { refreshed ? "new" : "old" },
-            refreshSession: { refreshed = true; return .refreshed }, onInvalidRefresh: {}
+            refreshSession: { refreshed = true; return .refreshed }
         )
         try await api.deleteSession(.init(sessionID: "session", ownerToken: "owner"), accessToken: "old")
         XCTAssertEqual(AccountManagementURLProtocol.requests.count, 2)
