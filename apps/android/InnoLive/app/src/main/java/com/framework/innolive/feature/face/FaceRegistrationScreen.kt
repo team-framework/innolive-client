@@ -103,6 +103,12 @@ internal fun FaceRegistrationScreen(
     }
     var uploadJob by remember { mutableStateOf<Job?>(null) }
     var lensFacing by remember(cameraLensFacing) { mutableStateOf(cameraLensFacing) }
+    // 사진을 찍기 시작하면 등록을 마칠 때까지 화면 방향을 고정해 찍은 사진이 회전으로 사라지지 않게 합니다.
+    LockScreenOrientationWhile(
+        capturedImages.isNotEmpty() ||
+            phase == FaceRegistrationPhase.PREPARING ||
+            phase == FaceRegistrationPhase.UPLOADING,
+    )
 
     DisposableEffect(detector) {
         onDispose { detector.close() }
