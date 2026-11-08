@@ -371,11 +371,13 @@ final class YouTubeIntegration: ObservableObject {
                 guard let authentication else { return .invalid }
                 return await authentication.refreshSession()
             },
-            onInvalidRefresh: { [weak self, weak authentication] in
-                self?.reset()
+            onInvalidRefresh: { [weak authentication] in
                 authentication?.expireSession()
             }
         )
+        authentication.onSessionEnd { [weak self] end in
+            if end == .accountDeleted { self?.resetForAccountDeletion() } else { self?.reset() }
+        }
     }
 
     var isConnected: Bool { connection != nil }
