@@ -27,6 +27,13 @@ and remaining values. Do not display these as an unlimited server entitlement.
 | Beam | 40 | 120 | 12 | 720p single, FHD single, 720p multi |
 | Plasma | 80 | 300 | 12 | All four modes |
 
+`/users/me/plan` also returns `face_slots`, the number of faces the account may register: Spark 2, Glow 2,
+Beam 5, Plasma 10, and 999 for administrators. The server does not count registered faces or reject an extra
+one. iOS reads the field and blocks a new registration in the list of the active processing mode (server
+reference faces or the on-device library) once that list holds `face_slots` faces. Re-registering an existing
+face does not use a slot. When the field is missing, iOS does not block. This is a client-side limit, not an
+enforced entitlement. See `plan-usage-processing.v1.json`.
+
 Beam and Plasma server modes match their device modes. Both locations charge
 unit-seconds with multipliers `720p_single=1`, `fhd_single=2`, `720p_multi=2`,
 `fhd_multi=3`. Server availability uses each `available_by_mode` entry's

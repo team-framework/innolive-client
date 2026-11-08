@@ -35,24 +35,36 @@ final class AuthSessionRefreshTests: XCTestCase {
         assertTokens(tokenStore.tokens, equalTo: refreshedTokens)
     }
 
-    func testInvalidRefreshTokenReturnsInvalidAndKeepsStoredTokens() async {
+    func testInvalidRefreshTokenEndsTheSessionOnce() async {
         let storedTokens = AuthenticationTokenPair(accessToken: "old-access", refreshToken: "old-refresh")
         let api = TestAuthenticationAPI()
-        api.refreshResult = .failure(
-            AuthenticationError.api(
-                code: "invalid_refresh_token",
-                fallback: "refresh token is invalid"
-            )
-        )
+        api.refreshGateIsEnabled = true
         let tokenStore = TestAuthenticationTokenStore(tokens: storedTokens)
         let session = AuthSession(api: api, tokenStore: tokenStore)
+        session.restore()
+        var ends: [AuthSessionEnd] = []
+        session.onSessionEnd { ends.append($0) }
 
-        let result = await session.refreshSession()
+        let first = Task { @MainActor in await session.refreshSession() }
+        await api.waitForRefreshStart()
+        let secondCallStarted = expectation(description: "second refresh call starts")
+        let second = Task { @MainActor in
+            secondCallStarted.fulfill()
+            return await session.refreshSession()
+        }
+        await fulfillment(of: [secondCallStarted], timeout: 1)
+        api.completeRefresh(with: .failure(AuthenticationError.api(code: "invalid_refresh_token", fallback: "refresh token is invalid")))
+        let firstResult = await first.value
+        let secondResult = await second.value
 
-        XCTAssertTrue(isInvalid(result))
-        XCTAssertEqual(api.refreshCallCount, 1)
-        assertTokens(tokenStore.tokens, equalTo: storedTokens)
+        XCTAssertTrue(isInvalid(firstResult))
+        XCTAssertTrue(isInvalid(secondResult))
+        XCTAssertEqual(api.refreshCallCount, 1, "concurrent callers share one refresh")
+        XCTAssertEqual(ends, [.expired], "every caller sees invalid, the session ends once")
+        XCTAssertNil(tokenStore.tokens)
         XCTAssertTrue(tokenStore.savedTokens.isEmpty)
+        XCTAssertFalse(session.isAuthenticated)
+        XCTAssertEqual(session.errorMessage, String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요."))
     }
 
     func testTransportFailureReturnsUnavailableAndKeepsStoredTokens() async {

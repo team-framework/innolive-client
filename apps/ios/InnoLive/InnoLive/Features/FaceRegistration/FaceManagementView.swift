@@ -12,7 +12,9 @@ struct FaceManagementView: View {
 
     init(authentication: AuthSession, youtube: YouTubeIntegration, mode: AIProcessingMode = .selected) {
         self.youtube = youtube
-        _model = StateObject(wrappedValue: FaceRegistrationViewModel(authentication: authentication, mode: mode))
+        _model = StateObject(wrappedValue: FaceRegistrationViewModel(authentication: authentication, mode: mode) { [weak youtube] in
+            youtube?.planStore.snapshot?.plan
+        })
     }
 
     private var isCameraTransitioning: Bool {
@@ -54,6 +56,14 @@ struct FaceManagementView: View {
                         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote)
                             .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                    }
+
+                    if let message = model.faceSlotMessage {
+                        Label(message, systemImage: "person.crop.circle.badge.exclamationmark")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 4)
                     }
