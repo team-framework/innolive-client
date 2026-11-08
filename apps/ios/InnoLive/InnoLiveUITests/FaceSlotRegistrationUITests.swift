@@ -25,14 +25,11 @@ final class FaceSlotRegistrationUITests: XCTestCase {
 
     private func forEachAppearance(registeredFaces: Int, inspect: (XCUIApplication) throws -> Void) throws {
         continueAfterFailure = false
-        let originalAppearance = XCUIDevice.shared.appearance
-        addTeardownBlock { XCUIDevice.shared.appearance = originalAppearance }
 
-        let appearances: [(XCUIDevice.Appearance, String)] = [(.light, "light"), (.dark, "dark")]
-        for (appearance, suffix) in appearances {
-            XCUIDevice.shared.appearance = appearance
+        for appearance in ["light", "dark"] {
             let app = XCUIApplication()
-            app.launchArguments = ["--face-slot-preview=\(registeredFaces)", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+            app.launchArguments = ["--face-slot-preview=\(registeredFaces)", "--face-slot-preview-appearance=\(appearance)",
+                                   "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
             app.launchEnvironment["INNOLIVE_SERVER_URL"] = "https://face-slots.invalid"
             app.launch()
 
@@ -53,9 +50,11 @@ final class FaceSlotRegistrationUITests: XCTestCase {
             XCTAssertEqual(name.value as? String, faceName)
 
             try inspect(app)
+            XCTAssertEqual(app.staticTexts["face-slot-preview-color-scheme"].label, appearance,
+                           "The fixture window's SwiftUI colorScheme must match the screenshot name")
 
             let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-            screenshot.name = "face-management-spark-\(registeredFaces)-of-2-faces-\(suffix)"
+            screenshot.name = "face-management-spark-\(registeredFaces)-of-2-faces-\(appearance)"
             screenshot.lifetime = .keepAlways
             add(screenshot)
             app.terminate()
