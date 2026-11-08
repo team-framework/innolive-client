@@ -95,7 +95,6 @@ final class ReferenceFaceAPI {
                 request.setValue("Bearer \(refreshedToken)", forHTTPHeaderField: "Authorization")
                 result = try await perform(request)
             case .invalid:
-                authentication.expireSession()
                 throw ReferenceFaceAPIError.unauthorized
             case .unavailable:
                 break
