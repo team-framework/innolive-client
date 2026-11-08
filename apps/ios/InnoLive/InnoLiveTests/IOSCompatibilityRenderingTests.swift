@@ -315,15 +315,19 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
                                        youtube: fixture.youtube, mode: .server)
                         .environment(fixture.camera)
                 } settle: { window in
-                    let name = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UITextField }.first)
-                    XCTAssertTrue(name.becomeFirstResponder())
-                    name.insertText(faceName)
-                    name.resignFirstResponder()
+                    // 목록 조회(.task)가 끝나 상태 카드가 목록으로 바뀐 뒤에 입력해야 편집 중인 입력란 주변이 다시 배치되지 않는다.
                     try await waitUntil("\(faceCount) registered faces render", in: window) { items in
                         (1...faceCount + 1).map { index in
                             items.contains { $0.isButton && $0.label == String(localized: "등록 얼굴 \(index) 삭제") }
                         } == Array(repeating: true, count: faceCount) + [false]
                     }
+                    let name = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UITextField }.first)
+                    let keyboard = KeyboardPresence()
+                    defer { keyboard.stop() }
+                    XCTAssertTrue(name.becomeFirstResponder())
+                    name.insertText(faceName)
+                    XCTAssertTrue(name.resignFirstResponder())
+                    try await waitUntil("keyboard dismisses", in: window) { _ in !keyboard.isPresented }
                 } inspect: { window in
                     let name = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UITextField }.first)
                     XCTAssertEqual(name.text, faceName)
@@ -481,6 +485,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         window.rootViewController = controller
         window.makeKeyAndVisible()
         defer {
+            window.endEditing(true)
             window.isHidden = true
             window.rootViewController = nil
             previousKeyWindow?.makeKeyAndVisible()
@@ -488,7 +493,18 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
 
         // SwiftUI의 첫 렌더링, 내비게이션 레이아웃, onAppear 작업이 돌도록 양보한다.
         try await Task.sleep(for: .milliseconds(350))
-        try await settle(window)
+        let suffix = appearance == .dark ? "dark" : "light"
+        do {
+            try await settle(window)
+        } catch {
+            // 창을 내리기 전에 실패한 순간의 화면과 접근성 문구를 남긴다.
+            _ = attachScreenshot(of: window, scale: scene.screen.scale, name: "\(name)-\(suffix)-settle-failure")
+            let labels = XCTAttachment(string: accessibleItems(in: window).map(\.label).joined(separator: "\n"))
+            labels.name = "\(name)-\(suffix)-settle-failure-accessibility"
+            labels.lifetime = .keepAlways
+            add(labels)
+            throw error
+        }
         controller.view.layoutIfNeeded()
         window.layoutIfNeeded()
 
@@ -504,25 +520,28 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
             assertVisible(navigationBar, in: window)
         }
 
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = scene.screen.scale
-        let renderer = UIGraphicsImageRenderer(bounds: window.bounds, format: format)
-        var didDraw = false
-        let screenshot = renderer.image { _ in
-            didDraw = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
+        let (screenshot, didDraw) = attachScreenshot(of: window, scale: scene.screen.scale, name: "\(name)-\(suffix)")
         XCTAssertTrue(didDraw, "UIKit must finish drawing the visible hierarchy")
         XCTAssertEqual(screenshot.size, window.bounds.size)
         let imageData = try XCTUnwrap(screenshot.pngData())
         XCTAssertGreaterThan(imageData.count, 10_000, "Screen capture must contain rendered UI")
-        let suffix = appearance == .dark ? "dark" : "light"
-        let attachment = XCTAttachment(image: screenshot)
-        attachment.name = "\(name)-\(suffix)-iOS-\(UIDevice.current.systemVersion)"
-        attachment.lifetime = .keepAlways
-        add(attachment)
 
         // 컨트롤 배치가 예상과 달라도 확인할 수 있도록 assert하기 전에 캡처한다.
         try inspect(window)
+    }
+
+    private func attachScreenshot(of window: UIWindow, scale: CGFloat, name: String) -> (image: UIImage, didDraw: Bool) {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        var didDraw = false
+        let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+            didDraw = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "\(name)-iOS-\(UIDevice.current.systemVersion)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        return (image, didDraw)
     }
 
     private func descendants(of view: UIView) -> [UIView] {
@@ -657,6 +676,33 @@ private final class RenderingBroadcastSessionStore: BroadcastSessionStoring {
     }
     func remove(scope: BroadcastSessionScope) throws {
         XCTFail("Render tests must not remove a broadcast")
+    }
+}
+
+/// 키보드가 올라왔다가 완전히 내려갔는지 알린다. 하드웨어 키보드처럼 올라오지 않으면 처음부터 내려간 상태다.
+@MainActor
+private final class KeyboardPresence {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
+    private(set) var isPresented = false
+    private var observers: [NSObjectProtocol] = []
+
+    init() {
+        let center = NotificationCenter.default
+        observers = [
+            center.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.isPresented = true }
+            },
+            center.addObserver(forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.isPresented = false }
+            },
+        ]
+    }
+
+    func stop() {
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers = []
     }
 }
 
