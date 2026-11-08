@@ -35,6 +35,8 @@ struct UserPlan: Codable, Equatable {
     let maxPerBroadcastSeconds: Int
     var monthlyDeviceSeconds: Int? = nil
     var deviceModes: [String]? = nil
+    /// 등록할 수 있는 얼굴 수다. 서버는 등록 수를 세지 않는다. 필드가 없는 서버에서는 nil이고 등록을 막지 않는다.
+    var faceSlots: Int? = nil
     enum CodingKeys: String, CodingKey {
         case plan
         case allowedModes = "allowed_modes"
@@ -42,6 +44,13 @@ struct UserPlan: Codable, Equatable {
         case maxPerBroadcastSeconds = "max_per_broadcast_seconds"
         case monthlyDeviceSeconds = "monthly_device_seconds"
         case deviceModes = "device_modes"
+        case faceSlots = "face_slots"
+    }
+
+    /// 이미 등록한 얼굴 수로 새 얼굴을 더 등록할 수 없으면 안내 문구를 돌려준다. 같은 얼굴 다시 등록은 슬롯을 쓰지 않는다.
+    func faceSlotMessage(registeredCount: Int) -> String? {
+        guard let faceSlots, registeredCount >= faceSlots else { return nil }
+        return String(format: String(localized: "현재 요금제는 얼굴을 최대 %lld명까지 등록할 수 있습니다."), Int64(faceSlots))
     }
 }
 

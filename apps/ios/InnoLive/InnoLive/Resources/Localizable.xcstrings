@@ -15564,6 +15564,29 @@
           }
         }
       }
+    },
+    "현재 요금제는 얼굴을 최대 %lld명까지 등록할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 요금제는 얼굴을 최대 %lld명까지 등록할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your plan allows up to %lld registered faces."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプランでは顔を最大%lld人まで登録できます。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -24,7 +24,12 @@ final class FaceRegistrationViewModel: ObservableObject {
 
     @Published var name = ""
     let mode: AIProcessingMode
-    var canRegister: Bool { ReferenceFaceName.isValid(name) }
+    var canRegister: Bool { ReferenceFaceName.isValid(name) && faceSlotMessage == nil }
+    /// 등록 목록을 불러온 뒤 요금제 얼굴 슬롯이 찼으면 새 등록 대신 보여 줄 안내다.
+    var faceSlotMessage: String? {
+        guard let status else { return nil }
+        return plan()?.faceSlotMessage(registeredCount: status.count)
+    }
     /// 다시 등록할 서버 얼굴이다. 있으면 촬영한 사진을 새 얼굴 대신 이 face_id로 올린다.
     @Published private(set) var reregistrationTarget: ReferenceFace?
     /// 다시 등록은 기존 이름을 유지하므로 이름 입력이 필요 없다.
@@ -37,6 +42,7 @@ final class FaceRegistrationViewModel: ObservableObject {
     @Published private(set) var isUsingWebRTCFrames = false
 
     private let api: ReferenceFaceAPI
+    private let plan: () -> UserPlan?
     private let detector = FaceDetectionService()
     private var stableDetectionCount = 0
     private var activeFrameSource: FaceRegistrationFrameSource?
@@ -44,8 +50,9 @@ final class FaceRegistrationViewModel: ObservableObject {
     private var registrationTask: Task<Void, Never>?
     private var activeLifecycleSessionID: UUID?
 
-    init(authentication: AuthSession, mode: AIProcessingMode = .server) {
+    init(authentication: AuthSession, mode: AIProcessingMode = .server, plan: @escaping () -> UserPlan? = { nil }) {
         self.mode = mode
+        self.plan = plan
         api = ReferenceFaceAPI(authentication: authentication)
     }
 
@@ -78,7 +85,10 @@ final class FaceRegistrationViewModel: ObservableObject {
         using cameraManager: CameraManager,
         videoUplink: WebRTCVideoUplink
     ) async {
-        guard canStartCapture else { phase = .failed(String(localized: "이름을 1~40자로 입력해 주세요.")); return }
+        guard canStartCapture else {
+            phase = .failed(faceSlotMessage ?? String(localized: "이름을 1~40자로 입력해 주세요."))
+            return
+        }
         activeLifecycleSessionID = lifecycleSessionID
         invalidateDetection()
         let generation = detectionGeneration
@@ -307,6 +317,7 @@ final class FaceRegistrationViewModel: ObservableObject {
                     if let target {
                         registeredStatus = try await self.api.reregister(faceID: target.id, jpegData: jpegData)
                     } else {
+                        if let message = self.faceSlotMessage { throw PrivacyFaceError.message(message) }
                         let name = self.name.trimmingCharacters(in: .whitespacesAndNewlines)
                         registeredStatus = try await self.mode == .server
                             ? self.api.register(jpegData: jpegData, name: name)
