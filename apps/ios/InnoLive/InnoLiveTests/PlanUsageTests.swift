@@ -129,6 +129,18 @@ final class PlanUsageTests: XCTestCase {
         XCTAssertNil(BroadcastNotice(code: "future", at: "test").planMessage)
     }
 
+    /// `contracts/api/broadcast-session-state-v1.md` 알림 표의 서버 코드다.
+    func testServerSessionNoticesFromContractHaveMessages() {
+        let expected = [
+            "channel_live_elsewhere": String(localized: "치지직 채널이 이미 다른 도구로 방송 중이라 송출이 거절됐습니다. 다른 도구의 방송을 먼저 끝내세요."),
+            "platform_broadcast_ended": String(localized: "플랫폼 스튜디오에서 방송이 종료되어 송출을 멈췄습니다."),
+            "youtube_quota_low": String(localized: "오늘 유튜브 연동 사용량이 많아 송출 방식 변경이나 새 방송이 실패할 수 있습니다."),
+        ]
+        for (code, message) in expected {
+            XCTAssertEqual(BroadcastNotice(code: code, at: "2026-09-30T00:00:00Z").planMessage, message, code)
+        }
+    }
+
     func testRenderDeviceAndUnsupportedServerUsage() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .first { $0.activationState == .foregroundActive })
