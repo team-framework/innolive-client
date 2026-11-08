@@ -678,6 +678,31 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertNil(legacy.media.mosaicConfig)
     }
 
+    func testMosaicBoundsAndDefaultsMatchContract() throws {
+        struct Bound: Decodable {
+            let minimum: Int?
+            let exclusiveMinimum: Int?
+            let maximum: Int
+            let `default`: Int
+            enum CodingKeys: String, CodingKey { case minimum, maximum, `default`; case exclusiveMinimum = "exclusive_minimum" }
+        }
+        struct Bounds: Decodable {
+            let blurRadius: Bound
+            let maskMargin: Bound
+            enum CodingKeys: String, CodingKey { case blurRadius = "blur_radius", maskMargin = "mask_margin" }
+        }
+        let contract = try JSONDecoder().decode(Bounds.self, from: ContractTestFixtures.data(named: "mosaic-config-bounds.v1"))
+        XCTAssertEqual(BroadcastMosaicConfig.defaultBlurRadius, contract.blurRadius.default)
+        XCTAssertEqual(BroadcastMosaicConfig.blurRadiusRange.upperBound, contract.blurRadius.maximum)
+        XCTAssertGreaterThan(BroadcastMosaicConfig.blurRadiusRange.lowerBound, try XCTUnwrap(contract.blurRadius.exclusiveMinimum))
+        XCTAssertEqual(BroadcastMosaicConfig.defaultMaskMargin, contract.maskMargin.default)
+        XCTAssertEqual(BroadcastMosaicConfig.maskMarginRange, try XCTUnwrap(contract.maskMargin.minimum)...contract.maskMargin.maximum)
+        XCTAssertEqual(BroadcastMosaicConfig().effectiveBlurRadius, contract.blurRadius.default, "an empty config shows the AI default")
+        let clamped = BroadcastMosaicConfig().adjusted(blurRadius: contract.blurRadius.maximum + 1, maskMargin: contract.maskMargin.maximum + 1)
+        XCTAssertEqual(clamped.effectiveBlurRadius, contract.blurRadius.maximum, "the slider never sends a radius the AI rejects")
+        XCTAssertEqual(clamped.effectiveMaskMargin, contract.maskMargin.maximum)
+    }
+
     func testMosaicConfigUsesAuthenticatedPutAndKeepsPixelSize() async throws {
         SessionLifecycleURLProtocol.responses = [
             .created("mosaic"),

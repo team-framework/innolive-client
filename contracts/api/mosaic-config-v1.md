@@ -19,6 +19,9 @@
 | `pixel_size` | 정수 1..8 | 2 | 블러 축소 격자 최소 크기(px). `1`은 `blur_radius` 12 이하에서만 원본 해상도 블러 |
 | `mask_margin` | 정수 0..64 | 8 | 검출 윤곽선 바깥으로 넓히는 폭(송출 영상 px) |
 
+위 범위와 기본값은 `contracts/fixtures/mosaic-config-bounds.v1.json`에도 같은 값으로 둔다. 표를 바꾸면 이 파일도
+함께 바꾸며, iOS 테스트가 `BroadcastMosaicConfig`의 범위·기본값을 이 파일과 비교한다.
+
 AI는 `pixel_size` 격자로 줄인 이미지에 sigma `blur_radius / pixel_size`를 적용한다.
 이 값이 기본 sigma와 같은 12를 넘으면 축소 격자를 `ceil(blur_radius / 12)`로 올린다.
 블러 반경은 그대로라 흐림 정도는 유지된다. 요청은 거부하지 않고 범위도 위 표와 같다.
