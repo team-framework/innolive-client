@@ -373,8 +373,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         @ViewBuilder content: () -> Content,
         inspect: (UIWindow) throws -> Void = { _ in }
     ) async throws {
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundActiveScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         let controller = UIHostingController(rootView:
             NavigationStack { content() }

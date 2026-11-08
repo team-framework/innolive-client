@@ -574,8 +574,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
     }
 
     func testSimulcastSettingsAndPartialPreparationRendering() async throws {
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundActiveScene()
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         let authentication = AuthSession(api: AuthenticationAPI(serverURLProvider: { _ in nil }),
             tokenStore: SimulcastEmptyTokenStore(), consentStore: ConsentAcknowledgementStore(userDefaults: defaults))

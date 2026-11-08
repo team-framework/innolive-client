@@ -177,8 +177,7 @@ final class BroadcastGuideRenderingTests: XCTestCase {
         textSize: DynamicTypeSize,
         @ViewBuilder content: () -> Content
     ) async throws {
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundActiveScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         let window = UIWindow(windowScene: scene)
         window.frame = scene.coordinateSpace.bounds

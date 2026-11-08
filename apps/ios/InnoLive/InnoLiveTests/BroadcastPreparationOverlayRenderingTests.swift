@@ -43,8 +43,7 @@ final class BroadcastPreparationOverlayRenderingTests: XCTestCase {
         textSize: DynamicTypeSize = .large,
         strongContrast: Bool = false
     ) async throws {
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundActiveScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         var retryCount = 0
         var cancelCount = 0
