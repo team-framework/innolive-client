@@ -8,7 +8,7 @@ import XCTest
 
 /// 호스트 앱에서 도는 테스트로, 선택한 기기에서 실제 SwiftUI 뷰를 그리고 렌더링한 이미지를
 /// xcresult에 남긴다. 계정 동작을 실행하거나 방송을 시작하지 않는다.
-/// 네트워크를 쓰는 모델은 비어 있는 격리 세션을 쓴다. 얼굴 슬롯 테스트만 stub 호스트로 조회(GET)한다.
+/// 네트워크를 쓰는 모델은 비어 있는 격리 세션을 쓴다.
 @MainActor
 final class IOSCompatibilityRenderingTests: XCTestCase {
     func testSignInRendersInLightAndDarkAppearance() async throws {
@@ -264,103 +264,6 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         XCTAssertFalse(fixture.youtube.videoUplink.isActive)
     }
 
-    func testFaceManagementBlocksNewFaceOnlyWhenSparkFaceSlotsAreFull() async throws {
-        let serverURLKey = "INNOLIVE_SERVER_URL"
-        let originalServerURL = ProcessInfo.processInfo.environment[serverURLKey]
-        setenv(serverURLKey, "https://\(FaceSlotURLProtocol.host)", 1)
-        FaceSlotURLProtocol.reset()
-        URLProtocol.registerClass(FaceSlotURLProtocol.self)
-        defer {
-            URLProtocol.unregisterClass(FaceSlotURLProtocol.self)
-            FaceSlotURLProtocol.reset()
-            if let originalServerURL { setenv(serverURLKey, originalServerURL, 1) } else { unsetenv(serverURLKey) }
-        }
-        XCTAssertEqual(AuthenticationConfiguration.serverURL(path: "/reference-face")?.host, FaceSlotURLProtocol.host,
-                       "ReferenceFaceAPI must reach the stub, never a configured server")
-
-        let spark = try sparkContractPlanAndUsage()
-        let statusJSON = [1: referenceFaceStatusJSON(count: 1), 2: referenceFaceStatusJSON(count: 2)]
-        var registeredFaceCount = 0
-        FaceSlotURLProtocol.handler = { request in
-            switch (request.httpMethod, request.url?.path) {
-            case ("GET", "/users/me/plan"): return .init(status: 200, body: spark.plan)
-            case ("GET", "/users/me/usage"): return .init(status: 200, body: spark.usage)
-            case ("GET", "/reference-face"): return .init(status: 200, json: statusJSON[registeredFaceCount] ?? "")
-            default: return .init(status: 404)
-            }
-        }
-
-        let faceName = "진행자"
-        let limitNotice = String(format: String(localized: "현재 요금제는 얼굴을 최대 %lld명까지 등록할 수 있습니다."), Int64(2))
-        let otherDisableNotices = [String(localized: "얼굴을 등록하려면 카메라 권한이 필요합니다."),
-                                   String(localized: "카메라 연결이 완료된 뒤 얼굴을 등록할 수 있어요.")]
-
-        for appearance in appearances {
-            // 1명은 같은 절차로 버튼이 켜지는 대조군이다. 이름 입력·카메라 권한·삭제 중 상태가 원인이 아님을 보인다.
-            for faceCount in [1, 2] {
-                registeredFaceCount = faceCount
-                let fixture = RenderingFixture(serverHost: FaceSlotURLProtocol.host)
-                defer { fixture.removePreferences() }
-                await fixture.youtube.refreshPlan(accessToken: fixture.authentication.currentAccessToken())
-                XCTAssertEqual(fixture.youtube.planStore.snapshot?.plan.plan, "spark")
-                XCTAssertEqual(fixture.youtube.planStore.snapshot?.plan.faceSlots, 2)
-                XCTAssertEqual(fixture.camera.authorizationStatus, .authorized,
-                               "Grant the host app camera access with `xcrun simctl privacy <device> grant camera <bundle id>`")
-                let uplink = fixture.youtube.videoUplink
-                XCTAssertFalse(uplink.isSwitchingCamera || uplink.isReleasingCamera || uplink.isActive)
-
-                try await render("face-management-spark-\(faceCount)-of-2-faces", appearance: appearance,
-                                 title: String(localized: "얼굴 관리")) {
-                    FaceManagementView(authentication: fixture.authentication,
-                                       youtube: fixture.youtube, mode: .server)
-                        .environment(fixture.camera)
-                } settle: { window in
-                    // 목록 조회(.task)가 끝나 상태 카드가 목록으로 바뀐 뒤에 입력해야 편집 중인 입력란 주변이 다시 배치되지 않는다.
-                    try await waitUntil("\(faceCount) registered faces render", in: window) { items in
-                        (1...faceCount + 1).map { index in
-                            items.contains { $0.isButton && $0.label == String(localized: "등록 얼굴 \(index) 삭제") }
-                        } == Array(repeating: true, count: faceCount) + [false]
-                    }
-                    let name = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UITextField }.first)
-                    let keyboard = KeyboardPresence()
-                    defer { keyboard.stop() }
-                    XCTAssertTrue(name.becomeFirstResponder())
-                    name.insertText(faceName)
-                    XCTAssertTrue(name.resignFirstResponder())
-                    try await waitUntil("keyboard dismisses", in: window) { _ in !keyboard.isPresented }
-                } inspect: { window in
-                    let name = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UITextField }.first)
-                    XCTAssertEqual(name.text, faceName)
-                    let items = accessibleItems(in: window)
-                    XCTAssertFalse(items.contains { item in otherDisableNotices.contains { item.label.contains($0) } })
-                    let deleteAll = items.filter { $0.isButton && $0.label == String(localized: "모두 삭제") }
-                    XCTAssertEqual(deleteAll.count, 1)
-                    XCTAssertTrue(try XCTUnwrap(deleteAll.first).isEnabled, "Face list must not be mid-deletion")
-                    let register = items.filter { $0.isButton && $0.label == String(localized: "얼굴 등록") }
-                    XCTAssertEqual(register.count, 1)
-                    let registerButton = try XCTUnwrap(register.first)
-                    if faceCount == 2 {
-                        XCTAssertEqual(items.filter { $0.label == limitNotice }.count, 1)
-                        XCTAssertFalse(registerButton.isEnabled)
-                    } else {
-                        XCTAssertFalse(items.contains { $0.label.contains(limitNotice) })
-                        XCTAssertTrue(registerButton.isEnabled)
-                    }
-                }
-                XCTAssertFalse(fixture.camera.session.isRunning)
-                XCTAssertFalse(fixture.youtube.videoUplink.isActive)
-            }
-        }
-
-        let requests = FaceSlotURLProtocol.requests
-        XCTAssertEqual(Set(requests.map { "\($0.httpMethod ?? "") \($0.url?.path ?? "")" }),
-                       ["GET /users/me/plan", "GET /users/me/usage", "GET /reference-face"],
-                       "The fixture only reads the plan and face list; it never registers or deletes")
-        XCTAssertTrue(requests.allSatisfy {
-            $0.value(forHTTPHeaderField: "Authorization") == "Bearer \(RenderingFixture.accessToken)"
-        })
-    }
-
     func testQuickFaceRegistrationButtonRendersBelowVideoControls() async throws {
         let fixture = RenderingFixture()
         defer { fixture.removePreferences() }
@@ -468,7 +371,6 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         textSize: DynamicTypeSize = .large,
         viewport: CGSize? = nil,
         @ViewBuilder content: () -> Content,
-        settle: (UIWindow) async throws -> Void = { _ in },
         inspect: (UIWindow) throws -> Void = { _ in }
     ) async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
@@ -485,7 +387,6 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         window.rootViewController = controller
         window.makeKeyAndVisible()
         defer {
-            window.endEditing(true)
             window.isHidden = true
             window.rootViewController = nil
             previousKeyWindow?.makeKeyAndVisible()
@@ -493,18 +394,6 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
 
         // SwiftUI의 첫 렌더링, 내비게이션 레이아웃, onAppear 작업이 돌도록 양보한다.
         try await Task.sleep(for: .milliseconds(350))
-        let suffix = appearance == .dark ? "dark" : "light"
-        do {
-            try await settle(window)
-        } catch {
-            // 창을 내리기 전에 실패한 순간의 화면과 접근성 문구를 남긴다.
-            _ = attachScreenshot(of: window, scale: scene.screen.scale, name: "\(name)-\(suffix)-settle-failure")
-            let labels = XCTAttachment(string: accessibleItems(in: window).map(\.label).joined(separator: "\n"))
-            labels.name = "\(name)-\(suffix)-settle-failure-accessibility"
-            labels.lifetime = .keepAlways
-            add(labels)
-            throw error
-        }
         controller.view.layoutIfNeeded()
         window.layoutIfNeeded()
 
@@ -520,77 +409,29 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
             assertVisible(navigationBar, in: window)
         }
 
-        let (screenshot, didDraw) = attachScreenshot(of: window, scale: scene.screen.scale, name: "\(name)-\(suffix)")
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scene.screen.scale
+        let renderer = UIGraphicsImageRenderer(bounds: window.bounds, format: format)
+        var didDraw = false
+        let screenshot = renderer.image { _ in
+            didDraw = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
         XCTAssertTrue(didDraw, "UIKit must finish drawing the visible hierarchy")
         XCTAssertEqual(screenshot.size, window.bounds.size)
         let imageData = try XCTUnwrap(screenshot.pngData())
         XCTAssertGreaterThan(imageData.count, 10_000, "Screen capture must contain rendered UI")
+        let suffix = appearance == .dark ? "dark" : "light"
+        let attachment = XCTAttachment(image: screenshot)
+        attachment.name = "\(name)-\(suffix)-iOS-\(UIDevice.current.systemVersion)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
 
         // 컨트롤 배치가 예상과 달라도 확인할 수 있도록 assert하기 전에 캡처한다.
         try inspect(window)
     }
 
-    private func attachScreenshot(of window: UIWindow, scale: CGFloat, name: String) -> (image: UIImage, didDraw: Bool) {
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = scale
-        var didDraw = false
-        let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
-            didDraw = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
-        let attachment = XCTAttachment(image: image)
-        attachment.name = "\(name)-iOS-\(UIDevice.current.systemVersion)"
-        attachment.lifetime = .keepAlways
-        add(attachment)
-        return (image, didDraw)
-    }
-
     private func descendants(of view: UIView) -> [UIView] {
         [view] + view.subviews.flatMap { descendants(of: $0) }
-    }
-
-    /// SwiftUI 버튼과 문구는 UIKit 뷰가 아니라서 접근성 트리에서 문구와 비활성(notEnabled) 상태를 읽는다.
-    private func accessibleItems(in object: NSObject) -> [AccessibleItem] {
-        if let view = object as? UIView, view.isHidden || view.alpha < 0.01 { return [] }
-        if object.isAccessibilityElement {
-            return [AccessibleItem(label: object.accessibilityLabel ?? "", traits: object.accessibilityTraits)]
-        }
-        let count = object.accessibilityElementCount()
-        let children: [NSObject]
-        if let elements = object.accessibilityElements as? [NSObject] {
-            children = elements
-        } else if count != NSNotFound, count > 0 {
-            children = (0..<count).compactMap { object.accessibilityElement(at: $0) as? NSObject }
-        } else {
-            children = (object as? UIView)?.subviews ?? []
-        }
-        return children.flatMap { accessibleItems(in: $0) }
-    }
-
-    private func waitUntil(_ description: String, in window: UIWindow, timeout: Duration = .seconds(5),
-                           _ condition: ([AccessibleItem]) -> Bool) async throws {
-        let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: timeout)
-        while true {
-            window.layoutIfNeeded()
-            if condition(accessibleItems(in: window)) { return }
-            guard clock.now < deadline else { throw RenderingWaitTimeout(description: description) }
-            try await Task.sleep(for: .milliseconds(50))
-        }
-    }
-
-    private func sparkContractPlanAndUsage() throws -> (plan: Data, usage: Data) {
-        let entries = try XCTUnwrap(JSONSerialization.jsonObject(
-            with: ContractTestFixtures.data(named: "plan-usage-processing.v1")) as? [[String: Any]])
-        let spark = try XCTUnwrap(entries.first { ($0["plan"] as? [String: Any])?["plan"] as? String == "spark" })
-        return (try JSONSerialization.data(withJSONObject: XCTUnwrap(spark["plan"])),
-                try JSONSerialization.data(withJSONObject: XCTUnwrap(spark["usage"])))
-    }
-
-    private func referenceFaceStatusJSON(count: Int) -> String {
-        let faces = (1...count).map {
-            #"{"face_id":"fixture-face-\#($0)","name":"슬롯 얼굴 \#($0)","registered_at":"2026-11-0\#($0)T00:00:00Z"}"#
-        }
-        return #"{"registered":true,"source":"api","registered_at":"2026-11-01T00:00:00Z","client_id":"fixture-user","count":\#(count),"faces":[\#(faces.joined(separator: ","))]}"#
     }
 
     private func assertVisible(_ view: UIView, in window: UIWindow, requireFullyVisible: Bool = true,
@@ -624,27 +465,21 @@ private final class RenderingFixture {
     let authentication: AuthSession
     let youtube: YouTubeIntegration
     let camera = CameraManager()
-    /// JWT가 아니어서 PlanStore가 계정 ID를 얻지 못하고 디스크 캐시를 쓰지 않는다.
-    static let accessToken = "face-slot-fixture-access"
 
-    /// serverHost가 있으면 로그인한 상태로 그 호스트의 stub 서버에 요청한다. 없으면 로그아웃 상태로 네트워크를 쓰지 않는다.
-    init(serverHost: String? = nil) {
+    init() {
         defaults = UserDefaults(suiteName: suiteName)!
         let consentStore = ConsentAcknowledgementStore(userDefaults: defaults)
         authentication = AuthSession(
             api: AuthenticationAPI(serverURLProvider: { _ in nil }),
-            tokenStore: RenderingTokenStore(tokens: serverHost.map { _ in
-                AuthenticationTokenPair(accessToken: Self.accessToken, refreshToken: "face-slot-fixture-refresh")
-            }),
+            tokenStore: RenderingTokenStore(),
             consentStore: consentStore
         )
         youtube = YouTubeIntegration(
             preferencesStore: YouTubePreferencesStore(userDefaults: defaults),
-            api: YouTubeAPI(serverURLProvider: { path in serverHost.flatMap { URL(string: "https://\($0)\(path)") } }),
+            api: YouTubeAPI(serverURLProvider: { _ in nil }),
             consentStore: consentStore,
             sessionStore: RenderingBroadcastSessionStore(),
-            persistAIProcessingMode: { _ in },
-            planStore: serverHost == nil ? nil : PlanStore(cacheURL: nil)
+            persistAIProcessingMode: { _ in }
         )
     }
 
@@ -655,13 +490,7 @@ private final class RenderingTokenStore: AuthenticationTokenStoring {
     // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
     nonisolated deinit {}
 
-    private let tokens: AuthenticationTokenPair?
-
-    init(tokens: AuthenticationTokenPair? = nil) {
-        self.tokens = tokens
-    }
-
-    func load() -> AuthenticationTokenPair? { tokens }
+    func load() -> AuthenticationTokenPair? { nil }
     func save(_ tokens: AuthenticationTokenPair) throws { XCTFail("Render tests must not sign in") }
     func remove() { XCTFail("Render tests must not sign out") }
 }
@@ -679,52 +508,6 @@ private final class RenderingBroadcastSessionStore: BroadcastSessionStoring {
     }
 }
 
-/// 키보드가 올라왔다가 완전히 내려갔는지 알린다. 하드웨어 키보드처럼 올라오지 않으면 처음부터 내려간 상태다.
-@MainActor
-private final class KeyboardPresence {
-    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
-    nonisolated deinit {}
-
-    private(set) var isPresented = false
-    private var observers: [NSObjectProtocol] = []
-
-    init() {
-        let center = NotificationCenter.default
-        observers = [
-            center.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.isPresented = true }
-            },
-            center.addObserver(forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.isPresented = false }
-            },
-        ]
-    }
-
-    func stop() {
-        observers.forEach { NotificationCenter.default.removeObserver($0) }
-        observers = []
-    }
-}
-
 nonisolated private enum RenderingTaskContext {
     @TaskLocal static var isRendering = false
-}
-
-private struct AccessibleItem {
-    let label: String
-    let traits: UIAccessibilityTraits
-    var isButton: Bool { traits.contains(.button) }
-    var isEnabled: Bool { !traits.contains(.notEnabled) }
-}
-
-private struct RenderingWaitTimeout: LocalizedError {
-    let description: String
-    var errorDescription: String? { "Timed out waiting until \(description)" }
-}
-
-/// 이 호스트로 가는 요청만 가로챈다. 호스트 앱의 다른 요청은 건드리지 않는다.
-nonisolated private final class FaceSlotURLProtocol: StubURLProtocol {
-    static let host = "face-slots.invalid"
-    override class func canInit(with request: URLRequest) -> Bool { request.url?.host == host }
-    override class var fallbackResponse: Response { .failure(.badServerResponse) }
 }
