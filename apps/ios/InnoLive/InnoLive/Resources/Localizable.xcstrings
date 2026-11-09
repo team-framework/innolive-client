@@ -4147,48 +4147,48 @@
         }
       }
     },
-    "YouTube 계정을 다시 연결해 주세요.": {
+    "플랫폼 계정을 다시 연결해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 계정을 다시 연결해 주세요."
+            "value": "플랫폼 계정을 다시 연결해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reconnect your YouTube account."
+            "value": "Reconnect your platform account."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTubeアカウントを再接続してください。"
+            "value": "プラットフォームアカウントを再接続してください。"
           }
         }
       }
     },
-    "YouTube 계정을 먼저 연결해 주세요.": {
+    "플랫폼 계정을 먼저 연결해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 계정을 먼저 연결해 주세요."
+            "value": "플랫폼 계정을 먼저 연결해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Connect your YouTube account first."
+            "value": "Connect a platform account first."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "先にYouTubeアカウントを接続してください。"
+            "value": "先にプラットフォームアカウントを接続してください。"
           }
         }
       }
@@ -4308,25 +4308,25 @@
         }
       }
     },
-    "YouTube 방송 설정을 확인한 뒤 다시 시도해 주세요.": {
+    "방송 설정을 확인한 뒤 다시 시도해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 방송 설정을 확인한 뒤 다시 시도해 주세요."
+            "value": "방송 설정을 확인한 뒤 다시 시도해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Check your YouTube broadcast settings and try again."
+            "value": "Check your broadcast settings and try again."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTubeの配信設定を確認して、もう一度お試しください。"
+            "value": "配信設定を確認して、もう一度お試しください。"
           }
         }
       }
@@ -4354,94 +4354,94 @@
         }
       }
     },
-    "YouTube 방송을 라이브로 전환하지 못했습니다. 잠시 후 다시 시도해 주세요.": {
+    "방송을 라이브로 전환하지 못했습니다. 잠시 후 다시 시도해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 방송을 라이브로 전환하지 못했습니다. 잠시 후 다시 시도해 주세요."
+            "value": "방송을 라이브로 전환하지 못했습니다. 잠시 후 다시 시도해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Could not go live on YouTube. Please try again later."
+            "value": "Could not go live. Please try again later."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTubeのライブを開始できませんでした。しばらくしてからお試しください。"
+            "value": "ライブを開始できませんでした。しばらくしてからお試しください。"
           }
         }
       }
     },
-    "YouTube 방송을 먼저 준비해 주세요.": {
+    "방송을 먼저 준비해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 방송을 먼저 준비해 주세요."
+            "value": "방송을 먼저 준비해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Prepare your YouTube broadcast first."
+            "value": "Prepare the broadcast first."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "先にYouTube配信を準備してください。"
+            "value": "先に配信を準備してください。"
           }
         }
       }
     },
-    "YouTube 서버 응답을 확인하지 못했습니다. 다시 시도해 주세요.": {
+    "서버 응답을 확인하지 못했습니다. 다시 시도해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 서버 응답을 확인하지 못했습니다. 다시 시도해 주세요."
+            "value": "서버 응답을 확인하지 못했습니다. 다시 시도해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Could not validate the YouTube server response. Please try again."
+            "value": "Could not validate the server response. Please try again."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTubeサーバーの応答を確認できませんでした。もう一度お試しください。"
+            "value": "サーバーの応答を確認できませんでした。もう一度お試しください。"
           }
         }
       }
     },
-    "YouTube 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.": {
+    "서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+            "value": "서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Could not connect to the YouTube server. Please try again later."
+            "value": "Could not connect to the server. Please try again later."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTubeサーバーに接続できませんでした。しばらくしてからお試しください。"
+            "value": "サーバーに接続できませんでした。しばらくしてからお試しください。"
           }
         }
       }
@@ -4515,25 +4515,25 @@
         }
       }
     },
-    "YouTube 송출 중이 아닙니다.": {
+    "송출 중이 아닙니다.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 송출 중이 아닙니다."
+            "value": "송출 중이 아닙니다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You are not streaming to YouTube."
+            "value": "You are not streaming."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTubeに配信していません。"
+            "value": "配信していません。"
           }
         }
       }
@@ -4561,25 +4561,25 @@
         }
       }
     },
-    "YouTube 송출을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.": {
+    "송출을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 송출을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요."
+            "value": "송출을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Could not prepare the YouTube stream. Please try again later."
+            "value": "Could not prepare the stream. Please try again later."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube配信を準備できませんでした。しばらくしてからお試しください。"
+            "value": "配信を準備できませんでした。しばらくしてからお試しください。"
           }
         }
       }
@@ -4676,48 +4676,48 @@
         }
       }
     },
-    "YouTube 송출이 이미 일시 중지되어 있습니다.": {
+    "송출이 이미 일시 중지되어 있습니다.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 송출이 이미 일시 중지되어 있습니다."
+            "value": "송출이 이미 일시 중지되어 있습니다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The YouTube stream is already paused."
+            "value": "The stream is already paused."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube配信はすでに一時停止しています。"
+            "value": "配信はすでに一時停止しています。"
           }
         }
       }
     },
-    "YouTube 송출이 이미 진행 중입니다.": {
+    "송출이 이미 진행 중입니다.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 송출이 이미 진행 중입니다."
+            "value": "송출이 이미 진행 중입니다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The YouTube stream is already active."
+            "value": "The stream is already active."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube配信はすでに開始されています。"
+            "value": "配信はすでに開始されています。"
           }
         }
       }
@@ -4745,25 +4745,25 @@
         }
       }
     },
-    "YouTube 연결 설정이 필요합니다.": {
+    "서버 연결 설정이 필요합니다.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 연결 설정이 필요합니다."
+            "value": "서버 연결 설정이 필요합니다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube connection needs to be configured."
+            "value": "Server connection needs to be configured."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube接続の設定が必要です。"
+            "value": "サーバー接続の設定が必要です。"
           }
         }
       }
@@ -4814,25 +4814,25 @@
         }
       }
     },
-    "YouTube 요청을 처리하지 못했습니다.": {
+    "방송 요청을 처리하지 못했습니다.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 요청을 처리하지 못했습니다."
+            "value": "방송 요청을 처리하지 못했습니다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Could not process the YouTube request."
+            "value": "Could not process the broadcast request."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTubeへのリクエストを処理できませんでした。"
+            "value": "配信リクエストを処理できませんでした。"
           }
         }
       }
@@ -4998,25 +4998,25 @@
         }
       }
     },
-    "YouTube가 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요.": {
+    "플랫폼이 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube가 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요."
+            "value": "플랫폼이 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube is not ready to receive video yet. Please try again later."
+            "value": "The platform is not ready to receive video yet. Please try again later."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTubeはまだ映像を受信する準備ができていません。しばらくしてからお試しください。"
+            "value": "プラットフォームはまだ映像を受信する準備ができていません。しばらくしてからお試しください。"
           }
         }
       }
@@ -8563,48 +8563,48 @@
         }
       }
     },
-    "이 서버에는 YouTube 송출 기능이 아직 구성되지 않았습니다.": {
+    "이 서버에는 송출 기능이 아직 구성되지 않았습니다.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 서버에는 YouTube 송출 기능이 아직 구성되지 않았습니다."
+            "value": "이 서버에는 송출 기능이 아직 구성되지 않았습니다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube streaming has not been configured on this server yet."
+            "value": "Streaming has not been configured on this server yet."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "このサーバーではYouTube配信機能がまだ設定されていません。"
+            "value": "このサーバーでは配信機能がまだ設定されていません。"
           }
         }
       }
     },
-    "이 서버에는 YouTube 연결 기능이 아직 구성되지 않았습니다.": {
+    "이 서버에는 플랫폼 계정 연결 기능이 아직 구성되지 않았습니다.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 서버에는 YouTube 연결 기능이 아직 구성되지 않았습니다."
+            "value": "이 서버에는 플랫폼 계정 연결 기능이 아직 구성되지 않았습니다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube connection has not been configured on this server yet."
+            "value": "Platform account connection has not been configured on this server yet."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "このサーバーではYouTube接続機能がまだ設定されていません。"
+            "value": "このサーバーではプラットフォームアカウントの接続機能がまだ設定されていません。"
           }
         }
       }
@@ -9069,25 +9069,25 @@
         }
       }
     },
-    "일시 중지된 YouTube 송출이 아닙니다.": {
+    "일시 중지된 송출이 아닙니다.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "일시 중지된 YouTube 송출이 아닙니다."
+            "value": "일시 중지된 송출이 아닙니다."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The YouTube stream is not paused."
+            "value": "The stream is not paused."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube配信は一時停止していません。"
+            "value": "配信は一時停止していません。"
           }
         }
       }
@@ -9713,25 +9713,25 @@
         }
       }
     },
-    "카메라 영상을 연결한 뒤 YouTube 송출을 다시 시작해 주세요.": {
+    "카메라 영상을 연결한 뒤 송출을 다시 시작해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "카메라 영상을 연결한 뒤 YouTube 송출을 다시 시작해 주세요."
+            "value": "카메라 영상을 연결한 뒤 송출을 다시 시작해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Connect the camera video, then restart the YouTube stream."
+            "value": "Connect the camera video, then restart the stream."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "カメラ映像を接続してから、YouTube配信を再開してください。"
+            "value": "カメラ映像を接続してから、配信を再開してください。"
           }
         }
       }
@@ -15492,6 +15492,98 @@
           "stringUnit": {
             "state": "translated",
             "value": "配信の準備中はローカル録画を開始できません。"
+          }
+        }
+      }
+    },
+    "치지직 채널이 이미 다른 도구로 방송 중이라 송출이 거절됐습니다. 다른 도구의 방송을 먼저 끝내세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 채널이 이미 다른 도구로 방송 중이라 송출이 거절됐습니다. 다른 도구의 방송을 먼저 끝내세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This CHZZK channel is already live with another tool, so streaming was rejected. End the other tool's broadcast first."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このCHZZKチャンネルは別のツールですでに配信中のため、配信を拒否されました。別のツールの配信を先に終了してください。"
+          }
+        }
+      }
+    },
+    "플랫폼 스튜디오에서 방송이 종료되어 송출을 멈췄습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼 스튜디오에서 방송이 종료되어 송출을 멈췄습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The broadcast ended in the platform studio, so streaming has stopped."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラットフォームのスタジオで配信が終了したため、送信を停止しました。"
+          }
+        }
+      }
+    },
+    "오늘 유튜브 연동 사용량이 많아 송출 방식 변경이나 새 방송이 실패할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘 유튜브 연동 사용량이 많아 송출 방식 변경이나 새 방송이 실패할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's YouTube API usage is high. Changing broadcast modes or starting a new broadcast may fail."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日のYouTube API使用量が多く、配信方式の変更や新しい配信に失敗する場合があります。"
+          }
+        }
+      }
+    },
+    "현재 요금제는 얼굴을 최대 %lld명까지 등록할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 요금제는 얼굴을 최대 %lld명까지 등록할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your plan allows up to %lld registered faces."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプランでは顔を最大%lld人まで登録できます。"
           }
         }
       }

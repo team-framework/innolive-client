@@ -549,6 +549,8 @@ final class BroadcastPreparationFlowTests: XCTestCase {
         PreparationFlowURLProtocol.responses = [.created("new"), .status(500, ""), .status(500, "")]
         _ = await prepare(integration)
         XCTAssertEqual(Set(integration.preparationFailures.keys), [.youtube, .chzzk])
+        XCTAssertEqual(integration.preparationFailures[.chzzk]?.message?
+            .components(separatedBy: BroadcastSettingsProvider.chzzk.title + ": ").count, 2)
         XCTAssertFalse(integration.canContinuePreparedBroadcast)
         XCTAssertFalse(integration.continueWithPreparedTargets())
         XCTAssertFalse(paths.contains { $0.contains("prepare") })
@@ -572,8 +574,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
     }
 
     func testSimulcastSettingsAndPartialPreparationRendering() async throws {
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundScene()
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         let authentication = AuthSession(api: AuthenticationAPI(serverURLProvider: { _ in nil }),
             tokenStore: SimulcastEmptyTokenStore(), consentStore: ConsentAcknowledgementStore(userDefaults: defaults))

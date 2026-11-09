@@ -13,7 +13,6 @@ final class YouTubeAPI: PlanAPIClient {
     let serverURLProvider: @MainActor @Sendable (String) -> URL?
     private var accessTokenProvider: (() -> String?)?
     private var refreshSession: (() async -> AuthenticationRefreshResult)?
-    private var onInvalidRefresh: (() -> Void)?
     private var authenticationRequestGeneration: UInt = 0
 
     init(
@@ -26,12 +25,10 @@ final class YouTubeAPI: PlanAPIClient {
 
     func configureAuthentication(
         accessTokenProvider: @escaping () -> String?,
-        refreshSession: @escaping () async -> AuthenticationRefreshResult,
-        onInvalidRefresh: @escaping () -> Void
+        refreshSession: @escaping () async -> AuthenticationRefreshResult
     ) {
         self.accessTokenProvider = accessTokenProvider
         self.refreshSession = refreshSession
-        self.onInvalidRefresh = onInvalidRefresh
     }
 
     func currentAccessToken(fallback: String) -> String {
@@ -41,11 +38,7 @@ final class YouTubeAPI: PlanAPIClient {
 
     func refreshAuthentication() async -> AuthenticationRefreshResult {
         guard let refreshSession else { return .invalid }
-        let result = await refreshSession()
-        if case .invalid = result {
-            onInvalidRefresh?()
-        }
-        return result
+        return await refreshSession()
     }
 
     func invalidateAuthenticationRequests() {
@@ -129,9 +122,7 @@ final class YouTubeAPI: PlanAPIClient {
                 guard !refreshedToken.isEmpty else { throw YouTubeAPIError.unauthorized }
                 request.setValue("Bearer \(refreshedToken)", forHTTPHeaderField: "Authorization")
                 (data, response) = try await perform(request)
-            case .invalid:
-                onInvalidRefresh?()
-            case .unavailable:
+            case .invalid, .unavailable:
                 break
             }
         }
@@ -181,7 +172,7 @@ final class YouTubeAPI: PlanAPIClient {
         }
         throw YouTubeAPIError.api(
             code: envelope?.error.code,
-            fallback: String(localized: "YouTube 요청을 처리하지 못했습니다."),
+            fallback: String(localized: "방송 요청을 처리하지 못했습니다."),
             helpURL: envelope?.error.details?.helpURL
         )
     }

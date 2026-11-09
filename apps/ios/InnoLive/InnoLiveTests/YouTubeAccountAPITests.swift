@@ -56,8 +56,7 @@ final class YouTubeAccountAPITests: XCTestCase {
             refreshSession: {
                 refreshCallCount += 1
                 return .refreshed
-            },
-            onInvalidRefresh: {}
+            }
         )
 
         let accounts = try await api.streamingAccounts(accessToken: "fallback-access-token")
@@ -84,7 +83,7 @@ final class YouTubeAccountAPITests: XCTestCase {
                 _ = try await makeAPI().streamingAccounts(accessToken: "access-token")
                 XCTFail("an unknown server error must fail")
             } catch let error as YouTubeAPIError {
-                XCTAssertEqual(error.userMessage, String(localized: "YouTube 요청을 처리하지 못했습니다."))
+                XCTAssertEqual(error.userMessage, String(localized: "방송 요청을 처리하지 못했습니다."))
                 XCTAssertFalse(error.userMessage.contains("private"))
             } catch {
                 XCTFail("unexpected error: \(error)")
@@ -153,8 +152,7 @@ final class YouTubeAccountAPITests: XCTestCase {
                 refreshStarted.fulfill()
                 try? await Task.sleep(for: .milliseconds(200))
                 return .refreshed
-            },
-            onInvalidRefresh: {}
+            }
         )
 
         let deleteTask = Task { () -> Error? in
@@ -234,7 +232,7 @@ final class YouTubeAccountAPITests: XCTestCase {
         let api = makeAPI()
         api.configureAuthentication(
             accessTokenProvider: { refreshed ? "new" : "old" },
-            refreshSession: { refreshed = true; return .refreshed }, onInvalidRefresh: {}
+            refreshSession: { refreshed = true; return .refreshed }
         )
         try await api.deleteSession(.init(sessionID: "session", ownerToken: "owner"), accessToken: "old")
         XCTAssertEqual(AccountManagementURLProtocol.requests.count, 2)

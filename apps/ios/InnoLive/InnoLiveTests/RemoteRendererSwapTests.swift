@@ -64,8 +64,7 @@ final class RemoteRendererSwapTests: XCTestCase {
         defer { uplink.fileVideoCapturer = nil }
 
         let state = SwapState()
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         let window = UIWindow(windowScene: scene)
         window.frame = scene.coordinateSpace.bounds

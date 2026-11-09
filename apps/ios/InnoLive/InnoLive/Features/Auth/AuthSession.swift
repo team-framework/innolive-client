@@ -23,6 +23,7 @@ final class AuthSession: ObservableObject {
     private var tokenRefreshTask: Task<AuthenticationRefreshResult, Never>?
     private var tokenRefreshTaskGeneration: UInt?
     private var sessionGeneration: UInt = 0
+    private var sessionEndHandler: (@MainActor (AuthSessionEnd) -> Void)?
 
     init(
         api: AuthenticationAPIClient = AuthenticationAPI(),
@@ -36,6 +37,11 @@ final class AuthSession: ObservableObject {
         self.offlineGrantStore = offlineGrantStore
         hasAcceptedAccountCollection = consentStore.hasAcceptedAccountCollection
         hasAcceptedMediaTransmission = consentStore.hasAcceptedMediaTransmission
+    }
+
+    /// 로그아웃·만료·계정 삭제가 모두 이 처리를 거친다. 호출자가 방송 정리를 따로 짝지어 부르지 않는다.
+    func onSessionEnd(_ handler: @escaping @MainActor (AuthSessionEnd) -> Void) {
+        sessionEndHandler = handler
     }
 
     func restore() { isAuthenticated = tokenStore.load() != nil }
@@ -181,7 +187,7 @@ final class AuthSession: ObservableObject {
     }
 
     @discardableResult
-    func deleteAccount(cleanup: @escaping @MainActor () -> Void = {}) async -> Bool {
+    func deleteAccount() async -> Bool {
         guard !isDeletingAccount,
               isAuthenticated,
               let currentTokens = tokenStore.load(),
@@ -213,8 +219,6 @@ final class AuthSession: ObservableObject {
                     return false
                 }
             case .invalid:
-                guard isCurrentSession(generation) else { return false }
-                expireSession()
                 return false
             case .unavailable:
                 guard isCurrentSession(generation) else { return false }
@@ -228,8 +232,7 @@ final class AuthSession: ObservableObject {
         }
 
         guard isCurrentSession(generation) else { return false }
-        cleanup()
-        clearStoredSession()
+        clearStoredSession(.accountDeleted)
         consentStore.clearAccountCollection()
         hasAcceptedAccountCollection = false
         clearMediaTransmissionConsent()
@@ -239,18 +242,19 @@ final class AuthSession: ObservableObject {
     }
 
     func signOut() {
-        clearStoredSession()
+        clearStoredSession(.signedOut)
         errorMessage = nil
         isAuthenticated = false
     }
 
     func expireSession() {
-        clearStoredSession()
+        clearStoredSession(.expired)
         errorMessage = String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
         isAuthenticated = false
     }
 
-    private func clearStoredSession() {
+    private func clearStoredSession(_ end: AuthSessionEnd) {
+        sessionEndHandler?(end)
         invalidateSessionGeneration()
         tokenStore.remove()
         offlineGrantStore.remove()
@@ -258,6 +262,7 @@ final class AuthSession: ObservableObject {
         pendingSignup = nil
     }
 
+    /// refresh token이 무효면 갱신을 시작한 호출이 세션을 한 번 만료한다. 호출부는 결과에 따라 요청만 정리한다.
     func refreshSession() async -> AuthenticationRefreshResult {
         if let tokenRefreshTask {
             return await tokenRefreshTask.value
@@ -293,6 +298,9 @@ final class AuthSession: ObservableObject {
         if sessionGeneration == generation, tokenRefreshTaskGeneration == generation {
             tokenRefreshTask = nil
             tokenRefreshTaskGeneration = nil
+        }
+        if case .invalid = result, sessionGeneration == generation {
+            expireSession()
         }
         return result
     }
@@ -371,6 +379,12 @@ final class AuthSession: ObservableObject {
 }
 
 private struct PendingSignup { let email: String; let password: String; let token: String }
+
+enum AuthSessionEnd {
+    case signedOut
+    case expired
+    case accountDeleted
+}
 
 enum AuthenticationRefreshResult {
     case refreshed

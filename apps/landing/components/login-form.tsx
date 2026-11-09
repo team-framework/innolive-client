@@ -6,7 +6,11 @@ import { Button } from "@/components/button";
 import { useLocale } from "@/components/locale-provider";
 import { TextField } from "@/components/text-field";
 import { authErrorMessage, signIn } from "@/lib/auth-client";
-import { isValidEmail } from "@/lib/auth-validation";
+import {
+  hasErrors,
+  validateLogin,
+  type LoginErrors,
+} from "@/lib/auth-validation";
 
 export function LoginForm() {
   const router = useRouter();
@@ -14,31 +18,20 @@ export function LoginForm() {
   const copy = messages.auth;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {},
-  );
+  const [errors, setErrors] = useState<LoginErrors>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const next: { email?: string; password?: string } = {};
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      next.email = copy.validation.emailRequired;
-    } else if (!isValidEmail(trimmedEmail)) {
-      next.email = copy.validation.emailInvalid;
-    }
-    if (!password) {
-      next.password = copy.validation.passwordRequired;
-    }
+    const next = validateLogin({ email, password }, copy.validation);
     setErrors(next);
     setNotice(null);
-    if (Object.keys(next).length > 0) return;
+    if (hasErrors(next)) return;
 
     setIsSubmitting(true);
     try {
-      await signIn(trimmedEmail, password);
+      await signIn(email.trim(), password);
       router.push(href("/#main"));
       router.refresh();
     } catch (error) {

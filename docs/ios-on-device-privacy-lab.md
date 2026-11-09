@@ -23,7 +23,8 @@ uv pip install --python /tmp/innolive-coreml-venv/bin/python -r scripts/requirem
 
 출력은 `apps/ios/InnoLive/InnoLive/Resources/PrivacyDetector.mlpackage`다.
 기존 파일을 덮어쓰지 않으므로 모델 재생성 시 다른 `--output`을 지정해 비교한 뒤 교체한다.
-Xcode가 빌드하면서 `.mlmodelc`로 컴파일한다. 모델이 없거나 출력 규격이 다르면 테스트 화면은
+Xcode가 빌드하면서 `.mlmodelc`로 컴파일한다. 모델이 없거나 출력 규격 또는 metadata의 checkpoint
+SHA-256이 `307e9b5895654d25d264903451abc4acad9ee30f5e2f2bf64af164a9f46bc115`와 다르면 테스트 화면은
 원본 영상을 표시하지 않고 오류를 알린다.
 
 변환 규격:

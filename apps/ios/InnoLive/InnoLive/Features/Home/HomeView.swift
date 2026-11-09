@@ -97,6 +97,7 @@ struct HomeView: View {
                         faceIndex: faceIndex,
                         name: GuestFaceName.make(),
                         mode: .selected,
+                        plan: youtube.planStore.snapshot?.plan,
                         authentication: authentication
                     )
                     isSelectingFace = false

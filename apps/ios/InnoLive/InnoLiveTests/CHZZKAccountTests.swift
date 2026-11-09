@@ -258,15 +258,14 @@ final class CHZZKAccountTests: XCTestCase {
         var refreshed = false
         let api = makeAPI()
         api.configureAuthentication(accessTokenProvider: { refreshed ? "fake-new" : "fake-old" },
-            refreshSession: { refreshed = true; return .refreshed }, onInvalidRefresh: {})
+            refreshSession: { refreshed = true; return .refreshed })
         _ = try await api.connectCHZZK(authorization: .init(code: "fake-code", state: "fake-state"), accessToken: "fake-old")
         XCTAssertEqual(CHZZKTestURLProtocol.requests.count, 2)
         XCTAssertEqual(CHZZKTestURLProtocol.requests.last?.value(forHTTPHeaderField: "Authorization"), "Bearer fake-new")
     }
 
     func testAccountScreenRendersConnectionAndReconnectionAtLargeTextSizes() async throws {
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundScene()
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         let authentication = AuthSession(api: AuthenticationAPI(serverURLProvider: { _ in nil }),
             tokenStore: CHZZKEmptyTokenStore(), consentStore: ConsentAcknowledgementStore(userDefaults: defaults))

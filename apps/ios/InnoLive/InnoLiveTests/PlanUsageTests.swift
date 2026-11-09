@@ -22,6 +22,29 @@ final class PlanUsageTests: XCTestCase {
             .map { PlanSnapshot(plan: $0.plan, usage: $0.usage) }
     }
 
+    func testFaceSlotsFromContractBlockOnlyNewFacesBeyondThePlan() throws {
+        let plans = try processingSnapshots().map(\.plan)
+        XCTAssertEqual(plans.map(\.plan), ["spark", "glow", "beam", "plasma"])
+        XCTAssertEqual(plans.map(\.faceSlots), [2, 2, 5, 10])
+        let spark = plans[0]
+        XCTAssertNil(spark.faceSlotMessage(registeredCount: 1))
+        XCTAssertEqual(spark.faceSlotMessage(registeredCount: 2),
+                       String(format: String(localized: "현재 요금제는 얼굴을 최대 %lld명까지 등록할 수 있습니다."), Int64(2)))
+        XCTAssertNotNil(spark.faceSlotMessage(registeredCount: 3), "a plan downgrade keeps blocking new faces")
+    }
+
+    func testMissingFaceSlotsNeverBlocksRegistration() throws {
+        let legacy = try plan()
+        XCTAssertNil(legacy.faceSlots)
+        XCTAssertNil(legacy.faceSlotMessage(registeredCount: 20))
+    }
+
+    func testFaceSlotsSurviveThePlanCacheRoundTrip() throws {
+        let beam = try XCTUnwrap(processingSnapshots().map(\.plan).first { $0.plan == "beam" })
+        let cached = try JSONDecoder().decode(UserPlan.self, from: JSONEncoder().encode(beam))
+        XCTAssertEqual(cached.faceSlots, 5)
+    }
+
     func testMaximumUsesServerSecondsAndPerBroadcastCap() throws {
         let capped = PlanSnapshot(plan: try plan(), usage: try usage(usageJSON(seconds: "80000")))
         XCTAssertEqual(capped.maximumBroadcastAvailability(for: .hdSingle, processing: .server)?.seconds, 28800)
@@ -121,7 +144,7 @@ final class PlanUsageTests: XCTestCase {
     func testPlanErrorsAndNoticesHaveActionableMessages() {
         for code in ["plan_server_streaming_not_allowed", "plan_resolution_not_allowed", "plan_simulcast_not_allowed", "monthly_limit_exhausted", "broadcast_limit_reached"] {
             XCTAssertNotEqual(YouTubeAPIError.api(code: code, fallback: "", helpURL: nil).userMessage,
-                              String(localized: "YouTube 요청을 처리하지 못했습니다."))
+                              String(localized: "방송 요청을 처리하지 못했습니다."))
         }
         for code in ["monthly_usage_80", "monthly_usage_100", "monthly_limit_reached", "broadcast_limit_30m", "broadcast_limit_10m", "broadcast_limit_reached", "no_input_stopped"] {
             XCTAssertNotNil(BroadcastNotice(code: code, at: "test").planMessage)
@@ -129,9 +152,20 @@ final class PlanUsageTests: XCTestCase {
         XCTAssertNil(BroadcastNotice(code: "future", at: "test").planMessage)
     }
 
+    /// `contracts/api/broadcast-session-state-v1.md` 알림 표의 서버 코드다.
+    func testServerSessionNoticesFromContractHaveMessages() {
+        let expected = [
+            "channel_live_elsewhere": String(localized: "치지직 채널이 이미 다른 도구로 방송 중이라 송출이 거절됐습니다. 다른 도구의 방송을 먼저 끝내세요."),
+            "platform_broadcast_ended": String(localized: "플랫폼 스튜디오에서 방송이 종료되어 송출을 멈췄습니다."),
+            "youtube_quota_low": String(localized: "오늘 유튜브 연동 사용량이 많아 송출 방식 변경이나 새 방송이 실패할 수 있습니다."),
+        ]
+        for (code, message) in expected {
+            XCTAssertEqual(BroadcastNotice(code: code, at: "2026-09-30T00:00:00Z").planMessage, message, code)
+        }
+    }
+
     func testRenderDeviceAndUnsupportedServerUsage() async throws {
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundScene()
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         for snapshot in try processingSnapshots() {
             for processing in AIProcessingMode.allCases {
@@ -257,8 +291,7 @@ final class PlanUsageTests: XCTestCase {
                 api.fails = true
                 await integration.planStore.refresh(api: api, accessToken: "test")
             }
-            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-                .first { $0.activationState == .foregroundActive })
+            let scene = try await foregroundScene()
             let previousWindow = scene.windows.first { $0.isKeyWindow }
             let window = UIWindow(windowScene: scene)
             window.frame = CGRect(x: 0, y: 0, width: 360, height: 1400)

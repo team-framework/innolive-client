@@ -46,7 +46,7 @@ extension YouTubeIntegration {
         }
         guard countdownTask == nil, !isChangingStreamState, !isEndingSession,
               !isChangingBroadcastMode, !isHandlingUpgradeOffer,
-              preparationStatus?.isFailed != true, broadcastPhase == "prepared",
+              preparationStatus?.isFailed != true, statePolicy.broadcastPhase == .prepared,
               let sessionID = session?.sessionID, let accessToken, !accessToken.isEmpty else { return }
         if lifecycle.phase != .prepared {
             let preparation = lifecycle.beginPreparation()
@@ -73,12 +73,12 @@ extension YouTubeIntegration {
                           self.sessionOperationGeneration == sessionGeneration else { return }
                     if step < 2 { self.lifecycle.advanceCountdown(generation: generation) }
                 }
-                guard self.broadcastPhase == "prepared", !self.isEndingSession,
+                guard self.statePolicy.broadcastPhase == .prepared, !self.isEndingSession,
                       self.lifecycle.beginStarting(generation: generation) else { return }
                 await self.goLiveYouTubeStream(accessToken: accessToken)
                 guard self.lifecycle.isCurrent(generation) else { return }
                 self.synchronizeBroadcastLifecycle()
-                if !self.hasStartedYouTubeBroadcast && self.broadcastPhase != "going_live" {
+                if !self.hasStartedYouTubeBroadcast && self.statePolicy.broadcastPhase != .goingLive {
                     self.recordingCoordinator.abortFailedStart(sessionID: .server(sessionID))
                     self.lifecycle.startFailed(generation: generation,
                         message: self.errorMessage ?? String(localized: "방송을 시작하지 못했습니다."))
@@ -124,7 +124,7 @@ extension YouTubeIntegration {
     func synchronizeBroadcastLifecycle() {
         let targets = currentLifecycleTargets
         if targets.isEmpty && (isChangingBroadcastMode || responseState.details.resolutionSwitch?.status == "switching") { return }
-        if case .countdown = lifecycle.phase, broadcastPhase != "prepared" {
+        if case .countdown = lifecycle.phase, statePolicy.broadcastPhase != .prepared {
             cancelBroadcastCountdown()
             return
         }
@@ -135,7 +135,7 @@ extension YouTubeIntegration {
             let pending = snapshot?.contains {
                 $0.stream.statusValue != .stopped &&
                     ($0.stream.broadcastPhaseValue == .goingLive || $0.stream.broadcastPhaseValue == .preparing)
-            } ?? (broadcastPhase == "going_live" || broadcastPhase == "preparing")
+            } ?? (statePolicy.broadcastPhase == .goingLive || statePolicy.broadcastPhase == .preparing)
             let failedProviders = Set(responseState.details.failedTargets.map(\.provider))
             let explicitlyEnded: Bool
             if let snapshot, !snapshot.isEmpty {
@@ -158,7 +158,7 @@ extension YouTubeIntegration {
             }
         }
         // 대기 중인 플랫폼 때문에 아직 시작 중인 작업이 종료된 것처럼 보이면 안 된다.
-        if targets.isEmpty && broadcastPhase == "going_live" { return }
+        if targets.isEmpty && statePolicy.broadcastPhase == .goingLive { return }
         lifecycle.reconcileTargets(targets, generation: lifecycle.generation)
         if let sessionID = session?.sessionID { recordingCoordinator.reconcile(targets: targets, sessionID: .server(sessionID)) }
     }
@@ -179,7 +179,7 @@ extension YouTubeIntegration {
               statePolicy.broadcastPhase == .prepared || hasStartedYouTubeBroadcast else {
             showError(.api(
                 code: "broadcast_not_prepared",
-                fallback: String(localized: "YouTube 방송을 먼저 준비해 주세요."),
+                fallback: String(localized: "방송을 먼저 준비해 주세요."),
                 helpURL: nil
             ))
             return
