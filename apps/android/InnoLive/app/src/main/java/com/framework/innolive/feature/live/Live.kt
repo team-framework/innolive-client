@@ -19,6 +19,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
 import kotlin.math.roundToInt
+import java.util.UUID
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalDensity
@@ -429,11 +430,10 @@ private fun LiveScreenContent(
         webRtcSession.restoreFaceSwapSelection(context)
     }
     // 처음 들어올 때 한 번만 묻습니다. 화면을 돌릴 때마다 거부한 권한을 다시 묻지 않습니다.
-    var initialMediaPermissionsRequested by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        if (initialMediaPermissionsRequested) return@LaunchedEffect
-        initialMediaPermissionsRequested = true
-        requestMissingMediaPermissions()
+    // 물어본 기록은 ViewModel에 두어, 설정에서 권한을 끄고 프로세스가 다시 시작되면 다시 묻습니다.
+    val mediaPermissionEntryKey = rememberSaveable { UUID.randomUUID().toString() }
+    LaunchedEffect(mediaPermissionEntryKey) {
+        if (webRtcSession.markMediaPermissionsRequested(mediaPermissionEntryKey)) requestMissingMediaPermissions()
     }
     val tutorialSnapshot = BroadcastTutorialSnapshot(
         openDialog = if (openSettingsDialog || openYouTubeEditor || openChzzkEditor || openModeEditor) {
