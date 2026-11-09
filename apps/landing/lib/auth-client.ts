@@ -1,4 +1,5 @@
 import { getInnoLiveServerUrl } from "@/lib/auth-config";
+import { discardPendingAuthSession } from "@/lib/auth-session-client";
 
 type ServerErrorBody = {
   error?: {
@@ -22,6 +23,7 @@ export class AuthRequestError extends Error {
 export const AUTH_STATE_CHANGE_EVENT = "innolive-auth-state-change";
 
 function notifyAuthStateChanged() {
+  discardPendingAuthSession();
   window.dispatchEvent(new Event(AUTH_STATE_CHANGE_EVENT));
 }
 
