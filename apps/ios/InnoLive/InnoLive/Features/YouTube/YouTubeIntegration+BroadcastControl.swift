@@ -118,7 +118,7 @@ extension YouTubeIntegration {
                 YouTubeBroadcastStatePolicy(stream: $0.stream, isChangingStreamState: false).hasStartedBroadcast
             }.map(\.provider))
         }
-        return hasStartedYouTubeBroadcast ? [responseState.details.provider ?? "youtube"] : []
+        return hasStartedYouTubeBroadcast ? [responseState.details.resolvedProvider] : []
     }
 
     func synchronizeBroadcastLifecycle() {
@@ -144,7 +144,7 @@ extension YouTubeIntegration {
                 }
             } else if snapshot == nil {
                 explicitlyEnded = stream?.statusValue == .stopped ||
-                    failedProviders.contains(responseState.details.provider ?? "youtube")
+                    failedProviders.contains(responseState.details.resolvedProvider)
             } else {
                 explicitlyEnded = !failedProviders.isEmpty
             }
@@ -270,7 +270,7 @@ extension YouTubeIntegration {
 
     func targetPolicy(_ provider: BroadcastSettingsProvider) -> YouTubeBroadcastStatePolicy {
         let target = responseState.details.targets?.first { $0.provider == provider.rawValue }?.stream
-        let legacy = responseState.details.targets == nil && (responseState.details.provider ?? "youtube") == provider.rawValue
+        let legacy = responseState.details.targets == nil && responseState.details.resolvedProvider == provider.rawValue
         return YouTubeBroadcastStatePolicy(stream: target ?? (legacy ? stream : nil), isChangingStreamState: isChangingStreamState)
     }
 
@@ -419,7 +419,7 @@ extension YouTubeIntegration {
     }
 
     private func providerKey(_ provider: String?) -> String {
-        provider ?? responseState.details.provider ?? "youtube"
+        provider ?? responseState.details.resolvedProvider
     }
 
     private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, provider: BroadcastSettingsProvider?) async {
