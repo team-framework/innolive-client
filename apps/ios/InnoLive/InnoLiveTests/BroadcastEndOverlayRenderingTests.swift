@@ -38,13 +38,7 @@ final class BroadcastEndOverlayRenderingTests: XCTestCase {
         strongContrast: Bool = false,
         duration: TimeInterval = 76
     ) async throws {
-        // 호스트 앱에서 도는 테스트는 UIKit이 앱 scene 활성화를 마치기 전에 시작될 수 있다.
-        for _ in 0..<50 {
-            if UIApplication.shared.connectedScenes.contains(where: { $0.activationState == .foregroundActive }) { break }
-            try await Task.sleep(for: .milliseconds(100))
-        }
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         let started = Date(timeIntervalSince1970: 1_000)
         var actionCount = 0
