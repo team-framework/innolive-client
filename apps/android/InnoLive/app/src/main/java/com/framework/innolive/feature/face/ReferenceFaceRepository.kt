@@ -45,6 +45,12 @@ internal class ReferenceFaceRepository(
         return ReferenceFaceSnapshot(status, images)
     }
 
+    /** 기기 사진은 읽지 않고 서버의 얼굴 목록만 읽습니다. */
+    suspend fun loadFaces(
+        accessToken: String,
+        refreshAccessToken: suspend () -> String,
+    ): List<ReferenceFace> = api().getStatus(accessToken, refreshAccessToken).faces
+
     fun ensureApiAvailable() {
         api()
     }

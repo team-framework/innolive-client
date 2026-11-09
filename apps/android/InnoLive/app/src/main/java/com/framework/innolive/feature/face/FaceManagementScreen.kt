@@ -265,10 +265,6 @@ internal fun FaceManagementScreen(
                 if (phase == FaceManagementPhase.READY && statusMessage == null) statusMessage = message
             }
             pendingStatusMessage = null
-        } else if (faceStatus == null) {
-            // 화면을 돌려 등록 화면이 다시 열리면 목록이 비어 있습니다. 새 얼굴 사진을 기기에 보관하려면
-            // 등록 전 목록이 필요하므로 등록 화면 뒤에서 다시 읽습니다.
-            refreshStatus()
         }
     }
 
@@ -284,7 +280,7 @@ internal fun FaceManagementScreen(
                 reregisterTarget = null
             },
             profileEmail = profileEmail,
-            existingFaces = faceStatus?.faces.orEmpty(),
+            existingFaces = faceStatus?.faces,
             broadcastCamera = broadcastCamera,
             reregisterFace = target,
             onReregisterFaceMissing = {
@@ -303,7 +299,7 @@ internal fun FaceManagementScreen(
             onBack = { openRegistration = false },
             onRegistrationSuccess = onBack,
             profileEmail = profileEmail,
-            existingFaces = faceStatus?.faces.orEmpty(),
+            existingFaces = faceStatus?.faces,
             broadcastCamera = broadcastCamera,
         )
         return
