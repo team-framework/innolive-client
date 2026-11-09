@@ -18,11 +18,13 @@ import XCTest
                     timestampNs: CMTimeConvertScale(time, timescale: 1_000_000_000, method: .default).value)
             }
             recorder.appendAudio(try tone(index: index), when: AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: CMTimeGetSeconds(time))))
+            // recorder는 대기 영상이 4개를 넘으면 버린다. 첫 프레임의 writer 생성이 느려도 프레임이 버려지지 않도록 기록 큐를 비운 뒤 진행한다.
+            await recorder.validationDrainWriterQueue()
             try await Task.sleep(for: .milliseconds(10))
         }
         let result = try await recorder.stop()
         XCTAssertEqual(result.audioFrames, 28_800)
-        XCTAssertGreaterThan(result.videoFrames, 5)
+        XCTAssertGreaterThan(result.videoFrames, 5, "dropped \(result.droppedVideoFrames)")
         XCTAssertEqual(result.duration, 1.6, accuracy: 0.002)
         let asset = AVURLAsset(url: url)
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
