@@ -165,8 +165,7 @@ final class PlanUsageTests: XCTestCase {
     }
 
     func testRenderDeviceAndUnsupportedServerUsage() async throws {
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundScene()
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         for snapshot in try processingSnapshots() {
             for processing in AIProcessingMode.allCases {
@@ -292,8 +291,7 @@ final class PlanUsageTests: XCTestCase {
                 api.fails = true
                 await integration.planStore.refresh(api: api, accessToken: "test")
             }
-            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-                .first { $0.activationState == .foregroundActive })
+            let scene = try await foregroundScene()
             let previousWindow = scene.windows.first { $0.isKeyWindow }
             let window = UIWindow(windowScene: scene)
             window.frame = CGRect(x: 0, y: 0, width: 360, height: 1400)
