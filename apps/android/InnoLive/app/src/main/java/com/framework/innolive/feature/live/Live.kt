@@ -388,6 +388,12 @@ private fun LiveScreenContent(
         isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
         isPreviewOnlyActive = webRtcSession.isOnDevicePreviewActive,
     )
+    // 방송이 준비되지도 진행 중이지도 않으면 고를 동작이 없으므로 방송 제어 창을 닫습니다.
+    // 창을 연 사이 방송이 끝났거나, 프로세스가 다시 시작돼 창이 열린 채 복원된 경우입니다.
+    val hasBroadcastActions = presentation.isBroadcastPrepared || presentation.isBroadcastLive
+    LaunchedEffect(hasBroadcastActions) {
+        if (!hasBroadcastActions) openBroadcastActions = false
+    }
     val broadcastDurationText = rememberBroadcastDurationText(
         webRtcSession.broadcastStartedAtElapsedRealtimeMillis,
     )
@@ -1130,7 +1136,7 @@ private fun LiveScreenContent(
                                     },
                                 )
                             }
-                            if (openBroadcastActions) {
+                            if (openBroadcastActions && hasBroadcastActions) {
                                 val retryProviders = webRtcSession.simulcastRetryProviders
                                 BroadcastActionDialog(
                                     presentation = presentation,
