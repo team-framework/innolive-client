@@ -6,8 +6,7 @@ import XCTest
 @MainActor
 final class BroadcastModeRenderingTests: XCTestCase {
     func testModeScreenRendersAtLargeTextSizes() async throws {
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+        let scene = try await foregroundScene()
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         let suite = "mode-render-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
