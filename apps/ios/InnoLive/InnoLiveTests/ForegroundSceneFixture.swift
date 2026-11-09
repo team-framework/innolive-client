@@ -14,9 +14,9 @@ func foregroundActiveScene(file: StaticString = #filePath, line: UInt = #line,
         try await Task.sleep(for: .milliseconds(100))
     }
     SceneActivationLog.record("fail \(function)")
-    let report = SceneActivationLog.report()
-    print("SCENE_DIAG \(report)")
-    return try XCTUnwrap(activeWindowScene(), "Foreground the test app before running hosted UI checks; \(report)",
+    // 병렬 실행에서는 호스트 stdout이 xcodebuild 로그에 오지 않는다. 실패 메시지는 로그에 남으므로 표식을 여기에 둔다.
+    return try XCTUnwrap(activeWindowScene(),
+                         "SCENE_DIAG Foreground the test app before running hosted UI checks; \(SceneActivationLog.report())",
                          file: file, line: line)
 }
 
