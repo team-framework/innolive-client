@@ -73,7 +73,7 @@ extension WebRTCVideoUplink {
     ) async throws {
         #if DEBUG
         if SimulatorVideoInput.isEnabled {
-            guard SimulatorVideoInput.bundledURL != nil else {
+            guard let url = SimulatorVideoInput.bundledURL else {
                 throw WebRTCVideoUplinkError.failed(
                     String(localized: "번들 시뮬레이터 영상을 찾지 못했습니다.")
                 )
@@ -87,9 +87,7 @@ extension WebRTCVideoUplink {
                 // fixture는 세로 장면을 가로 센서 좌표로 저장한다.
                 frameRelay.setLockedInterfaceOrientation(.portrait)
             }
-            let capturer: LKRTCFileVideoCapturer = SimulatorVideoInput.isPerformanceFixture
-                ? DebugPerformanceVideoCapturer(delegate: frameRelay)
-                : LKRTCFileVideoCapturer(delegate: frameRelay)
+            let capturer = BundledVideoCapturer(delegate: frameRelay)
             let track = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-camera")
             track.isEnabled = true
             videoSource = source
@@ -114,12 +112,7 @@ extension WebRTCVideoUplink {
                     )
                 }
             }
-            if let performanceCapturer = capturer as? DebugPerformanceVideoCapturer,
-               let url = SimulatorVideoInput.bundledURL {
-                try await performanceCapturer.start(url: url, onFailure: onFailure)
-            } else {
-                capturer.startCapturing(fromFileNamed: SimulatorVideoInput.fileName) { onFailure($0) }
-            }
+            try await capturer.start(url: url, onFailure: onFailure)
             guard !isStopping,
                   cameraOperationGeneration == operationGeneration,
                   fileVideoCapturer === capturer else {
