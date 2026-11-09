@@ -4,7 +4,7 @@ Debug Simulator에서는 `apps/ios/InnoLive/InnoLive/Resources/SimulatorFixture.
 
 테스트 영상을 바꾸려면 같은 이름의 MP4로 파일을 교체하고 다시 빌드한다. 현재 파일은 얼굴 없는 320×180, 15 FPS, 2초 영상이다.
 
-영상 디코딩과 반복 재생은 기존 LiveKit WebRTC의 `LKRTCFileVideoCapturer`가 담당한다. 별도 영상 생성기, 파일 선택 화면, 지표 대시보드, 커스텀 디코더는 두지 않는다.
+영상 디코딩과 반복 재생은 `BundledVideoCapturer`가 담당한다. AVFoundation `AVAssetReader`로 파일을 읽고 파일의 프레임 속도로 반복 전달하며, 읽기 실패는 오류로 표시한다. LiveKit WebRTC의 `LKRTCFileVideoCapturer`는 reader가 `completed`가 아닌 상태로 끝나면 오류 없이 프레임 전달을 멈추고, iOS 27.0 Simulator에서 2초 영상의 반복 프레임을 10초 안에 전달하지 못했다. 별도 영상 생성기, 파일 선택 화면, 지표 대시보드는 두지 않는다.
 
 앱의 로그인·서버 연결 흐름은 그대로 사용한다. HTTP 및 signaling 계약도 변경하지 않는다. 번들 파일이 없거나 읽기에 실패하면 오류를 표시한다.
 
