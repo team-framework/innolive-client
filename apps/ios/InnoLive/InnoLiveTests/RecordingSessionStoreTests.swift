@@ -10,7 +10,7 @@ import XCTest
         let recorder = try store.begin(sessionID: "session-one")
         try store.targetDidStart("youtube", sessionID: "session-one")
         try store.targetDidStart("chzzk", sessionID: "session-one")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let firstResult = try await store.targetDidEnd("youtube", sessionID: "session-one")
         XCTAssertNil(firstResult)
         XCTAssertEqual(store.state, .recording)
@@ -27,7 +27,7 @@ import XCTest
         XCTAssertNil(reloaded.libraryError)
         // 다음 시작이 실패하면 그 시작이 만든 미완성 파일만 지운다.
         let next = try store.begin(sessionID: "session-two")
-        try await feed(next)
+        try await next.feedSyntheticMedia()
         try await store.abortFailedStart(sessionID: "session-two")
         XCTAssertTrue(FileManager.default.fileExists(atPath: store.fileURL(for: saved).path))
         XCTAssertEqual(store.recordings, [saved])
@@ -38,7 +38,7 @@ import XCTest
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = makeStore(directory)
         let recorder = try store.begin(sessionID: "recover")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let finished = try await store.finish(sessionID: "recover")
         let saved = try XCTUnwrap(finished)
         try FileManager.default.removeItem(at: directory.appendingPathComponent("\(saved.id.uuidString).json"))
@@ -58,7 +58,7 @@ import XCTest
         let mosaic = OnDeviceMosaicSettings(blurStrength: 48, maskMargin: 32)
         let recorder = try store.begin(sessionID: "protected", source: .protected, mosaic: mosaic)
         XCTAssertEqual(recorder.source, .protected)
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let finished = try await store.finish(sessionID: "protected")
         let saved = try XCTUnwrap(finished)
         XCTAssertEqual(saved.source, .protected)
@@ -68,7 +68,7 @@ import XCTest
         XCTAssertEqual(reloaded.recordings, [saved])
         let raw = try store.begin(sessionID: "raw", mosaic: mosaic)
         XCTAssertEqual(raw.source, .raw)
-        try await feed(raw)
+        try await raw.feedSyntheticMedia()
         let rawFinished = try await store.finish(sessionID: "raw")
         let rawSaved = try XCTUnwrap(rawFinished)
         XCTAssertEqual(rawSaved.source, .raw)
@@ -80,7 +80,7 @@ import XCTest
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = makeStore(directory)
         let recorder = try store.begin(sessionID: "retry")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let journal = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first { $0.lastPathComponent.hasSuffix(".pending.json") })
         let stem = journal.lastPathComponent.replacingOccurrences(of: ".pending.json", with: "")
         let blockedMetadata = directory.appendingPathComponent("\(stem).json")
@@ -122,7 +122,7 @@ import XCTest
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = makeStore(directory)
         let recorder = try store.begin(sessionID: "delete")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let result = try await store.finish(sessionID: "delete")
         let saved = try XCTUnwrap(result)
         let exportedCopy = directory.appendingPathComponent("exported-copy.mp4")
@@ -143,7 +143,7 @@ import XCTest
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = makeStore(directory)
         let recorder = try store.begin(sessionID: "delete-reload")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let result = try await store.finish(sessionID: "delete-reload")
         let saved = try XCTUnwrap(result)
         let reload = Task { await store.reloadLibrary() }
@@ -159,7 +159,7 @@ import XCTest
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = makeStore(directory)
         let recorder = try store.begin(sessionID: "active")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let unknown = SavedBroadcastRecording(id: UUID(), sessionID: "active", createdAt: Date(),
             duration: 1, fileName: "../other.mp4", bytes: 1, videoFrames: nil, audioFrames: nil, droppedVideoFrames: nil)
         XCTAssertThrowsError(try store.delete(unknown))
@@ -177,7 +177,7 @@ import XCTest
         }
         let store = makeStore(directory)
         let recorder = try store.begin(sessionID: "delete-denied")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let result = try await store.finish(sessionID: "delete-denied")
         let saved = try XCTUnwrap(result)
         let original = try Data(contentsOf: store.fileURL(for: saved))
@@ -193,11 +193,11 @@ import XCTest
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = makeStore(directory)
         let firstRecorder = try store.begin(sessionID: "previous")
-        try await feed(firstRecorder)
+        try await firstRecorder.feedSyntheticMedia()
         let firstResult = try await store.finish(sessionID: "previous")
         let previous = try XCTUnwrap(firstResult)
         let activeRecorder = try store.begin(sessionID: "active")
-        try await feed(activeRecorder)
+        try await activeRecorder.feedSyntheticMedia()
         try store.delete(previous)
         XCTAssertEqual(store.state, .recording)
         let activeResult = try await store.finish(sessionID: "active")
@@ -208,32 +208,5 @@ import XCTest
 
     private func makeStore(_ directory: URL) -> RecordingSessionStore {
         RecordingSessionStore(directory: directory, availableCapacity: { _ in 1_000_000_000 })
-    }
-    private func feed(_ recorder: LocalBroadcastRecorder) async throws {
-        let base = CMClockGetTime(CMClockGetHostTimeClock())
-        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000, channels: 2, interleaved: false))
-        for index in 0..<30 {
-            let time = CMTimeAdd(base, CMTime(value: Int64(index * 480), timescale: 48_000))
-            if index % 2 == 0 {
-                var pixel: CVPixelBuffer?
-                CVPixelBufferCreate(kCFAllocatorDefault, 64, 48, kCVPixelFormatType_32BGRA,
-                    [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &pixel)
-                let buffer = try XCTUnwrap(pixel)
-                CVPixelBufferLockBaseAddress(buffer, [])
-                memset(CVPixelBufferGetBaseAddress(buffer), 100, CVPixelBufferGetDataSize(buffer))
-                CVPixelBufferUnlockBaseAddress(buffer, [])
-                recorder.appendVideo(pixelBuffer: buffer, rotation: 0,
-                    timestampNs: CMTimeConvertScale(time, timescale: 1_000_000_000, method: .default).value)
-            }
-            let audio = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480))
-            audio.frameLength = 480
-            for sample in 0..<480 {
-                let value = Float(sin(Double(index * 480 + sample) * 2 * .pi * 440 / 48_000) * 0.25)
-                audio.floatChannelData![0][sample] = value
-                audio.floatChannelData![1][sample] = value
-            }
-            recorder.appendAudio(audio, when: AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: CMTimeGetSeconds(time))))
-            try await Task.sleep(for: .milliseconds(10))
-        }
     }
 }
