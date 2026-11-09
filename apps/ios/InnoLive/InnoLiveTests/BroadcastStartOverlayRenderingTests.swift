@@ -34,7 +34,7 @@ final class BroadcastStartOverlayRenderingTests: XCTestCase {
         if value <= 2 { lifecycle.advanceCountdown(generation: generation) }
         if value <= 1 { lifecycle.advanceCountdown(generation: generation) }
         if value == 0 { XCTAssertTrue(lifecycle.beginStarting(generation: generation)) }
-        let scene = try await foregroundActiveScene()
+        let scene = try await foregroundScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(origin: .zero, size: landscape ? CGSize(width: 844, height: 390) : CGSize(width: 390, height: 844))

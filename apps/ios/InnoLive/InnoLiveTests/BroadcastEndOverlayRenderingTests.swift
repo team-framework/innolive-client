@@ -38,7 +38,7 @@ final class BroadcastEndOverlayRenderingTests: XCTestCase {
         strongContrast: Bool = false,
         duration: TimeInterval = 76
     ) async throws {
-        let scene = try await foregroundActiveScene()
+        let scene = try await foregroundScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         let started = Date(timeIntervalSince1970: 1_000)
         var actionCount = 0

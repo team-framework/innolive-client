@@ -19,7 +19,7 @@ final class StudioHomeRenderingTests: XCTestCase {
     }
 
     private func renderHome(providers: Set<BroadcastSettingsProvider>, name: String) async throws {
-        let scene = try await foregroundActiveScene()
+        let scene = try await foregroundScene()
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         defer { previousWindow?.makeKeyAndVisible() }
         let suite = "studio-home-render-\(UUID())"

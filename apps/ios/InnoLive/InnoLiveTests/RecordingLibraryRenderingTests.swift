@@ -74,7 +74,7 @@ final class RecordingLibraryRenderingTests: XCTestCase {
                                       highContrast: Bool = false, expectsFullHeightScroll: Bool = false,
                                       expectsAnyScroll: Bool = true,
                                       @ViewBuilder content: () -> Content) async throws {
-        let scene = try await foregroundActiveScene()
+        let scene = try await foregroundScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         let window = UIWindow(windowScene: scene)
         window.frame = scene.coordinateSpace.bounds

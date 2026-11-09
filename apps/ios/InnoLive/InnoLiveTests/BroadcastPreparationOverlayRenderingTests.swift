@@ -43,7 +43,7 @@ final class BroadcastPreparationOverlayRenderingTests: XCTestCase {
         textSize: DynamicTypeSize = .large,
         strongContrast: Bool = false
     ) async throws {
-        let scene = try await foregroundActiveScene()
+        let scene = try await foregroundScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         var retryCount = 0
         var cancelCount = 0

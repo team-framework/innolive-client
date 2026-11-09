@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class StudioDetailsRenderingTests: XCTestCase {
     func testDetailsRenderIdleAndLiveAtLargeTextSizes() async throws {
-        let scene = try await foregroundActiveScene()
+        let scene = try await foregroundScene()
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         defer { previousWindow?.makeKeyAndVisible() }
         let suite = "studio-details-render-\(UUID())"

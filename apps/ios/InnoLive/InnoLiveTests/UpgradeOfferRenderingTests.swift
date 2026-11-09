@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class UpgradeOfferRenderingTests: XCTestCase {
     func testOptionsAndSelectedSettingsRenderWithLargeText() async throws {
-        let scene = try await foregroundActiveScene()
+        let scene = try await foregroundScene()
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         let suite = "upgrade-render-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

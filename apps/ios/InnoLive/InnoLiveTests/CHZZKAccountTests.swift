@@ -265,7 +265,7 @@ final class CHZZKAccountTests: XCTestCase {
     }
 
     func testAccountScreenRendersConnectionAndReconnectionAtLargeTextSizes() async throws {
-        let scene = try await foregroundActiveScene()
+        let scene = try await foregroundScene()
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         let authentication = AuthSession(api: AuthenticationAPI(serverURLProvider: { _ in nil }),
             tokenStore: CHZZKEmptyTokenStore(), consentStore: ConsentAcknowledgementStore(userDefaults: defaults))

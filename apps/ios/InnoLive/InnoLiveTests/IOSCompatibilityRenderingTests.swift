@@ -373,7 +373,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         @ViewBuilder content: () -> Content,
         inspect: (UIWindow) throws -> Void = { _ in }
     ) async throws {
-        let scene = try await foregroundActiveScene()
+        let scene = try await foregroundScene()
         let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
         let controller = UIHostingController(rootView:
             NavigationStack { content() }
