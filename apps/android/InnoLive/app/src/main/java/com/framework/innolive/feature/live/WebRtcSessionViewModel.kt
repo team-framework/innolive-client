@@ -946,12 +946,6 @@ class WebRtcSessionViewModel internal constructor(
         uplinkQuality = BroadcastUplinkQuality.Measuring
     }
 
-    /** 삭제된 계정의 현재 서버용 자격 증명만 제거합니다. */
-    fun clearSessionRecovery(context: Context, accessToken: String) {
-        val scope = sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, accessToken)
-        EncryptedSessionRecoveryStore(context.applicationContext).clear(scope)
-    }
-
     override fun onCleared() {
         close()
     }
