@@ -173,16 +173,14 @@ nonisolated final class PrivacyModel {
                                                        render: (completed - masked) * 1000), faces.snapshot)
     }
 
-    /// CIGaussianBlur의 radius는 가우시안 sigma다. AI 서버의 명목상 모자이크는 원본 해상도 기준
-    /// sigma 24다(pixel_size 2로 줄인 뒤 sigma 12). 1080p 온디바이스 미리보기에서는 이 정도로는
-    /// 눈, 안경, 입이 남는다. 방송 화면에는 이런 특징이 사라지는 부드러운 블러가 보이는데,
-    /// 짧은 변이 1080인 프레임에서 sigma 72 정도에 해당한다. 짧은 변에 비례해 키워서 720p와
+    /// CIGaussianBlur의 radius는 가우시안 sigma다. 강도 값은 짧은 변이 1080인 프레임의 sigma이고,
+    /// 기본 24는 서버 모자이크 기본값(blur_radius 24)과 같다. 짧은 변에 비례해 조정해서 720p와
     /// 1080p가 화면 대비 같은 강도를 유지하게 한다.
     // Android처럼 1/4 해상도에서 블러를 적용하되, sigma는 원본 해상도 기준을 유지한다.
     static let blurReduction: CGFloat = 4
-    static let broadcastBlurSigmaPerShortSide: CGFloat = 1.0 / 15
+    static let blurSigmaReferenceShortSide: CGFloat = 1080
 
-    /// Android의 단계별 강도에 맞춰 {24,30,36,42,48} 중 가장 가까운 값으로 맞춘다.
+    /// 기본값부터 최댓값까지 blurStrengthStep 간격의 단계 중 가장 가까운 값으로 맞춘다.
     static func strengthLevel(_ strength: Int) -> Int {
         let clamped = min(max(strength, OnDeviceMosaicSettings.defaultBlurStrength), OnDeviceMosaicSettings.maxBlurStrength)
         let steps = ((Double(clamped - OnDeviceMosaicSettings.defaultBlurStrength) / Double(OnDeviceMosaicSettings.blurStrengthStep)).rounded())
@@ -191,8 +189,7 @@ nonisolated final class PrivacyModel {
 
     static func broadcastBlurSigma(for extent: CGRect, strength: Int = OnDeviceMosaicSettings.defaultBlurStrength) -> CGFloat {
         let shortSide = min(extent.width, extent.height)
-        let base = max(48, (shortSide * broadcastBlurSigmaPerShortSide).rounded())
-        return (base * CGFloat(strengthLevel(strength)) / CGFloat(OnDeviceMosaicSettings.defaultBlurStrength)).rounded()
+        return max(1, (shortSide * CGFloat(strengthLevel(strength)) / blurSigmaReferenceShortSide).rounded())
     }
 
     func broadcastStyleBlur(_ original: CIImage, reduction: CGFloat = PrivacyModel.blurReduction,
