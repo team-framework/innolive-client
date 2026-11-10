@@ -250,9 +250,12 @@ xcodebuild \
   -resultBundlePath /tmp/innolive-ios-final-v3-test.xcresult \
   -clonedSourcePackagesDirPath /tmp/innolive-ios-test-derived-data/SourcePackages \
   -disableAutomaticPackageResolution \
-  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
+  DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
   test
 ```
+
+테스트 호스트는 ad-hoc 서명으로 실행한다. `CODE_SIGNING_ALLOWED=NO`로 서명하지 않으면 Keychain entitlement가 없어 Keychain 테스트가 `-34018`로 실패한다.
 
 ### Release build
 
