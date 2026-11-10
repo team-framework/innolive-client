@@ -116,4 +116,14 @@ final class CameraZoomTests: XCTestCase {
         XCTAssertEqual(CameraZoom.steppedUp(from: 8, min: 1, max: 8), 8)
         XCTAssertEqual(CameraZoom.steppedDown(from: 1, min: 1, max: 8), 1)
     }
+
+    func testPlanIsStableOnceStartedOnThePlannedDevice() {
+        let wide = CameraZoom.DeviceLimits(id: "wide", min: 1, max: 8)
+        let virtual = CameraZoom.DeviceLimits(id: "virtual", min: 0.5, max: 8)
+        for factor in [CGFloat(0.5), 0.8, 1, 2.5] {
+            let first = CameraZoom.plan(requestedFactor: factor, currentDeviceID: "front-default", wide: wide, virtual: virtual)
+            let again = CameraZoom.plan(requestedFactor: first.factor, currentDeviceID: first.deviceID, wide: wide, virtual: virtual)
+            XCTAssertEqual(again, first, "Re-applying zoom after start must not ask for another lens switch")
+        }
+    }
 }
