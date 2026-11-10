@@ -509,7 +509,7 @@ extension YouTubeIntegration {
         }
         guard responseState.details.targets == nil else { return false }
         switch statePolicy.broadcastPhase {
-        case .prepared, .live, .goingLive: return provider.rawValue == (responseState.details.provider ?? "youtube")
+        case .prepared, .live, .goingLive: return provider.rawValue == responseState.details.resolvedProvider
         default: return false
         }
     }

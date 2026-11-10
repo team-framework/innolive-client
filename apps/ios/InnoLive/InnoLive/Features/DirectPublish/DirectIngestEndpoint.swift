@@ -107,7 +107,7 @@ extension BroadcastSessionSnapshot {
             details.targets = targets
         }
         if let current = stream, current.broadcastPhaseValue != .idle,
-           let state = states[details.provider ?? "youtube"] {
+           let state = states[details.resolvedProvider] {
             stream = current.overriding(status: state.streamStatus, publisherActive: state == .publishing)
         }
     }

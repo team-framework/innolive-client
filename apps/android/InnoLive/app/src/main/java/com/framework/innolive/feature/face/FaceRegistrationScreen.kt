@@ -75,7 +75,8 @@ internal fun FaceRegistrationScreen(
     onBack: () -> Unit,
     onRegistrationSuccess: () -> Unit = {},
     profileEmail: String = "",
-    existingFaces: List<ReferenceFace> = emptyList(),
+    /** 등록 전 얼굴 목록입니다. null이면 아직 모르는 것이므로 등록 직전에 서버에서 읽습니다. */
+    existingFaces: List<ReferenceFace>? = emptyList(),
     broadcastCamera: CameraFrameAnalyzer? = null,
     /** 있으면 새 얼굴을 추가하지 않고 이 얼굴을 사진 한 장으로 같은 face_id에 다시 등록합니다. */
     reregisterFace: ReferenceFace? = null,
@@ -103,6 +104,12 @@ internal fun FaceRegistrationScreen(
     }
     var uploadJob by remember { mutableStateOf<Job?>(null) }
     var lensFacing by remember(cameraLensFacing) { mutableStateOf(cameraLensFacing) }
+    // 사진을 찍기 시작하면 등록을 마칠 때까지 화면 방향을 고정해 찍은 사진이 회전으로 사라지지 않게 합니다.
+    LockScreenOrientationWhile(
+        capturedImages.isNotEmpty() ||
+            phase == FaceRegistrationPhase.PREPARING ||
+            phase == FaceRegistrationPhase.UPLOADING,
+    )
 
     DisposableEffect(detector) {
         onDispose { detector.close() }
@@ -203,9 +210,14 @@ internal fun FaceRegistrationScreen(
                         refreshAccessToken = refreshAccessToken,
                     )
                 } else {
+                    // 새 얼굴의 사진을 기기에 보관하려면 등록 전 목록이 필요합니다. 아직 모르면 등록 전에 읽고,
+                    // 읽지 못하면 등록하지 않고 오류로 멈춥니다.
+                    val knownFaces = existingFaces
+                        ?: if (profileEmail.isBlank()) emptyList()
+                        else repository.loadFaces(accessToken, refreshAccessToken)
                     repository.append(
                         images = images,
-                        existingFaces = existingFaces,
+                        existingFaces = knownFaces,
                         accountEmail = profileEmail,
                         accessToken = accessToken,
                         refreshAccessToken = refreshAccessToken,

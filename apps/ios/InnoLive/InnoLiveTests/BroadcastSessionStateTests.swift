@@ -67,6 +67,14 @@ final class BroadcastSessionStateTests: XCTestCase {
         XCTAssertTrue(policy.canPauseBroadcast)
     }
 
+    func testResolvedProviderDefaultsToYouTubeOnlyWhenProviderIsMissing() throws {
+        let omitted = try JSONDecoder().decode(BroadcastSessionDetails.self, from: Data("{}".utf8))
+        XCTAssertNil(omitted.provider)
+        XCTAssertEqual(omitted.resolvedProvider, "youtube")
+        XCTAssertEqual(BroadcastSessionDetails(provider: "chzzk").resolvedProvider, "chzzk")
+        XCTAssertEqual(BroadcastSessionDetails(provider: "youtube").resolvedProvider, "youtube")
+    }
+
     func testSwitchFailureAndUpgradeOptionsDecode() throws {
         let payload = """
         {"resolution_switch":{"status":"future_switch","resolution":"fhd","targets":["youtube","chzzk"],"failed_targets":[{"provider":"youtube","code":"future_failure"}],"started_at":"2026-09-30T00:00:00Z"},
