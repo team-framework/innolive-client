@@ -38,6 +38,9 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
     func setValidationVideoAdmission(_ observer: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?) {
         lock.withLock { validationVideoAdmission = observer }
     }
+    func validationDrainWriterQueue() async {
+        await withCheckedContinuation { continuation in queue.async { continuation.resume() } }
+    }
     #endif
     private let lock = NSLock()
     private let admittedCallbacks = DispatchGroup()
