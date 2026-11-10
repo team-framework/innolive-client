@@ -35,7 +35,7 @@ final class PrivacySegmentationTests: XCTestCase {
             print("PRIVACY_BLUR_PARITY size=\(size) meanRGB8=\(mean) maximumRGB8=\(maximum)")
             XCTAssertLessThanOrEqual(mean, 2)
             XCTAssertLessThanOrEqual(maximum, 12)
-            XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: input.extent), size.height == 720 ? 48 : 72)
+            XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: input.extent), size.height == 720 ? 16 : 24)
         }
     }
 
@@ -249,13 +249,27 @@ final class PrivacySegmentationTests: XCTestCase {
         XCTAssertEqual(soft[0], 0)
     }
 
+    func testDefaultMarginCoversOneCellAndFadesWithinFive() throws {
+        var bytes = [UInt8](repeating: 0, count: 160 * 160)
+        for y in 40..<80 { for x in 40..<80 { bytes[y * 160 + x] = 255 } }
+        let soft = try maskPixels(PrivacyMask.modelImage(bytes: bytes))
+        let row = 60 * 160
+        XCTAssertEqual(soft[row + 39], 255)
+        XCTAssertEqual(soft[row + 80], 255)
+        XCTAssertLessThan(soft[row + 37], 128)
+        XCTAssertLessThan(soft[row + 82], 128)
+        XCTAssertEqual(soft[row + 34], 0)
+        XCTAssertEqual(soft[row + 85], 0)
+    }
+
     func testMaskWidthCoreFollowsEdgeCellsAboveBaseline() throws {
         var bytes = [UInt8](repeating: 0, count: 160 * 160)
         bytes[80 * 160 + 80] = 255
         func covered(_ edgeCells: Int) throws -> Int {
             try maskPixels(PrivacyMask.modelImage(bytes: bytes, feathered: false, edgeCells: edgeCells)).filter { $0 > 0 }.count
         }
-        XCTAssertEqual(try covered(1), try covered(2), "Widths at or below 2 cells keep the current core")
+        XCTAssertEqual(try covered(0), try covered(1), "The core never shrinks below one cell")
+        XCTAssertLessThan(try covered(1), try covered(2))
         XCTAssertLessThan(try covered(2), try covered(3))
         XCTAssertLessThan(try covered(3), try covered(PrivacyMask.maxEdgeCells))
     }
