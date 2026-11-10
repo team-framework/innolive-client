@@ -2,10 +2,9 @@
 @preconcurrency import AVFoundation
 @preconcurrency import LiveKitWebRTC
 
-/// Debug 번들 영상을 파일의 프레임 속도로 반복 전달한다. 프레임 기한은 디코더·delegate 처리 시간만큼 밀리지 않는다.
-/// SDK 파일 capturer는 reader가 completed 외 상태로 멈추면 오류 없이 프레임 전달을 멈춘다.
-nonisolated final class BundledVideoCapturer: LKRTCFileVideoCapturer, @unchecked Sendable {
-    private let frameQueue = DispatchQueue(label: "com.innolive.bundled-video", qos: .userInitiated)
+/// 직접 켤 때만 쓰는 고정 30fps fixture 입력이다. 프레임 기한은 디코더·delegate 처리 시간만큼 밀리지 않는다.
+nonisolated final class DebugPerformanceVideoCapturer: LKRTCFileVideoCapturer, @unchecked Sendable {
+    private let frameQueue = DispatchQueue(label: "com.innolive.performance-video", qos: .userInitiated)
     private var timer: DispatchSourceTimer?
     private var reader: AVAssetReader?
     private var output: AVAssetReaderTrackOutput?
@@ -15,12 +14,10 @@ nonisolated final class BundledVideoCapturer: LKRTCFileVideoCapturer, @unchecked
 
     func start(url: URL, onFailure: @escaping @Sendable (Error) -> Void) async throws {
         let asset = AVURLAsset(url: url)
-        guard let track = try await asset.loadTracks(withMediaType: .video).first else {
+        guard let track = try await asset.loadTracks(withMediaType: .video).first,
+              abs(try await track.load(.nominalFrameRate) - 30) < 0.01 else {
             throw CocoaError(.fileReadCorruptFile)
         }
-        let frameRate = try await track.load(.nominalFrameRate)
-        guard frameRate > 0 else { throw CocoaError(.fileReadCorruptFile) }
-        let frameInterval = DispatchTimeInterval.nanoseconds(Int((1_000_000_000 / Double(frameRate)).rounded()))
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             frameQueue.async { [self] in
                 stopOnQueue()
@@ -30,7 +27,7 @@ nonisolated final class BundledVideoCapturer: LKRTCFileVideoCapturer, @unchecked
                 do {
                     try resetReader()
                     let timer = DispatchSource.makeTimerSource(flags: .strict, queue: frameQueue)
-                    timer.schedule(deadline: .now(), repeating: frameInterval, leeway: .microseconds(100))
+                    timer.schedule(deadline: .now(), repeating: .nanoseconds(33_333_333), leeway: .microseconds(100))
                     timer.setEventHandler { [weak self] in self?.deliverNextFrame() }
                     self.timer = timer
                     timer.resume()

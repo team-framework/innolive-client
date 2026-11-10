@@ -15,6 +15,7 @@ enum SimulatorVideoInput {
 
     static let resourceName = isPerformanceFixture ? "PrivacyPerformanceFixture" : "SimulatorFixture"
     static let resourceExtension = "mp4"
+    static let fileName = "\(resourceName).\(resourceExtension)"
 
     static var bundledURL: URL? {
         guard isEnabled else { return nil }

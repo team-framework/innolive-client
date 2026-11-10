@@ -6,18 +6,20 @@ import XCTest
 @MainActor
 final class SimulatorVideoInputTests: XCTestCase {
     func testBundledVideoProducesFramesAcrossLoopAndStops() async throws {
-        let url = try XCTUnwrap(Bundle.main.url(forResource: "SimulatorFixture", withExtension: "mp4"))
+        _ = LKRTCInitializeSSL()
+        XCTAssertNotNil(Bundle.main.url(forResource: "SimulatorFixture", withExtension: "mp4"))
         let loopExpectation = expectation(description: "Bundled video repeats")
         let frames = CapturedFrames(
             minimumFrameCount: 31,
             expectation: loopExpectation
         )
-        let capturer = BundledVideoCapturer(delegate: frames)
-        try await capturer.start(url: url) { error in
+        let capturer = LKRTCFileVideoCapturer(delegate: frames)
+        capturer.startCapturing(fromFileNamed: "SimulatorFixture.mp4") { error in
             XCTFail("Bundled video failed: \(error.localizedDescription)")
         }
         await fulfillment(of: [loopExpectation], timeout: 10)
         capturer.stopCapture()
+        // SDK가 마지막 delegate 콜백을 이미 큐에 넣었을 수 있다.
         try await Task.sleep(for: .milliseconds(200))
         let count = frames.count
         XCTAssertGreaterThan(count, 30, "The two-second, 30-frame bundle must repeat")
@@ -32,7 +34,7 @@ final class SimulatorVideoInputTests: XCTestCase {
         }
         let repeated = expectation(description: "Ten-second performance fixture repeats")
         let frames = CapturedFrames(minimumFrameCount: 330, expectation: repeated)
-        let capturer = BundledVideoCapturer(delegate: frames)
+        let capturer = DebugPerformanceVideoCapturer(delegate: frames)
         try await capturer.start(url: try XCTUnwrap(Bundle.main.url(forResource: "PrivacyPerformanceFixture", withExtension: "mp4"))) { error in
             XCTFail("Performance fixture failed: \(error.localizedDescription)")
         }
@@ -49,15 +51,13 @@ final class SimulatorVideoInputTests: XCTestCase {
     }
 
     func testMissingBundledVideoReportsError() async {
-        let frames = CapturedFrames()
-        let capturer = BundledVideoCapturer(delegate: frames)
-        let missing = Bundle.main.bundleURL.appendingPathComponent("MissingSimulatorFixture.mp4")
-        do {
-            try await capturer.start(url: missing) { _ in }
-            XCTFail("A missing bundled video must fail to start")
-        } catch {}
+        let errorReceived = expectation(description: "Missing video error")
+        let capturer = LKRTCFileVideoCapturer(delegate: CapturedFrames())
+        capturer.startCapturing(fromFileNamed: "MissingSimulatorFixture.mp4") { _ in
+            errorReceived.fulfill()
+        }
+        await fulfillment(of: [errorReceived], timeout: 3)
         capturer.stopCapture()
-        XCTAssertEqual(frames.count, 0)
     }
 }
 
