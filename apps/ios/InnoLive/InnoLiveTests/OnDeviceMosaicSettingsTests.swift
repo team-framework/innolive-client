@@ -30,7 +30,7 @@ final class OnDeviceMosaicSettingsTests: XCTestCase {
         XCTAssertEqual(OnDeviceMosaicSettings(blurStrength: 1, maskMargin: 0).normalized(),
                        OnDeviceMosaicSettings(blurStrength: 24, maskMargin: 8))
         XCTAssertEqual(OnDeviceMosaicSettings(blurStrength: 99, maskMargin: 99).normalized(),
-                       OnDeviceMosaicSettings(blurStrength: 48, maskMargin: 64))
+                       OnDeviceMosaicSettings(blurStrength: 72, maskMargin: 64))
         XCTAssertEqual(OnDeviceMosaicSettings(blurStrength: 36, maskMargin: 20).normalized(),
                        OnDeviceMosaicSettings(blurStrength: 36, maskMargin: 20))
     }
@@ -49,7 +49,7 @@ final class OnDeviceMosaicSettingsTests: XCTestCase {
         defaults.set(99, forKey: "com.framework.innolive.on-device-mosaic.blur-strength")
         defaults.set(0, forKey: "com.framework.innolive.on-device-mosaic.mask-margin")
         XCTAssertEqual(OnDeviceMosaicSettings.load(from: defaults),
-                       OnDeviceMosaicSettings(blurStrength: 48, maskMargin: 8))
+                       OnDeviceMosaicSettings(blurStrength: 72, maskMargin: 8))
     }
 
     func testStrengthLevelSnapsToDiscreteSteps() {
@@ -57,18 +57,19 @@ final class OnDeviceMosaicSettingsTests: XCTestCase {
         XCTAssertEqual(PrivacyModel.strengthLevel(24), 24)
         XCTAssertEqual(PrivacyModel.strengthLevel(36), 36)
         XCTAssertEqual(PrivacyModel.strengthLevel(48), 48)
-        XCTAssertEqual(PrivacyModel.strengthLevel(64), 48)
+        XCTAssertEqual(PrivacyModel.strengthLevel(72), 72)
+        XCTAssertEqual(PrivacyModel.strengthLevel(99), 72)
     }
 
     func testBroadcastBlurSigmaScalesWithStrength() {
         let landscape = CGRect(x: 0, y: 0, width: 1920, height: 1080)
-        XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: landscape, strength: 24), 72)
-        XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: landscape, strength: 36), 108)
-        XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: landscape, strength: 48), 144)
-        XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: landscape, strength: 1), 72)
-        XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: landscape, strength: 64), 144)
+        XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: landscape, strength: 24), 24)
+        XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: landscape, strength: 36), 36)
+        XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: landscape, strength: 72), 72)
+        XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: landscape, strength: 1), 24)
+        XCTAssertEqual(PrivacyModel.broadcastBlurSigma(for: landscape, strength: 99), 72)
         XCTAssertEqual(PrivacyModel.broadcastBlurSigma(
-            for: CGRect(x: 0, y: 0, width: 1280, height: 720), strength: 48), 96)
+            for: CGRect(x: 0, y: 0, width: 1280, height: 720), strength: 48), 32)
     }
 
     func testEdgeCellsMapsMarginToCells() {

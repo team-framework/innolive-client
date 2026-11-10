@@ -24,14 +24,14 @@ nonisolated enum PrivacyMask {
                                    decode: nil, shouldInterpolate: false, intent: .defaultIntent) else {
             throw PrivacyModelError.imageBuffer
         }
-        // Android처럼 불투명한 중심부는 선택한 너비를 따르고, 기준값인 2셀보다 작아지지 않는다.
-        let coreCells = max(edgeCells, 2)
+        // 불투명한 중심부는 선택한 너비를 따르고, 1셀보다 작아지지 않는다.
+        let coreCells = max(edgeCells, protectedEdgeCells)
         let source = CIImage(cgImage: bitmap)
         let core = source.applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": coreCells])
         guard feathered else { return core.cropped(to: source.extent) }
         let outer = source.clampedToExtent()
-            .applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": coreCells + 2])
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 1.5])
+            .applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": coreCells])
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 1])
         return outer.applyingFilter("CIMaximumCompositing", parameters: [kCIInputBackgroundImageKey: core])
             .cropped(to: source.extent)
     }

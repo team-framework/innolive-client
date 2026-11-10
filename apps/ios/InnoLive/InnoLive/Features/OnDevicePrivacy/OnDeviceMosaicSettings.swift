@@ -2,9 +2,10 @@ import Foundation
 
 nonisolated struct OnDeviceMosaicSettings: Equatable, Codable, Sendable {
     static let defaultBlurStrength = 24
-    static let maxBlurStrength = 48
+    // 72는 기본값을 낮추기 전의 기본 강도(1080p sigma 72)와 같다.
+    static let maxBlurStrength = 72
     static let blurStrengthStep = 6
-    static let blurStrengthRange = 24...48
+    static let blurStrengthRange = defaultBlurStrength...maxBlurStrength
     static let defaultMaskMargin = 8
     static let maskMarginRange = 8...64
 
