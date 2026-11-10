@@ -8,7 +8,7 @@ final class SimulatorVideoInputTests: XCTestCase {
     func testBundledVideoProducesFramesAcrossLoopAndStops() async throws {
         _ = LKRTCInitializeSSL()
         XCTAssertNotNil(Bundle.main.url(forResource: "SimulatorFixture", withExtension: "mp4"))
-        let loopExpectation = expectation(description: "Bundled video repeats")
+        let loopExpectation = XCTestExpectation(description: "Bundled video repeats")
         let frames = CapturedFrames(
             minimumFrameCount: 31,
             expectation: loopExpectation
@@ -17,12 +17,13 @@ final class SimulatorVideoInputTests: XCTestCase {
         capturer.startCapturing(fromFileNamed: "SimulatorFixture.mp4") { error in
             XCTFail("Bundled video failed: \(error.localizedDescription)")
         }
-        await fulfillment(of: [loopExpectation], timeout: 10)
+        let waitResult = await XCTWaiter.fulfillment(of: [loopExpectation], timeout: 10)
+        XCTAssertEqual(waitResult, .completed, "Bundled video repeats: \(frames.arrivalSummary(clipFrameCount: 30))")
         capturer.stopCapture()
         // SDK가 마지막 delegate 콜백을 이미 큐에 넣었을 수 있다.
         try await Task.sleep(for: .milliseconds(200))
         let count = frames.count
-        XCTAssertGreaterThan(count, 30, "The two-second, 30-frame bundle must repeat")
+        XCTAssertGreaterThan(count, 30, "The two-second, 30-frame bundle must repeat: \(frames.arrivalSummary(clipFrameCount: 30))")
         XCTAssertEqual(frames.dimensions, "320x180")
         try await Task.sleep(for: .milliseconds(300))
         XCTAssertEqual(frames.count, count)
@@ -76,6 +77,11 @@ nonisolated private final class CapturedFrames: NSObject, LKRTCVideoCapturerDele
         return Double(frameCount - 1) * 1_000_000_000 / Double(lastTimestamp - firstTimestamp)
     }
     private var regressions = 0
+    private let createdAt = DispatchTime.now().uptimeNanoseconds
+    private var firstArrival: UInt64?
+    private var lastArrival: UInt64?
+    private var longestGap: UInt64 = 0
+    private var longestGapEndFrame = 0
 
     var timestampRegressions: Int { lock.lock(); defer { lock.unlock() }; return regressions }
 
@@ -97,8 +103,26 @@ nonisolated private final class CapturedFrames: NSObject, LKRTCVideoCapturerDele
         return frameDimensions
     }
 
+    func arrivalSummary(clipFrameCount: Int) -> String {
+        lock.lock(); defer { lock.unlock() }
+        let now = DispatchTime.now().uptimeNanoseconds
+        func milliseconds(_ nanoseconds: UInt64) -> UInt64 { nanoseconds / 1_000_000 }
+        let firstFrame = firstArrival.map { "\(milliseconds($0 - createdAt))ms" } ?? "none"
+        let lastFrameAge = lastArrival.map { "\(milliseconds(now - $0))ms" } ?? "none"
+        return "frames=\(frameCount) loops=\(frameCount / clipFrameCount) elapsed=\(milliseconds(now - createdAt))ms "
+            + "firstFrameAfter=\(firstFrame) lastFrameAgo=\(lastFrameAge) "
+            + "longestGap=\(milliseconds(longestGap))ms beforeFrame=\(longestGapEndFrame)"
+    }
+
     func capturer(_ capturer: LKRTCVideoCapturer, didCapture frame: LKRTCVideoFrame) {
         lock.lock()
+        let arrival = DispatchTime.now().uptimeNanoseconds
+        if let lastArrival, arrival - lastArrival > longestGap {
+            longestGap = arrival - lastArrival
+            longestGapEndFrame = frameCount + 1
+        }
+        if firstArrival == nil { firstArrival = arrival }
+        lastArrival = arrival
         if let lastTimestamp, frame.timeStampNs <= lastTimestamp { regressions += 1 }
         if firstTimestamp == nil { firstTimestamp = frame.timeStampNs }
         lastTimestamp = frame.timeStampNs
