@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,8 +70,9 @@ internal fun LocalFaceManagementScreen(
         service.retain()
         onDispose { service.release() }
     }
-    var name by remember(accountScope) { mutableStateOf("") }
-    var enrollingName by remember(accountScope) { mutableStateOf<String?>(null) }
+    // 화면을 돌려도 입력한 이름과 열어 둔 등록 화면을 그대로 보여 줍니다.
+    var name by rememberSaveable(accountScope) { mutableStateOf("") }
+    var enrollingName by rememberSaveable(accountScope) { mutableStateOf<String?>(null) }
     var faces by remember(accountScope) { mutableStateOf<List<PrivacyRegisteredFace>>(emptyList()) }
     var ready by remember { mutableStateOf(service.ready) }
     var failed by remember { mutableStateOf(service.preparationFailed) }

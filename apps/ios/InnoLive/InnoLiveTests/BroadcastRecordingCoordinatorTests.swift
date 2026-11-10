@@ -10,7 +10,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         fixture.start()
         let recorder = try XCTUnwrap(fixture.sink.recorder)
         fixture.update(["youtube", "chzzk"])
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         fixture.update(["chzzk"])
         XCTAssertTrue(fixture.sink.recorder === recorder)
         XCTAssertEqual(fixture.lifecycle.phase, .live)
@@ -51,7 +51,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         defer { fixture.removeFiles() }
         fixture.start()
         let recorder = try XCTUnwrap(fixture.sink.recorder)
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let generation = fixture.lifecycle.generation
         fixture.coordinator.abortFailedStart(sessionID: .server("session"))
         fixture.lifecycle.startFailed(generation: generation, message: "all targets rejected")
@@ -83,7 +83,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         fixture.start()
-        try await feed(try XCTUnwrap(fixture.sink.recorder))
+        try await XCTUnwrap(fixture.sink.recorder).feedSyntheticMedia()
         fixture.update(["youtube"])
         fixture.update([])
         // store는 파일 I/O를 기다리기 전에 활성 소유권을 동기적으로 놓는다.
@@ -104,7 +104,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         defer { fixture.removeFiles() }
         fixture.start()
         fixture.update(["youtube"])
-        try await feed(try XCTUnwrap(fixture.sink.recorder))
+        try await XCTUnwrap(fixture.sink.recorder).feedSyntheticMedia()
         fixture.lifecycle.finishLocalSession(warning: "remote end unconfirmed")
         fixture.coordinator.endLocally()
         await fixture.coordinator.waitForPendingWork()
@@ -125,7 +125,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         fixture.coordinator.reconcile(targets: [CaptureSessionID.localTarget], sessionID: capture)
         XCTAssertEqual(fixture.lifecycle.phase, .live)
         let recorder = try XCTUnwrap(fixture.sink.recorder)
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         fixture.coordinator.reconcile(targets: [], sessionID: .server(capture.recordingKey))
         XCTAssertTrue(fixture.sink.recorder === recorder, "a server update cannot end a local take")
         fixture.lifecycle.finishLocalSession(warning: nil)
@@ -144,7 +144,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         fixture.start()
-        try await feed(try XCTUnwrap(fixture.sink.recorder))
+        try await XCTUnwrap(fixture.sink.recorder).feedSyntheticMedia()
         XCTAssertEqual(fixture.lifecycle.phase, .starting)
         fixture.coordinator.reset()
         fixture.lifecycle.reset()
@@ -170,33 +170,6 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
     }
 
     /// 고정된 미디어 fixture로 파일·store 연동을 검증한다. 마이크 하드웨어 캡처는 검증하지 않는다.
-    private func feed(_ recorder: LocalBroadcastRecorder) async throws {
-        let base = CMClockGetTime(CMClockGetHostTimeClock())
-        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000, channels: 2, interleaved: false))
-        for index in 0..<30 {
-            let time = CMTimeAdd(base, CMTime(value: Int64(index * 480), timescale: 48_000))
-            if index % 2 == 0 {
-                var pixel: CVPixelBuffer?
-                CVPixelBufferCreate(kCFAllocatorDefault, 64, 48, kCVPixelFormatType_32BGRA,
-                    [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &pixel)
-                let buffer = try XCTUnwrap(pixel)
-                CVPixelBufferLockBaseAddress(buffer, [])
-                memset(CVPixelBufferGetBaseAddress(buffer), 100, CVPixelBufferGetDataSize(buffer))
-                CVPixelBufferUnlockBaseAddress(buffer, [])
-                recorder.appendVideo(pixelBuffer: buffer, rotation: 0,
-                    timestampNs: CMTimeConvertScale(time, timescale: 1_000_000_000, method: .default).value)
-            }
-            let audio = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480))
-            audio.frameLength = 480
-            for sample in 0..<480 {
-                let value = Float(sin(Double(index * 480 + sample) * 2 * .pi * 440 / 48_000) * 0.25)
-                audio.floatChannelData![0][sample] = value
-                audio.floatChannelData![1][sample] = value
-            }
-            recorder.appendAudio(audio, when: AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: CMTimeGetSeconds(time))))
-            try await Task.sleep(for: .milliseconds(10))
-        }
-    }
 }
 
 @MainActor private final class Fixture {

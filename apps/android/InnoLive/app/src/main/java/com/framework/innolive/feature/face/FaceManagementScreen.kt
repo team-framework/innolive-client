@@ -37,6 +37,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +59,12 @@ import com.framework.innolive.ui.text.asString
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+
+/** 다시 등록할 얼굴을 화면 회전 뒤에도 유지합니다. */
+private val ReferenceFaceSaver = Saver<ReferenceFace?, ArrayList<Any?>>(
+    save = { face -> face?.let { arrayListOf(it.faceId, it.registeredAt, it.reregistrationRequired) } },
+    restore = { values -> ReferenceFace(values[0] as String, values[1] as String?, values[2] as Boolean) },
+)
 
 private enum class FaceManagementPhase {
     LOADING,
@@ -85,9 +93,10 @@ internal fun FaceManagementScreen(
     var statusMessage by remember(profileEmail) { mutableStateOf<UiText?>(null) }
     var faceStatus by remember(profileEmail) { mutableStateOf<ReferenceFaceStatus?>(null) }
     var faceImages by remember(profileEmail) { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
-    var openRegistration by remember { mutableStateOf(false) }
+    // 화면을 돌려도 열어 둔 등록 화면을 그대로 보여 줍니다.
+    var openRegistration by rememberSaveable { mutableStateOf(false) }
     // 다시 등록할 얼굴입니다. 있으면 등록 화면을 이 얼굴의 다시 등록으로 엽니다.
-    var reregisterTarget by remember { mutableStateOf<ReferenceFace?>(null) }
+    var reregisterTarget by rememberSaveable(stateSaver = ReferenceFaceSaver) { mutableStateOf<ReferenceFace?>(null) }
     // 등록 화면을 닫고 목록을 새로 읽은 뒤 보여 줄 안내입니다. 새로 읽기가 안내를 지우므로 따로 둡니다.
     var pendingStatusMessage by remember { mutableStateOf<UiText?>(null) }
     var requestJob by remember { mutableStateOf<Job?>(null) }
@@ -271,7 +280,7 @@ internal fun FaceManagementScreen(
                 reregisterTarget = null
             },
             profileEmail = profileEmail,
-            existingFaces = faceStatus?.faces.orEmpty(),
+            existingFaces = faceStatus?.faces,
             broadcastCamera = broadcastCamera,
             reregisterFace = target,
             onReregisterFaceMissing = {
@@ -290,7 +299,7 @@ internal fun FaceManagementScreen(
             onBack = { openRegistration = false },
             onRegistrationSuccess = onBack,
             profileEmail = profileEmail,
-            existingFaces = faceStatus?.faces.orEmpty(),
+            existingFaces = faceStatus?.faces,
             broadcastCamera = broadcastCamera,
         )
         return

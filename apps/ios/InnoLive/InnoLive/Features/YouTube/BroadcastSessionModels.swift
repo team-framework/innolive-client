@@ -189,6 +189,9 @@ struct BroadcastSessionDetails: Decodable, Equatable {
     var warnings: [BroadcastPrepareWarning] = []
     var failedTargets: [BroadcastTargetFailure] = []
 
+    /// 단일 대상 세션은 서버가 provider를 보내지 않을 수 있어 YouTube를 기본값으로 쓴다.
+    var resolvedProvider: String { provider ?? "youtube" }
+
     enum CodingKeys: String, CodingKey {
         case provider, targets, notices, warnings
         case failedTargets = "failed_targets"
@@ -228,11 +231,11 @@ struct BroadcastSessionSnapshot: Equatable {
         } else {
             if let targets = response.details.targets { details.targets = targets }
             details.failedTargets = response.details.failedTargets
-            let targetProvider = provider ?? details.provider ?? "youtube"
+            let targetProvider = provider ?? details.resolvedProvider
             if let index = details.targets?.firstIndex(where: { $0.provider == targetProvider }) {
                 details.targets?[index].stream = response.stream
             }
-            if details.targets == nil || targetProvider == (details.provider ?? "youtube") {
+            if details.targets == nil || targetProvider == details.resolvedProvider {
                 stream = response.stream
             }
         }

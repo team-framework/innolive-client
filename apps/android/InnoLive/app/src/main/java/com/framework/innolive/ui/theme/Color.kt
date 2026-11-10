@@ -4,14 +4,6 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
-
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
-
 // Compose 색상은 ARGB 형식이며, 맨 앞의 FF는 배경을 불투명하게 유지합니다.
 internal val DarkColorScheme = androidx.compose.material3.darkColorScheme(
     primary = Color(0xFFFFFFFF),
