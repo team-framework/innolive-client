@@ -60,8 +60,11 @@ From the repository root:
 python3 scripts/validate-ios-localizations.py
 xcodebuild test -project apps/ios/InnoLive/InnoLive.xcodeproj \
   -scheme InnoLive -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -testLanguage ko -testRegion KR CODE_SIGNING_ALLOWED=NO
+  -testLanguage ko -testRegion KR \
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=
 ```
+
+Run the test host with ad-hoc signing. With `CODE_SIGNING_ALLOWED=NO` the host has no Keychain entitlement and Keychain tests fail with `-34018`.
 
 Repeat focused `-only-testing:InnoLiveTests/LocalizationTests` runs with
 `-testLanguage en -testRegion US` and `-testLanguage ja -testRegion JP`.

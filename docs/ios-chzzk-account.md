@@ -120,8 +120,11 @@ xcodebuild test -project apps/ios/InnoLive/InnoLive.xcodeproj -scheme InnoLive \
   -only-testing:InnoLiveTests/BroadcastSettingsTests \
   -only-testing:InnoLiveTests/BroadcastSessionLifecycleTests \
   -only-testing:InnoLiveTests/BroadcastPreparationFlowTests \
-  SWIFT_EMIT_LOC_STRINGS=NO CODE_SIGNING_ALLOWED=NO
+  SWIFT_EMIT_LOC_STRINGS=NO \
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=
 ```
+
+테스트 호스트는 ad-hoc 서명으로 실행한다. `CODE_SIGNING_ALLOWED=NO`로 서명하지 않으면 Keychain entitlement가 없어 Keychain 테스트가 `-34018`로 실패한다.
 
 ## 실기기·실계정 확인 경로
 
