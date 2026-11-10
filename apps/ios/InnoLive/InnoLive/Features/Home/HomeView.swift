@@ -571,13 +571,13 @@ struct HomeView: View {
                     isShowingVideoControls = true
                 } label: {
                     Image(systemName: "camera.filters")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 28, height: 28)
+                        .font(.system(size: 17))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .innoLiveGlassSurface(in: Circle(), interactive: true, overVideo: true)
+                        .contentShape(Circle())
                 }
-                .innoLiveGlassButtonStyle(overVideo: true)
-                .frame(minWidth: 44, minHeight: 44)
-                .foregroundStyle(.white)
-                .buttonBorderShape(.circle)
+                .buttonStyle(.plain)
                 .accessibilityLabel(String(localized: "영상 조절"))
 
                 if isCameraAccessDenied {
