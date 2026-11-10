@@ -30,9 +30,22 @@ nonisolated enum PrivacyMask {
         let core = source.applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": coreCells])
         guard feathered else { return core.cropped(to: source.extent) }
         let outer = source.clampedToExtent()
-            .applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": coreCells])
+            .applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": coreCells + 1])
             .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 1])
         return outer.applyingFilter("CIMaximumCompositing", parameters: [kCIInputBackgroundImageKey: core])
             .cropped(to: source.extent)
+    }
+
+    static let modelScale: CGFloat = CGFloat(PrivacySegmentation.inputSize / PrivacySegmentation.maskSize)
+    static let edgeSmoothingSigma: CGFloat = 2.5
+
+    /// 160 격자를 모델 좌표로 키운 뒤 경계를 흐려 격자 한 칸 크기의 계단을 없앤다.
+    /// sigma 2.5는 격자 한 칸(4px)보다 작아서 원래 마스크 영역은 거의 불투명하게 남는다.
+    static func smoothedModelImage(_ image: CIImage) -> CIImage {
+        let side = CGFloat(PrivacySegmentation.inputSize)
+        return image.transformed(by: CGAffineTransform(scaleX: modelScale, y: modelScale))
+            .clampedToExtent()
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: edgeSmoothingSigma])
+            .cropped(to: CGRect(x: 0, y: 0, width: side, height: side))
     }
 }

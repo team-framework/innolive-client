@@ -144,8 +144,7 @@ nonisolated final class PrivacyModel {
         let bytes = try stabilizer.apply(indexedMasks, frame: tracked, allowed: allowed, approvedTrackIDs: faces.approvedTrackIDs)
         let masked = ProcessInfo.processInfo.systemUptime
         let edgeCells = PrivacyMask.edgeCells(width: original.extent.width, height: original.extent.height, marginPx: mosaic.maskMargin)
-        let mask = try PrivacyMask.modelImage(bytes: bytes, edgeCells: edgeCells)
-            .transformed(by: CGAffineTransform(scaleX: 4, y: 4))
+        let mask = try PrivacyMask.smoothedModelImage(PrivacyMask.modelImage(bytes: bytes, edgeCells: edgeCells))
             .transformed(by: CGAffineTransform(translationX: -layout.left, y: -layout.bottom))
             .transformed(by: CGAffineTransform(scaleX: size.width / layout.resized.width,
                                               y: size.height / layout.resized.height))
