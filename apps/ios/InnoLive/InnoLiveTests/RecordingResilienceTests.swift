@@ -44,7 +44,7 @@ import XCTest
         let active = makeStore(directory)
         let recorder = try active.begin(sessionID: "active")
         try active.targetDidStart("target", sessionID: "active")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let other = makeStore(directory)
         await other.reloadLibrary()
         XCTAssertTrue(other.recordings.isEmpty)
@@ -64,7 +64,7 @@ import XCTest
         let active = makeStore(alias)
         let recorder = try active.begin(sessionID: "alias-active")
         try active.targetDidStart("target", sessionID: "alias-active")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let other = makeStore(directory.resolvingSymlinksInPath())
         await other.reloadLibrary()
         XCTAssertTrue(other.recordings.isEmpty)
@@ -84,7 +84,7 @@ import XCTest
             let lease = FakeLease(callback); leases.append(lease); return lease
         })
         let recorder = try store.begin(sessionID: "expiry")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let task = try XCTUnwrap(store.beginFinalization(sessionID: "expiry"))
         let lease = try XCTUnwrap(leases.first)
         lease.expire()
@@ -105,7 +105,7 @@ import XCTest
             let lease = FakeLease(callback); leases.append(lease); return lease
         })
         let first = try store.begin(sessionID: "old")
-        try await feed(first)
+        try await first.feedSyntheticMedia()
         let task = try XCTUnwrap(store.beginFinalization(sessionID: "old"))
         _ = try store.begin(sessionID: "new")
         leases[0].expire()
@@ -123,7 +123,7 @@ import XCTest
             let lease = FakeLease(callback); leases.append(lease); return lease
         })
         let recorder = try store.begin(sessionID: "retry")
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         let partial = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first { $0.lastPathComponent.hasSuffix(".partial.mp4") })
         let stem = partial.lastPathComponent.replacingOccurrences(of: ".partial.mp4", with: "")
         let blockedMetadata = directory.appendingPathComponent("\(stem).json")
@@ -155,7 +155,7 @@ import XCTest
         var recorder: LocalBroadcastRecorder?
         let coordinator = BroadcastRecordingCoordinator(store: store, lifecycle: lifecycle) { if let sink = $0 { recorder = sink } }
         start(lifecycle, coordinator: coordinator, session: "expiry-ui")
-        try await feed(try XCTUnwrap(recorder))
+        try await XCTUnwrap(recorder).feedSyntheticMedia()
         lifecycle.reconcileTargets([], generation: lifecycle.generation)
         coordinator.reconcile(targets: [], sessionID: .server("expiry-ui"))
         leases[0].expire()
@@ -180,7 +180,7 @@ import XCTest
         var recorder: LocalBroadcastRecorder?
         let coordinator = BroadcastRecordingCoordinator(store: store, lifecycle: lifecycle) { if let sink = $0 { recorder = sink } }
         start(lifecycle, coordinator: coordinator, session: "old-ui")
-        try await feed(try XCTUnwrap(recorder))
+        try await XCTUnwrap(recorder).feedSyntheticMedia()
         lifecycle.reconcileTargets([], generation: lifecycle.generation)
         coordinator.reconcile(targets: [], sessionID: .server("old-ui"))
         // 새 writer가 시작되기 전에 화면 표시 generation을 바꾼다. store의 이전 generation은
@@ -231,37 +231,10 @@ import XCTest
         let id = UUID()
         let recorder = LocalBroadcastRecorder()
         try recorder.start(url: directory.appendingPathComponent("\(id).partial.mp4"))
-        try await feed(recorder)
+        try await recorder.feedSyntheticMedia()
         _ = try await recorder.stop()
         if let status { try writeJournal(id, directory: directory, status: status) }
         return id
-    }
-    private func feed(_ recorder: LocalBroadcastRecorder) async throws {
-        let base = CMClockGetTime(CMClockGetHostTimeClock())
-        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000, channels: 2, interleaved: false))
-        for index in 0..<30 {
-            let time = CMTimeAdd(base, CMTime(value: Int64(index * 480), timescale: 48_000))
-            if index % 2 == 0 {
-                var pixel: CVPixelBuffer?
-                CVPixelBufferCreate(kCFAllocatorDefault, 64, 48, kCVPixelFormatType_32BGRA,
-                    [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &pixel)
-                let buffer = try XCTUnwrap(pixel)
-                CVPixelBufferLockBaseAddress(buffer, [])
-                memset(CVPixelBufferGetBaseAddress(buffer), 100, CVPixelBufferGetDataSize(buffer))
-                CVPixelBufferUnlockBaseAddress(buffer, [])
-                recorder.appendVideo(pixelBuffer: buffer, rotation: 0,
-                    timestampNs: CMTimeConvertScale(time, timescale: 1_000_000_000, method: .default).value)
-            }
-            let audio = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480))
-            audio.frameLength = 480
-            for sample in 0..<480 {
-                let value = Float(sin(Double(index * 480 + sample) * 2 * .pi * 440 / 48_000) * 0.25)
-                audio.floatChannelData![0][sample] = value
-                audio.floatChannelData![1][sample] = value
-            }
-            recorder.appendAudio(audio, when: AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: CMTimeGetSeconds(time))))
-            try await Task.sleep(for: .milliseconds(10))
-        }
     }
 }
 

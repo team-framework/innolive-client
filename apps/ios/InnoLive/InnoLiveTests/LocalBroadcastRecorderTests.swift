@@ -133,7 +133,8 @@ import XCTest
 
     func testAudioMemoryBudgetFailsBoundedlyBeforeVideoArrives() async throws {
         let observer = RecordingFailureObserver()
-        let recorder = LocalBroadcastRecorder(onFailure: { observer.record($0) })
+        let reported = expectation(description: "Overflow reported before stop")
+        let recorder = LocalBroadcastRecorder(onFailure: { observer.record($0); reported.fulfill() })
         let url = temporaryURL()
         defer { try? FileManager.default.removeItem(at: url) }
         let epoch = CMClockGetTime(CMClockGetHostTimeClock())
@@ -142,7 +143,7 @@ import XCTest
             let time = CMTimeAdd(epoch, CMTime(value: Int64(index * 480), timescale: 48_000))
             recorder.appendAudio(try tone(index: index), when: AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: CMTimeGetSeconds(time))))
         }
-        try await Task.sleep(for: .milliseconds(30))
+        await fulfillment(of: [reported], timeout: 2)
         XCTAssertEqual(observer.snapshot.count, 1)
         do { _ = try await recorder.stop(); XCTFail("Expected bounded overflow") }
         catch let error as LocalBroadcastRecordingError {
