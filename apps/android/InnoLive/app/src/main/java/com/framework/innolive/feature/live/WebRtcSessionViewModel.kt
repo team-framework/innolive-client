@@ -57,6 +57,11 @@ class WebRtcSessionViewModel internal constructor(
     private var preparationSettings by mutableStateOf<BroadcastSettings?>(null)
     private var preparationChzzkSettings: ChzzkBroadcastSettings? = null
     private var retryBroadcastRequest: (() -> Unit)? = null
+    // 권한을 이미 물어본 실시간 화면 진입입니다. 화면 회전에는 남고, 프로세스가 끝나면 비워져 다시 묻습니다.
+    private val mediaPermissionRequestedEntries = mutableSetOf<String>()
+
+    /** [entryKey] 진입에서 처음 묻는 것이면 true를 돌려주고 물어본 것으로 기록합니다. */
+    fun markMediaPermissionsRequested(entryKey: String): Boolean = mediaPermissionRequestedEntries.add(entryKey)
 
     fun dismissServerError() { serverError = null }
 
