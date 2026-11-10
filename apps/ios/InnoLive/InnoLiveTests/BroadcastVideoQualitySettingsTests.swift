@@ -1,4 +1,5 @@
 import AVFoundation
+import SwiftUI
 import XCTest
 
 @testable import InnoLive
@@ -122,5 +123,14 @@ final class BroadcastVideoQualitySettingsTests: XCTestCase {
         XCTAssertEqual(VideoQualityCapturePolicy.clampedExposureEV(1.5, min: -1, max: 1), 1)
         XCTAssertEqual(VideoQualityCapturePolicy.clampedExposureEV(-3, min: -4, max: 4), -2)
         XCTAssertEqual(VideoQualityCapturePolicy.clampedExposureEV(0.5, min: 0, max: 0), 0)
+    }
+
+    @MainActor
+    func testVideoControlsSheetOpensFullyOnlyOnPadLandscape() {
+        XCTAssertTrue(BroadcastVideoControlsView.opensExpanded(idiom: .pad, isLandscape: true))
+        XCTAssertFalse(BroadcastVideoControlsView.opensExpanded(idiom: .pad, isLandscape: false))
+        XCTAssertFalse(BroadcastVideoControlsView.opensExpanded(idiom: .phone, isLandscape: true))
+        XCTAssertEqual(BroadcastVideoControlsView.initialDetent(expanded: true), .large)
+        XCTAssertEqual(BroadcastVideoControlsView.initialDetent(expanded: false), .height(338))
     }
 }
