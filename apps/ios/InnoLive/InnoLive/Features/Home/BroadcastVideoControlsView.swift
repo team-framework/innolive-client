@@ -13,9 +13,27 @@ struct BroadcastVideoControlsView: View {
     @State private var isEditingMosaic = false
     // 처음에는 모자이크 영역만 보이게 열고, 색감은 위로 끌어 올려 본다.
     // 내비게이션 바·여백 높이를 더해 모자이크 영역 실측값으로 시트 높이를 정한다.
+    // iPad 가로에서는 세로 공간이 남으므로 처음부터 전체를 펼치고, 한 화면에 들어오도록
+    // 프리셋 미리보기를 가로 비율로 줄인다.
     private static let mosaicSheetChrome: CGFloat = 92
     @State private var mosaicSectionHeight: CGFloat = 246
-    @State private var sheetDetent: PresentationDetent = .height(338)
+    @State private var sheetDetent: PresentationDetent = BroadcastVideoControlsView.initialDetent(
+        expanded: BroadcastVideoControlsView.opensExpandedNow()
+    )
+    @State private var isExpandedLayout = BroadcastVideoControlsView.opensExpandedNow()
+
+    static func opensExpanded(idiom: UIUserInterfaceIdiom, isLandscape: Bool) -> Bool {
+        idiom == .pad && isLandscape
+    }
+
+    static func initialDetent(expanded: Bool) -> PresentationDetent {
+        expanded ? .large : .height(338)
+    }
+
+    private static func opensExpandedNow() -> Bool {
+        opensExpanded(idiom: UIDevice.current.userInterfaceIdiom,
+                      isLandscape: BroadcastOrientationController.resolveCurrentInterfaceOrientation().isLandscape)
+    }
 
     var body: some View {
         NavigationStack {
@@ -306,7 +324,7 @@ struct BroadcastVideoControlsView: View {
     private func presetPreview(_ image: CGImage?, selected: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         return Color.white.opacity(0.12)
-            .aspectRatio(3.0 / 4.0, contentMode: .fit)
+            .aspectRatio(isExpandedLayout ? 4.0 / 3.0 : 3.0 / 4.0, contentMode: .fit)
             .overlay {
                 if let image {
                     Image(decorative: image, scale: 1)
