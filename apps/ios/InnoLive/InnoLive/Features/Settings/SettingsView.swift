@@ -78,10 +78,9 @@ struct SettingsView: View {
                 Spacer()
             }
             .padding(InnoLiveSettingsLayout.pageInset)
-            .innoLiveSettingsPage()
-            .navigationTitle(String(localized: "앱 정보 및 계정"))
-            .navigationBarTitleDisplayMode(.inline)
         }
+        .innoLiveSettingsPage()
+        .navigationTitle(String(localized: "앱 정보 및 계정"))
         .task {
             isAdministrator = youtube.storedAdministrator(accessToken: authentication.currentAccessToken())
             isAdministrator = await youtube.isAdministrator(accessToken: authentication.currentAccessToken())
