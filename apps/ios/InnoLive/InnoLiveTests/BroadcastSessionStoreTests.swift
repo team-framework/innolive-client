@@ -1,10 +1,12 @@
 import Foundation
+import Security
 import XCTest
 @testable import InnoLive
 
 @MainActor
 final class BroadcastSessionStoreTests: XCTestCase {
     func testKeychainSurvivesStoreRecreationAndSeparatesUsersAndServers() throws {
+        guard keychainIsWritable() else { return }
         let service = "com.framework.innolive.test.broadcast.\(UUID().uuidString)"
         let first = BroadcastSessionStore(service: service)
         let scopes = try [scope("a", "one.invalid"), scope("b", "one.invalid"), scope("a", "two.invalid")]
@@ -29,6 +31,20 @@ final class BroadcastSessionStoreTests: XCTestCase {
         for token in ["", "opaque-token", "a.bad.c", "a.e30.c", "a.eyJzdWIiOiIifQ.c", "a.eyJzdWIiOjF9.c"] {
             XCTAssertThrowsError(try BroadcastSessionScope(server: server, accessToken: token))
         }
+    }
+
+    // BroadcastSessionStore는 모든 실패를 .storage로 바꾸므로 테스트 호스트의 Keychain 상태 코드를 먼저 남긴다.
+    private func keychainIsWritable() -> Bool {
+        let probe: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecAttrService as String: "com.framework.innolive.test.keychain-probe.\(UUID().uuidString)",
+                                    kSecAttrAccount as String: "probe"]
+        var addition = probe
+        addition[kSecValueData as String] = Data("probe".utf8)
+        let status = SecItemAdd(addition as CFDictionary, nil)
+        SecItemDelete(probe as CFDictionary)
+        let message = SecCopyErrorMessageString(status, nil).map { $0 as String } ?? "unknown"
+        XCTAssertEqual(status, errSecSuccess, "Test host cannot write Keychain: OSStatus \(status) (\(message))")
+        return status == errSecSuccess
     }
 
     private func scope(_ user: String, _ host: String) throws -> BroadcastSessionScope {
