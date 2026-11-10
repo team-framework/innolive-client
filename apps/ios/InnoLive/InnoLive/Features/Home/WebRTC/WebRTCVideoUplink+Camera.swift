@@ -142,8 +142,14 @@ extension WebRTCVideoUplink {
             ?? availableDevices.first
             ?? CameraDeviceCatalog.devices.first
 
-        guard let selectedDevice else {
+        guard var selectedDevice else {
             throw WebRTCVideoUplinkError.failed(String(localized: "사용할 수 있는 카메라를 찾지 못했습니다."))
+        }
+        // 시작한 뒤 줌을 다시 적용하다 렌즈를 바꾸면 그 전환이 진행 중인 시작을 취소한다.
+        // 목표 줌에 필요한 렌즈로 처음부터 시작한다.
+        if let zoomDevice = deviceForTargetZoom(startingFrom: selectedDevice),
+           captureSetting(for: zoomDevice, quality: preferredVideoQuality) != nil {
+            selectedDevice = zoomDevice
         }
         guard let captureSetting = captureSetting(
             for: selectedDevice,
@@ -184,6 +190,19 @@ extension WebRTCVideoUplink {
         activeCameraID = selectedDevice.uniqueID
         activeVideoQuality = preferredVideoQuality
         reapplyTargetZoom()
+    }
+
+    private func deviceForTargetZoom(startingFrom device: AVCaptureDevice) -> AVCaptureDevice? {
+        let plan = CameraZoom.plan(
+            requestedFactor: targetZoomFactor,
+            currentDeviceID: device.uniqueID,
+            wide: CameraDeviceCatalog.wideAngleDevice(position: device.position)
+                .map(CameraDeviceCatalog.zoomLimits),
+            virtual: CameraDeviceCatalog.virtualZoomDevice(position: device.position)
+                .map(CameraDeviceCatalog.zoomLimits)
+        )
+        guard plan.deviceID != device.uniqueID else { return nil }
+        return AVCaptureDevice(uniqueID: plan.deviceID)
     }
 
     private func makeFrameRelay(target: LKRTCVideoSource, cameraPosition: AVCaptureDevice.Position) -> WebRTCCameraFrameRelay {
