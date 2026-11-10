@@ -249,17 +249,37 @@ final class PrivacySegmentationTests: XCTestCase {
         XCTAssertEqual(soft[0], 0)
     }
 
-    func testDefaultMarginCoversOneCellAndFadesWithinFive() throws {
+    func testDefaultMarginCoversOneCellAndFadesWithinSix() throws {
         var bytes = [UInt8](repeating: 0, count: 160 * 160)
         for y in 40..<80 { for x in 40..<80 { bytes[y * 160 + x] = 255 } }
         let soft = try maskPixels(PrivacyMask.modelImage(bytes: bytes))
         let row = 60 * 160
         XCTAssertEqual(soft[row + 39], 255)
         XCTAssertEqual(soft[row + 80], 255)
-        XCTAssertLessThan(soft[row + 37], 128)
-        XCTAssertLessThan(soft[row + 82], 128)
-        XCTAssertEqual(soft[row + 34], 0)
-        XCTAssertEqual(soft[row + 85], 0)
+        XCTAssertGreaterThan(soft[row + 38], 128, "the first cell past the core is still mostly covered")
+        XCTAssertLessThan(soft[row + 36], 128)
+        XCTAssertLessThan(soft[row + 83], 128)
+        XCTAssertEqual(soft[row + 33], 0)
+        XCTAssertEqual(soft[row + 86], 0)
+    }
+
+    func testEdgeSmoothingRemovesCellStepsAndKeepsModelMaskCovered() throws {
+        var bytes = [UInt8](repeating: 0, count: 160 * 160)
+        for y in 40..<80 { for x in 40..<80 { bytes[y * 160 + x] = 255 } }
+        let image = PrivacyMask.smoothedModelImage(try PrivacyMask.modelImage(bytes: bytes))
+        XCTAssertEqual(image.extent, CGRect(x: 0, y: 0, width: 640, height: 640))
+        let context = CIContext(options: [.useSoftwareRenderer: true])
+        var line = [UInt8](repeating: 0, count: 640)
+        context.render(image, toBitmap: &line, rowBytes: 640, bounds: CGRect(x: 0, y: 400, width: 640, height: 1),
+                       format: .L8, colorSpace: CGColorSpaceCreateDeviceGray())
+        // 모델 마스크는 x 160..<320이다. 그 안쪽은 불투명하게 남아야 한다.
+        XCTAssertGreaterThanOrEqual(line[160], 250)
+        XCTAssertGreaterThanOrEqual(line[319], 250)
+        XCTAssertEqual(line[240], 255)
+        // 경계 바깥은 한 픽셀에 한 단계씩 완만하게 줄어든다.
+        let steps = zip(line[320..<352], line[321..<353]).map { Int($0) - Int($1) }
+        XCTAssertTrue(steps.allSatisfy { $0 >= 0 && $0 <= 24 }, "\(steps)")
+        XCTAssertEqual(line[352], 0)
     }
 
     func testMaskWidthCoreFollowsEdgeCellsAboveBaseline() throws {
